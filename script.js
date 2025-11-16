@@ -16,6 +16,7 @@ const scheduleData = {
           forms: true,
           consents: true,
           payment: false,
+          photos: false,
         },
         {
           day: "Tue",
@@ -25,6 +26,7 @@ const scheduleData = {
           forms: true,
           consents: true,
           payment: true,
+          photos: true,
         },
         {
           day: "Wed",
@@ -34,6 +36,7 @@ const scheduleData = {
           forms: false,
           consents: false,
           payment: false,
+          photos: false,
         },
         {
           day: "Thu",
@@ -43,6 +46,7 @@ const scheduleData = {
           forms: true,
           consents: true,
           payment: false,
+          photos: false,
         },
         {
           day: "Fri",
@@ -52,6 +56,7 @@ const scheduleData = {
           forms: false,
           consents: false,
           payment: false,
+          photos: false,
         },
       ],
     },
@@ -67,6 +72,7 @@ const scheduleData = {
           forms: true,
           consents: false,
           payment: false,
+          photos: false,
         },
         {
           day: "Tue",
@@ -76,6 +82,7 @@ const scheduleData = {
           forms: true,
           consents: true,
           payment: true,
+          photos: false,
         },
         {
           day: "Wed",
@@ -85,6 +92,7 @@ const scheduleData = {
           forms: true,
           consents: true,
           payment: true,
+          photos: true,
         },
         {
           day: "Thu",
@@ -94,6 +102,7 @@ const scheduleData = {
           forms: false,
           consents: false,
           payment: false,
+          photos: false,
         },
         {
           day: "Fri",
@@ -103,6 +112,7 @@ const scheduleData = {
           forms: true,
           consents: false,
           payment: false,
+          photos: false,
         },
       ],
     },
@@ -118,6 +128,7 @@ const scheduleData = {
           forms: false,
           consents: false,
           payment: false,
+          photos: false,
         },
         {
           day: "Tue",
@@ -127,6 +138,7 @@ const scheduleData = {
           forms: true,
           consents: true,
           payment: true,
+          photos: true,
         },
         {
           day: "Wed",
@@ -136,6 +148,7 @@ const scheduleData = {
           forms: true,
           consents: false,
           payment: false,
+          photos: false,
         },
         {
           day: "Thu",
@@ -145,6 +158,7 @@ const scheduleData = {
           forms: true,
           consents: true,
           payment: false,
+          photos: false,
         },
         {
           day: "Fri",
@@ -154,6 +168,7 @@ const scheduleData = {
           forms: false,
           consents: false,
           payment: false,
+          photos: false,
         },
       ],
     },
@@ -169,6 +184,7 @@ const scheduleData = {
           forms: true,
           consents: true,
           payment: false,
+          photos: false,
         },
         {
           day: "Tue",
@@ -178,6 +194,7 @@ const scheduleData = {
           forms: false,
           consents: false,
           payment: false,
+          photos: false,
         },
         {
           day: "Wed",
@@ -187,6 +204,7 @@ const scheduleData = {
           forms: true,
           consents: true,
           payment: true,
+          photos: true,
         },
         {
           day: "Thu",
@@ -196,6 +214,7 @@ const scheduleData = {
           forms: true,
           consents: false,
           payment: false,
+          photos: false,
         },
         {
           day: "Fri",
@@ -205,6 +224,7 @@ const scheduleData = {
           forms: true,
           consents: true,
           payment: false,
+          photos: false,
         },
       ],
     },
@@ -281,6 +301,7 @@ function renderWeek(week, index) {
     const formsCell = createCheckCell(Boolean(day.forms), "Forms");
     const consentsCell = createCheckCell(Boolean(day.consents), "Consents");
     const paymentCell = createCheckCell(Boolean(day.payment), "Payment");
+    const photosCell = createCheckCell(Boolean(day.photos), "Photos");
 
     row.append(
       indexCell,
@@ -290,7 +311,8 @@ function renderWeek(week, index) {
       surgeryCell,
       formsCell,
       consentsCell,
-      paymentCell
+      paymentCell,
+      photosCell
     );
     tbody.appendChild(row);
   });

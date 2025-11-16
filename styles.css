@@ -134,7 +134,7 @@ body {
 }
 
 .col-patient {
-  width: 28%;
+  width: 26%;
 }
 
 .col-status {
@@ -142,12 +142,12 @@ body {
 }
 
 .col-surgery {
-  width: 20%;
+  width: 18%;
   font-weight: 500;
 }
 
 .col-check {
-  width: 8%;
+  width: 6%;
   text-align: center;
 }
 
