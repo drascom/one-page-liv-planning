@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Patient Consultation Planner</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div class="hero__content">
+        <p class="hero__eyebrow">One-page schedule</p>
+        <h1>Monthly Consultation Planner</h1>
+        <p class="hero__subtitle">
+          Track every patient consultation in a weekly format. Review each day from
+          top to bottom with quick access to the patient name and consultation status.
+        </p>
+      </div>
+      <div class="hero__meta">
+        <p class="hero__month" id="selected-month">June 2024</p>
+        <p class="hero__week-count" id="week-count"></p>
+      </div>
+    </header>
+
+    <main class="schedule" id="schedule"></main>
+
+    <template id="week-template">
+      <section class="week">
+        <header class="week__header">
+          <h2 class="week__title"></h2>
+          <span class="week__range"></span>
+        </header>
+        <table class="week__table">
+          <thead>
+            <tr>
+              <th class="col-index">#</th>
+              <th class="col-day">Day</th>
+              <th class="col-patient">Patient</th>
+              <th class="col-status">Status</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+    </template>
+
+    <script src="script.js" type="module"></script>
+  </body>
+</html>
