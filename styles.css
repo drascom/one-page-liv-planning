@@ -134,7 +134,43 @@ body {
 }
 
 .col-patient {
-  width: 50%;
+  width: 28%;
+}
+
+.col-status {
+  width: 12%;
+}
+
+.col-surgery {
+  width: 20%;
+  font-weight: 500;
+}
+
+.col-check {
+  width: 8%;
+  text-align: center;
+}
+
+.check-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+}
+
+.check-icon--checked {
+  color: #16a34a;
+}
+
+.week__table td[data-label]::before {
+  content: attr(data-label);
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+  text-transform: uppercase;
+  display: none;
 }
 
 .status-badge {
@@ -186,9 +222,14 @@ body {
     grid-template-areas:
       "index day"
       "index patient"
-      "index status";
+      "index status"
+      "index surgery"
+      "index forms"
+      "index consents"
+      "index payment";
     padding: 0.75rem 0;
     border-bottom: 1px solid #e2e8f0;
+    gap: 0.35rem 1rem;
   }
 
   .week__table td:nth-child(1) {
@@ -208,5 +249,30 @@ body {
 
   .week__table td:nth-child(4) {
     grid-area: status;
+  }
+
+  .week__table td:nth-child(5) {
+    grid-area: surgery;
+  }
+
+  .week__table td:nth-child(6) {
+    grid-area: forms;
+  }
+
+  .week__table td:nth-child(7) {
+    grid-area: consents;
+  }
+
+  .week__table td:nth-child(8) {
+    grid-area: payment;
+  }
+
+  .week__table td {
+    padding: 0.25rem 0;
+  }
+
+  .week__table td[data-label]::before {
+    display: block;
+    margin-bottom: 0.15rem;
   }
 }
