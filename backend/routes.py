@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Response, UploadFile, status
 from fastapi.responses import JSONResponse, PlainTextResponse
 
 from . import database
@@ -122,19 +122,40 @@ def update_patient(patient_id: int, payload: PatientCreate) -> Patient:
     return Patient(**updated)
 
 
-@config_router.get("/app-config", response_class=JSONResponse)
-def app_config() -> dict[str, str]:
-    """Expose backend/frontend URLs so the UI can configure itself."""
+def _request_origin(request: Request) -> str:
+    return str(request.base_url).rstrip("/")
+
+
+def _resolve_backend_url(request: Request) -> str:
     settings = get_settings()
-    return {"backendUrl": settings.backend_url, "frontendUrl": settings.frontend_url}
+    return settings.backend_url or _request_origin(request)
+
+
+def _resolve_frontend_url(request: Request) -> str:
+    settings = get_settings()
+    if settings.frontend_url:
+        return settings.frontend_url
+    backend_url = settings.backend_url or _request_origin(request)
+    return backend_url
+
+
+@config_router.get("/app-config", response_class=JSONResponse)
+def app_config(request: Request) -> dict[str, str]:
+    """Expose backend/frontend URLs so the UI can configure itself."""
+    return {
+        "backendUrl": _resolve_backend_url(request),
+        "frontendUrl": _resolve_frontend_url(request),
+    }
 
 
 @config_router.get("/app-config.js", response_class=PlainTextResponse)
-def app_config_js() -> str:
+def app_config_js(request: Request) -> str:
     """Serve a JS snippet that sets window.APP_CONFIG."""
-    settings = get_settings()
     payload = json.dumps(
-        {"backendUrl": settings.backend_url, "frontendUrl": settings.frontend_url},
+        {
+            "backendUrl": _resolve_backend_url(request),
+            "frontendUrl": _resolve_frontend_url(request),
+        },
         ensure_ascii=False,
     )
     return f"window.APP_CONFIG = {payload};"

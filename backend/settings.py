@@ -7,6 +7,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from pydantic import BaseModel
+from typing import Optional
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 ENV_PATH = BASE_DIR / ".env"
@@ -16,8 +17,8 @@ if ENV_PATH.exists():
 
 
 class Settings(BaseModel):
-    backend_url: str = os.getenv("BACKEND_URL", "http://localhost:8000")
-    frontend_url: str = os.getenv("FRONTEND_URL", "http://localhost:5001")
+    backend_url: Optional[str] = os.getenv("BACKEND_URL")
+    frontend_url: Optional[str] = os.getenv("FRONTEND_URL")
     static_root: Path = BASE_DIR
     uploads_root: Path = BASE_DIR / "uploads"
     secret_key: str = os.getenv("APP_SECRET_KEY", "change-me")

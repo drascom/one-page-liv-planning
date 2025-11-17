@@ -22,17 +22,24 @@ from .routes import (
 )
 from .settings import get_settings
 
+def _resolve_allowed_origins():
+    settings = get_settings()
+    origins = {value.rstrip("/") for value in (settings.frontend_url, settings.backend_url) if value}
+    return list(origins)
+
+
 app = FastAPI(title="Liv Planning API", version="0.1.0")
 settings = get_settings()
 settings.uploads_root.mkdir(parents=True, exist_ok=True)
 
-allowed_origins = list({settings.frontend_url, settings.backend_url})
+allowed_origins = _resolve_allowed_origins()
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_credentials=True,
 )
 app.mount("/static", StaticFiles(directory=str(settings.static_root)), name="static")
 app.mount("/uploaded-files", StaticFiles(directory=str(settings.uploads_root)), name="uploaded-files")
@@ -112,6 +119,7 @@ def create_app() -> FastAPI:
         allow_origins=allowed_origins,
         allow_methods=["*"],
         allow_headers=["*"],
+        allow_credentials=True,
     )
     api.mount("/static", StaticFiles(directory=str(settings.static_root)), name="static")
     api.mount("/uploaded-files", StaticFiles(directory=str(settings.uploads_root)), name="uploaded-files")

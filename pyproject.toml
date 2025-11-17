@@ -14,7 +14,3 @@ dependencies = [
     "bcrypt<4.0",
     "python-multipart",
 ]
-
-[tool.uv]
-# optional, helps keep virtualenv here
-venv = ".venv"
