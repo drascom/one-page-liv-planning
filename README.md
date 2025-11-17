@@ -20,14 +20,22 @@ built from consistent data.
 
 ## Getting started
 
-1. Clone the repository and create a Python 3.11+ virtual environment.
-2. Install dependencies:
+1. Clone the repository (Python 3.11+).
+2. Install [uv](https://github.com/astral-sh/uv) if it's not already available:
 
    ```bash
-   pip install -r requirements.txt
+   curl -LsSf https://astral.sh/uv/install.sh | sh
    ```
 
-3. Configure the `.env` file (optional but recommended):
+   (Or `pip install uv` on Windows.)
+
+3. Install the project dependencies into `.venv` with uv:
+
+   ```bash
+   uv sync
+   ```
+
+4. Configure the `.env` file (optional but recommended):
 
    ```bash
    cp .env.example .env
@@ -36,15 +44,15 @@ built from consistent data.
    * `APP_SECRET_KEY` – random string used to sign session cookies.
    * `DEFAULT_ADMIN_PASSWORD` – temporary password for the auto-seeded admin user (`admin`).
 
-4. Start the API server:
+5. Start the API server with uv (which automatically uses the synced virtualenv) and bind it to `0.0.0.0` so other machines can reach it:
 
    ```bash
-   uvicorn backend.app:app --reload
+    uv run uvicorn backend.app:app --reload --host 0.0.0.0 --port 8000
    ```
 
-   The server listens on `http://127.0.0.1:8000` by default. Visit `http://127.0.0.1:8000/login` and sign in using `admin` plus the password from `.env`. From there you can invite teammates, issue API tokens, and manage dropdown options.
+   The server now accepts traffic on all interfaces (e.g. `http://127.0.0.1:8000` locally or your machine's LAN IP). Visit `/login` and sign in using `admin` plus the password from `.env`. From there you can invite teammates, issue API tokens, and manage dropdown options.
 
-5. Build or serve the static frontend: the repository ships with prebuilt `index.html`, `patient.html`, `settings.html`, and `login.html` files under `static/` (served automatically by FastAPI).
+6. Build or serve the static frontend: the repository ships with prebuilt `index.html`, `patient.html`, `settings.html`, and `login.html` files under `static/` (served automatically by FastAPI).
 
 ## API reference
 

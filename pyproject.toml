@@ -8,6 +8,11 @@ dependencies = [
     "fastapi",
     "uvicorn[standard]",
     "pydantic",
+    "python-dotenv",
+    "passlib[bcrypt]",
+    "itsdangerous",
+    "bcrypt",
+    "python-multipart",
 ]
 
 [tool.uv]
