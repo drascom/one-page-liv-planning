@@ -3,22 +3,33 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Patient Consultation Planner</title>
-    <link rel="stylesheet" href="styles.css" />
+    <title>Patient Surgery Planner</title>
+    <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body>
     <header class="hero">
       <div class="hero__content">
         <p class="hero__eyebrow">One-page schedule</p>
-        <h1>Monthly Consultation Planner</h1>
-        <p class="hero__subtitle">
-          Track every patient consultation in a weekly format. Review each day from
-          top to bottom with quick access to the patient name and consultation status.
-        </p>
+        <h1>Monthly Surgery Planner</h1>
       </div>
       <div class="hero__meta">
-        <p class="hero__month" id="selected-month">June 2024</p>
-        <p class="hero__week-count" id="week-count"></p>
+        <div class="hero__month-info">
+          <p class="hero__month" id="selected-month">June 2024</p>
+          <p class="hero__week-count" id="week-count"></p>
+        </div>
+        <div class="month-controls" aria-label="Month navigation">
+          <button type="button" class="month-button" id="month-prev" aria-label="Previous month">←</button>
+          <div class="month-controls__year">
+            <label class="visually-hidden" for="year-select">Select year</label>
+            <select id="year-select" class="year-select" aria-label="Select year"></select>
+          </div>
+          <button type="button" class="month-button" id="month-next" aria-label="Next month">→</button>
+          <button type="button" class="month-button month-button--ghost" id="month-today">Today</button>
+        </div>
+        <div class="hero__meta-actions">
+          <button type="button" class="hero__add-btn" id="add-patient-btn">Add Patient</button>
+          <a class="hero__settings-link" href="settings.html">Settings</a>
+        </div>
       </div>
     </header>
 
@@ -35,13 +46,14 @@
             <tr>
               <th class="col-index">#</th>
               <th class="col-day">Day</th>
+              <th class="col-date">Procedure Date</th>
               <th class="col-patient">Patient</th>
               <th class="col-status">Status</th>
               <th class="col-surgery">Surgery Type</th>
               <th class="col-check">Forms</th>
               <th class="col-check">Consents</th>
-              <th class="col-check">Payment</th>
-              <th class="col-check">Photos</th>
+              <th class="col-payment">Payment</th>
+              <th class="col-photos">Photos</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -49,6 +61,7 @@
       </section>
     </template>
 
-    <script src="script.js" type="module"></script>
+    <script src="/app-config.js"></script>
+    <script src="/static/script.js" type="module"></script>
   </body>
 </html>
