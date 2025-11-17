@@ -52,6 +52,7 @@ built from consistent data.
 
    * `APP_SECRET_KEY` – random string used to sign session cookies.
    * `DEFAULT_ADMIN_PASSWORD` – temporary password for the auto-seeded admin user (`admin`).
+   * `BACKEND_URL`/`FRONTEND_URL` – optional; if omitted the app auto-detects the current origin so you only need to set these when a specific host/port must be enforced (e.g. behind a reverse proxy).
 
 6. Start the API server with uv (which automatically uses the synced virtualenv) and bind it to `0.0.0.0` so other machines can reach it:
 
@@ -59,7 +60,7 @@ built from consistent data.
     uv run uvicorn backend.app:app --reload --host 0.0.0.0 --port 8000
    ```
 
-   The server now accepts traffic on all interfaces (e.g. `http://127.0.0.1:8000` locally or your machine's LAN IP). Visit `/login` and sign in using `admin` plus the password from `.env`. From there you can invite teammates, issue API tokens, and manage dropdown options.
+   The server now accepts traffic on all interfaces (e.g. `http://127.0.0.1:8000` locally or your machine's LAN IP). The frontend automatically talks to the same origin it was loaded from, so you can deploy to any IP without editing `.env`. Visit `/login` and sign in using `admin` plus the password from `.env`. From there you can invite teammates, issue API tokens, and manage dropdown options.
 
 7. Build or serve the static frontend: the repository ships with prebuilt `index.html`, `patient.html`, `settings.html`, and `login.html` files under `static/` (served automatically by FastAPI).
 

@@ -22,21 +22,29 @@ from .routes import (
 )
 from .settings import get_settings
 
-def _resolve_allowed_origins():
+def _resolve_allowed_origins() -> list[str]:
     settings = get_settings()
     origins = {value.rstrip("/") for value in (settings.frontend_url, settings.backend_url) if value}
     return list(origins)
+
+
+def _build_cors_config() -> dict[str, object]:
+    origins = _resolve_allowed_origins()
+    if origins:
+        return {"allow_origins": origins, "allow_origin_regex": None}
+    return {"allow_origins": [], "allow_origin_regex": r"https?://.*"}
 
 
 app = FastAPI(title="Liv Planning API", version="0.1.0")
 settings = get_settings()
 settings.uploads_root.mkdir(parents=True, exist_ok=True)
 
-allowed_origins = _resolve_allowed_origins()
+cors_config = _build_cors_config()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=cors_config["allow_origins"],
+    allow_origin_regex=cors_config["allow_origin_regex"],
     allow_methods=["*"],
     allow_headers=["*"],
     allow_credentials=True,
@@ -114,9 +122,11 @@ def create_app() -> FastAPI:
             prefix="/api/v1",
             dependencies=[Depends(require_api_token)],
         )
+    cors_config = _build_cors_config()
     api.add_middleware(
         CORSMiddleware,
-        allow_origins=allowed_origins,
+        allow_origins=cors_config["allow_origins"],
+        allow_origin_regex=cors_config["allow_origin_regex"],
         allow_methods=["*"],
         allow_headers=["*"],
         allow_credentials=True,
