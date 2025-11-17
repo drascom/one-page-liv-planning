@@ -21,14 +21,14 @@ built from consistent data.
 ## Getting started
 
 1. Clone the repository (Python 3.11+).
-2. **Ubuntu/Debian quick install:** run the bundled script to install apt deps, uv, Python packages, and `.env` defaults:
+2. **Ubuntu/Debian quick install:** run the bundled script to install apt deps, uv, Python packages, `.env` defaults, and a managed `systemd` service (`one-page-crm.service`) that runs uvicorn automatically:
 
    ```bash
    chmod +x install.sh
    ./install.sh
    ```
 
-   (For manual control or non-Debian systems, continue with the steps below.)
+   The script reuses the current user for the service and enables it via `systemctl enable --now one-page-crm.service`. Manage it later with `sudo systemctl restart|status one-page-crm.service`. (For manual control or non-Debian systems, continue with the steps below.)
 
 3. Install [uv](https://github.com/astral-sh/uv) if it's not already available:
 
@@ -62,7 +62,19 @@ built from consistent data.
 
    The server now accepts traffic on all interfaces (e.g. `http://127.0.0.1:8000` locally or your machine's LAN IP). The frontend automatically talks to the same origin it was loaded from, so you can deploy to any IP without editing `.env`. Visit `/login` and sign in using `admin` plus the password from `.env`. From there you can invite teammates, issue API tokens, and manage dropdown options.
 
-7. Build or serve the static frontend: the repository ships with prebuilt `index.html`, `patient.html`, `settings.html`, and `login.html` files under `static/` (served automatically by FastAPI).
+7. (Optional) Serve HTTPS locally with a self-signed certificate:
+
+   ```bash
+   chmod +x generate-self-signed-cert.sh
+   ./generate-self-signed-cert.sh my-local-domain.test
+   uv run uvicorn backend.app:app --host 0.0.0.0 --port 8443 \
+     --ssl-keyfile certs/my-local-domain.test.key \
+     --ssl-certfile certs/my-local-domain.test.crt
+   ```
+
+   Replace `my-local-domain.test` with the hostname you access in the browser (defaults to `localhost` if omitted). Browsers will warn about the untrusted cert—you can proceed after trusting it or import it into your system keychain.
+
+8. Build or serve the static frontend: the repository ships with prebuilt `index.html`, `patient.html`, `settings.html`, and `login.html` files under `static/` (served automatically by FastAPI).
 
 ## API reference
 
