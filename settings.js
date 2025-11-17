@@ -21,12 +21,21 @@ function renderTokens(tokens) {
   tokenList.innerHTML = tokens
     .map(
       (token) => `
-        <div class="token-card">
+        <div class="token-card" data-token-id="${token.id}">
           <div>
             <p class="token-name">${token.name}</p>
             <p class="token-created">Created ${new Date(token.created_at).toLocaleString()}</p>
           </div>
           <code class="token-value">${token.token}</code>
+          <button
+            type="button"
+            class="token-delete-btn"
+            aria-label="Delete token ${token.name}"
+            data-token-id="${token.id}"
+            data-token-name="${token.name}"
+          >
+            Delete
+          </button>
         </div>
       `
     )
@@ -83,4 +92,37 @@ async function createToken(event) {
 }
 
 tokenForm.addEventListener("submit", createToken);
+tokenList?.addEventListener("click", async (event) => {
+  const deleteButton = event.target.closest(".token-delete-btn");
+  if (!deleteButton) return;
+  const tokenId = Number(deleteButton.dataset.tokenId);
+  if (!tokenId) return;
+  const tokenName = deleteButton.dataset.tokenName ?? "this token";
+  const confirmed = window.confirm(`Delete token "${tokenName}"? This cannot be undone.`);
+  if (!confirmed) {
+    return;
+  }
+  deleteButton.disabled = true;
+  deleteButton.textContent = "Deleting...";
+  tokenStatus.textContent = "Deleting token...";
+  try {
+    const response = await fetch(buildApiUrl(`/api-tokens/${tokenId}`), {
+      method: "DELETE",
+    });
+    if (!response.ok) {
+      throw new Error("Failed to delete token");
+    }
+    await fetchTokens();
+    tokenStatus.textContent = "Token deleted.";
+  } catch (error) {
+    console.error(error);
+    tokenStatus.textContent = error.message;
+  } finally {
+    deleteButton.disabled = false;
+    deleteButton.textContent = "Delete";
+    setTimeout(() => {
+      tokenStatus.textContent = "";
+    }, 4000);
+  }
+});
 fetchTokens();

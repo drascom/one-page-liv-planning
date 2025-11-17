@@ -1,251 +1,184 @@
 const scheduleEl = document.getElementById("schedule");
 const weekTemplate = document.getElementById("week-template");
 
-const scheduleData = {
-  month: "June 2024",
-  weeks: [
-    {
-      label: "Week 1",
-      range: "Jun 3 – Jun 9",
-      days: [
-        {
-          day: "Mon",
-          patient: "Maria Silva",
-          status: "Upcoming",
-          surgeryType: "Rhinoplasty",
-          forms: true,
-          consents: true,
-          payment: false,
-          photos: false,
-        },
-        {
-          day: "Tue",
-          patient: "Paulo Santos",
-          status: "Completed",
-          surgeryType: "Liposuction",
-          forms: true,
-          consents: true,
-          payment: true,
-          photos: true,
-        },
-        {
-          day: "Wed",
-          patient: "Ana Costa",
-          status: "Upcoming",
-          surgeryType: "Bypass Revision",
-          forms: false,
-          consents: false,
-          payment: false,
-          photos: false,
-        },
-        {
-          day: "Thu",
-          patient: "Miguel Rocha",
-          status: "Cancelled",
-          surgeryType: "Gastric Sleeve",
-          forms: true,
-          consents: true,
-          payment: false,
-          photos: false,
-        },
-        {
-          day: "Fri",
-          patient: "Sara Ramos",
-          status: "Upcoming",
-          surgeryType: "Tummy Tuck",
-          forms: false,
-          consents: false,
-          payment: false,
-          photos: false,
-        },
-      ],
-    },
-    {
-      label: "Week 2",
-      range: "Jun 10 – Jun 16",
-      days: [
-        {
-          day: "Mon",
-          patient: "Leo Carvalho",
-          status: "Upcoming",
-          surgeryType: "Septoplasty",
-          forms: true,
-          consents: false,
-          payment: false,
-          photos: false,
-        },
-        {
-          day: "Tue",
-          patient: "Ines Faria",
-          status: "Upcoming",
-          surgeryType: "Facelift",
-          forms: true,
-          consents: true,
-          payment: true,
-          photos: false,
-        },
-        {
-          day: "Wed",
-          patient: "Andre Sousa",
-          status: "Completed",
-          surgeryType: "Neck Lift",
-          forms: true,
-          consents: true,
-          payment: true,
-          photos: true,
-        },
-        {
-          day: "Thu",
-          patient: "Rita Lopes",
-          status: "Upcoming",
-          surgeryType: "Otoplasty",
-          forms: false,
-          consents: false,
-          payment: false,
-          photos: false,
-        },
-        {
-          day: "Fri",
-          patient: "Hugo Matos",
-          status: "Upcoming",
-          surgeryType: "Body Contour",
-          forms: true,
-          consents: false,
-          payment: false,
-          photos: false,
-        },
-      ],
-    },
-    {
-      label: "Week 3",
-      range: "Jun 17 – Jun 23",
-      days: [
-        {
-          day: "Mon",
-          patient: "Joana Mendes",
-          status: "Upcoming",
-          surgeryType: "Arm Lift",
-          forms: false,
-          consents: false,
-          payment: false,
-          photos: false,
-        },
-        {
-          day: "Tue",
-          patient: "Carlos Pires",
-          status: "Completed",
-          surgeryType: "Chest Reconstruction",
-          forms: true,
-          consents: true,
-          payment: true,
-          photos: true,
-        },
-        {
-          day: "Wed",
-          patient: "Lara Viana",
-          status: "Upcoming",
-          surgeryType: "Brazilian Butt Lift",
-          forms: true,
-          consents: false,
-          payment: false,
-          photos: false,
-        },
-        {
-          day: "Thu",
-          patient: "Noah Alves",
-          status: "Upcoming",
-          surgeryType: "Dermabrasion",
-          forms: true,
-          consents: true,
-          payment: false,
-          photos: false,
-        },
-        {
-          day: "Fri",
-          patient: "Isabela Cruz",
-          status: "Upcoming",
-          surgeryType: "Mommy Makeover",
-          forms: false,
-          consents: false,
-          payment: false,
-          photos: false,
-        },
-      ],
-    },
-    {
-      label: "Week 4",
-      range: "Jun 24 – Jun 30",
-      days: [
-        {
-          day: "Mon",
-          patient: "Rui Duarte",
-          status: "Upcoming",
-          surgeryType: "Hand Rejuvenation",
-          forms: true,
-          consents: true,
-          payment: false,
-          photos: false,
-        },
-        {
-          day: "Tue",
-          patient: "Matilde Costa",
-          status: "Upcoming",
-          surgeryType: "Breast Reduction",
-          forms: false,
-          consents: false,
-          payment: false,
-          photos: false,
-        },
-        {
-          day: "Wed",
-          patient: "Sofia Pires",
-          status: "Completed",
-          surgeryType: "Jawline Contour",
-          forms: true,
-          consents: true,
-          payment: true,
-          photos: true,
-        },
-        {
-          day: "Thu",
-          patient: "Gabriel Reis",
-          status: "Upcoming",
-          surgeryType: "Thigh Lift",
-          forms: true,
-          consents: false,
-          payment: false,
-          photos: false,
-        },
-        {
-          day: "Fri",
-          patient: "Beatriz Correia",
-          status: "Cancelled",
-          surgeryType: "Labiaplasty",
-          forms: true,
-          consents: true,
-          payment: false,
-          photos: false,
-        },
-      ],
-    },
-  ],
+const FORM_OPTIONS = ["form1", "form2", "form3", "form4", "form5"];
+const CONSENT_OPTIONS = ["form1", "form2", "form3"];
+
+const STATUS_LABELS = {
+  reserved: "Reserved",
+  confirmed: "Confirmed",
+  insurgery: "In Surgery",
+  done: "Done",
 };
 
 const statusClasses = {
-  Upcoming: "status-upcoming",
-  Completed: "status-completed",
-  Cancelled: "status-cancelled",
+  reserved: "status-reserved",
+  confirmed: "status-confirmed",
+  insurgery: "status-insurgery",
+  done: "status-done",
 };
 
-const monthLabel = document.getElementById("selected-month");
-const weekCount = document.getElementById("week-count");
-monthLabel.textContent = scheduleData.month;
-weekCount.textContent = `${scheduleData.weeks.length} weeks scheduled`;
+const SURGERY_LABELS = {
+  small: "Small",
+  big: "Big",
+  beard: "Beard",
+  woman: "Woman",
+};
+
+const PAYMENT_LABELS = {
+  waiting: "Waiting",
+  paid: "Paid",
+  partially_paid: "Partially Paid",
+};
 
 const CHECKED_ICON = {
   true: "☑",
   false: "☐",
 };
+
+const ACTIVE_PATIENT_KEY = "activePatient";
+const API_BASE_URL =
+  window.APP_CONFIG?.backendUrl ??
+  `${window.location.protocol}//${window.location.host}`;
+const MONTH_FORMATTER = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" });
+const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" });
+const DAY_FORMATTER = new Intl.DateTimeFormat("en-US", { weekday: "short" });
+
+const monthLabel = document.getElementById("selected-month");
+const weekCount = document.getElementById("week-count");
+const monthPrevBtn = document.getElementById("month-prev");
+const monthNextBtn = document.getElementById("month-next");
+const yearSelect = document.getElementById("year-select");
+const todayButton = document.getElementById("month-today");
+const addPatientBtn = document.getElementById("add-patient-btn");
+
+let monthlySchedules = [];
+let selectedDate = new Date();
+selectedDate.setDate(1);
+let isCreatingPatient = false;
+
+function setScheduleStatus(message) {
+  scheduleEl.innerHTML = "";
+  const paragraph = document.createElement("p");
+  paragraph.className = "schedule__status";
+  paragraph.textContent = message;
+  scheduleEl.appendChild(paragraph);
+}
+
+function buildApiUrl(path) {
+  return new URL(path, API_BASE_URL).toString();
+}
+
+async function fetchPatients() {
+  const response = await fetch(buildApiUrl("/patients"));
+  if (!response.ok) {
+    throw new Error(`Unable to load patients (${response.status})`);
+  }
+  return response.json();
+}
+
+function parseMonthMetadata(label) {
+  const match = label.match(/^([\p{L}]+)\s+(\d{4})$/u);
+  if (!match) {
+    return { year: null, monthNumber: null, date: null, timestamp: Number.MAX_SAFE_INTEGER };
+  }
+  const [, monthName, yearStr] = match;
+  const date = new Date(`${monthName} 1, ${yearStr}`);
+  if (Number.isNaN(date.getTime())) {
+    return { year: null, monthNumber: null, date: null, timestamp: Number.MAX_SAFE_INTEGER };
+  }
+  return {
+    year: Number(yearStr),
+    monthNumber: date.getMonth(),
+    date,
+    timestamp: date.getTime(),
+  };
+}
+
+function normalizePatientForSchedule(patient) {
+  const date = parseISODate(patient.patient_date);
+  const scheduleMonthLabel = date ? formatMonthLabelFromDate(date) : patient.month_label;
+  const weekMeta = date ? getWeekMetaForDate(date) : null;
+  const scheduleWeekLabel = weekMeta?.label ?? patient.week_label ?? "Week 1";
+  const scheduleWeekRange = weekMeta?.range ?? patient.week_range ?? scheduleMonthLabel;
+  const scheduleWeekOrder = weekMeta?.order ?? patient.week_order ?? 1;
+  const scheduleDayLabel = date ? DAY_FORMATTER.format(date) : patient.day_label;
+  const scheduleProcedureDate = date ? date.toISOString().slice(0, 10) : patient.patient_date;
+
+  return {
+    ...patient,
+    scheduleMonthLabel,
+    scheduleWeekLabel,
+    scheduleWeekRange,
+    scheduleWeekOrder,
+    scheduleDayLabel: scheduleDayLabel || patient.day_label,
+    scheduleProcedureDate,
+    scheduleSortKey: date ? date.getTime() : patient.day_order ?? 0,
+  };
+}
+
+function buildWeeksForPatients(patients) {
+  const weekMap = new Map();
+  patients.forEach((patient) => {
+    const key = `${patient.scheduleMonthLabel}-${patient.scheduleWeekLabel}`;
+    if (!weekMap.has(key)) {
+      weekMap.set(key, {
+        label: patient.scheduleWeekLabel,
+        range: patient.scheduleWeekRange,
+        order: patient.scheduleWeekOrder,
+        days: [],
+      });
+    }
+    const entry = weekMap.get(key);
+    entry.days.push({
+      id: patient.id,
+      day: patient.scheduleDayLabel,
+      sortKey: patient.scheduleSortKey,
+      procedureDate: patient.scheduleProcedureDate,
+      patientName: `${patient.first_name} ${patient.last_name}`.trim(),
+      firstName: patient.first_name,
+      lastName: patient.last_name,
+      status: patient.status,
+      surgeryType: patient.surgery_type,
+      forms: patient.forms,
+      consents: patient.consents,
+      payment: patient.payment,
+      photos: patient.photos,
+      weekLabel: patient.scheduleWeekLabel,
+      weekRange: patient.scheduleWeekRange,
+      monthLabel: patient.scheduleMonthLabel,
+    });
+  });
+
+  return Array.from(weekMap.values())
+    .sort((a, b) => a.order - b.order || a.label.localeCompare(b.label))
+    .map((week) => {
+      week.days.sort((a, b) => a.sortKey - b.sortKey);
+      return week;
+    });
+}
+
+function buildMonthlySchedules(patients) {
+  const normalized = patients.map(normalizePatientForSchedule);
+  const monthGroups = new Map();
+  normalized.forEach((patient) => {
+    if (!monthGroups.has(patient.scheduleMonthLabel)) {
+      monthGroups.set(patient.scheduleMonthLabel, []);
+    }
+    monthGroups.get(patient.scheduleMonthLabel).push(patient);
+  });
+
+  return Array.from(monthGroups.entries())
+    .map(([label, entries]) => {
+      const metadata = parseMonthMetadata(label);
+      return {
+        label,
+        weeks: buildWeeksForPatients(entries),
+        ...metadata,
+      };
+    })
+    .sort((a, b) => (a.timestamp ?? Number.MAX_SAFE_INTEGER) - (b.timestamp ?? Number.MAX_SAFE_INTEGER));
+}
 
 function createCheckCell(value, label) {
   const cell = document.createElement("td");
@@ -261,6 +194,212 @@ function createCheckCell(value, label) {
   return cell;
 }
 
+function formatPhotos(value) {
+  return value > 0 ? String(value) : "None";
+}
+
+function formatMonthLabelFromDate(date) {
+  return MONTH_FORMATTER.format(new Date(date.getFullYear(), date.getMonth(), 1));
+}
+
+function formatProcedureDate(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return DATE_FORMATTER.format(date);
+}
+
+function parseISODate(value) {
+  if (!value) return null;
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function getWeekMetaForDate(date) {
+  const day = date.getDate();
+  const weekIndex = Math.floor((day - 1) / 7) + 1;
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  const startDay = (weekIndex - 1) * 7 + 1;
+  const endDay = Math.min(weekIndex * 7, lastDay);
+  const monthShort = date.toLocaleString("en-US", { month: "short" });
+  return {
+    label: `Week ${weekIndex}`,
+    range: `${monthShort} ${startDay} – ${monthShort} ${endDay}`,
+    order: weekIndex,
+  };
+}
+
+function updateYearOptions(centerYear = selectedDate.getFullYear()) {
+  if (!yearSelect) {
+    return;
+  }
+  const span = 5;
+  const years = [];
+  for (let year = centerYear - span; year <= centerYear + span; year += 1) {
+    years.push(year);
+  }
+  yearSelect.innerHTML = years.map((year) => `<option value="${year}">${year}</option>`).join("");
+}
+
+function updateControlState() {
+  if (todayButton) {
+    todayButton.disabled = false;
+  }
+  if (yearSelect) {
+    yearSelect.disabled = false;
+  }
+}
+
+function renderSelectedMonth() {
+  const selectedLabel = formatMonthLabelFromDate(selectedDate);
+  monthLabel.textContent = selectedLabel;
+  const currentMonth = monthlySchedules.find((month) => month.label === selectedLabel);
+
+  if (yearSelect) {
+    const selectedYear = selectedDate.getFullYear();
+    const optionExists = Array.from(yearSelect.options).some(
+      (option) => Number(option.value) === selectedYear
+    );
+    if (!optionExists) {
+      updateYearOptions(selectedYear);
+    }
+    yearSelect.value = String(selectedYear);
+  }
+
+  scheduleEl.innerHTML = "";
+  if (!currentMonth?.weeks?.length) {
+    setScheduleStatus(`No patient records found for ${selectedLabel}.`);
+    weekCount.textContent = "0 weeks scheduled";
+  } else {
+    currentMonth.weeks.forEach(renderWeek);
+    weekCount.textContent = `${currentMonth.weeks.length} weeks scheduled`;
+  }
+  updateControlState();
+}
+
+function handlePrevMonth() {
+  selectedDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1);
+  renderSelectedMonth();
+}
+
+function handleNextMonth() {
+  selectedDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1);
+  renderSelectedMonth();
+}
+
+function handleYearChange(event) {
+  const selectedYear = Number(event.target.value);
+  if (!Number.isFinite(selectedYear)) {
+    return;
+  }
+  selectedDate = new Date(selectedYear, selectedDate.getMonth(), 1);
+  renderSelectedMonth();
+}
+
+function handleTodayClick() {
+  const today = new Date();
+  selectedDate = new Date(today.getFullYear(), today.getMonth(), 1);
+  renderSelectedMonth();
+}
+
+function buildDefaultPatientPayload() {
+  const monthLabel = formatMonthLabelFromDate(selectedDate);
+  const currentMonth = monthlySchedules.find((month) => month.label === monthLabel);
+  const existingWeeks = currentMonth?.weeks ?? [];
+  const newWeekOrder =
+    existingWeeks.length && existingWeeks[existingWeeks.length - 1]?.order
+      ? existingWeeks[existingWeeks.length - 1].order + 1
+      : 1;
+  const weekLabel = `Week ${existingWeeks.length + 1 || 1}`;
+
+  return {
+    month_label: monthLabel,
+    week_label: weekLabel,
+    week_range: monthLabel,
+    week_order: newWeekOrder,
+    day_label: "TBD",
+    day_order: 1,
+    patient_date: selectedDate.toISOString().slice(0, 10),
+    first_name: "New",
+    last_name: "Patient",
+    email: "",
+    phone: "",
+    city: "",
+    status: "reserved",
+    surgery_type: "small",
+    payment: "waiting",
+    forms: [],
+    consents: [],
+    photos: 0,
+    photo_files: [],
+  };
+}
+
+async function handleAddPatientClick() {
+  if (isCreatingPatient) {
+    return;
+  }
+  isCreatingPatient = true;
+  if (addPatientBtn) {
+    addPatientBtn.disabled = true;
+    addPatientBtn.textContent = "Creating...";
+  }
+  try {
+    const payload = buildDefaultPatientPayload();
+    const response = await fetch(buildApiUrl("/patients"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to create patient (${response.status})`);
+    }
+    const patient = await response.json();
+    localStorage.setItem(
+      ACTIVE_PATIENT_KEY,
+      JSON.stringify({
+        patientId: patient.id,
+        patient: `${patient.first_name} ${patient.last_name}`.trim(),
+        weekLabel: patient.week_label,
+        weekRange: patient.week_range,
+        day: patient.day_label,
+        capturedAt: new Date().toISOString(),
+      })
+    );
+    window.location.href = `patient.html?id=${patient.id}&patient=${encodeURIComponent(
+      `${patient.first_name} ${patient.last_name}`
+    )}`;
+  } catch (error) {
+    console.error(error);
+    if (addPatientBtn) {
+      addPatientBtn.disabled = false;
+      addPatientBtn.textContent = "Add Patient";
+    }
+    isCreatingPatient = false;
+    alert(error.message);
+  }
+}
+
+function handleRowNavigation(day, week) {
+  const payload = {
+    patientId: day.id,
+    patient: day.patientName,
+    weekLabel: week.label,
+    weekRange: week.range,
+    day: day.day,
+    capturedAt: new Date().toISOString(),
+  };
+  localStorage.setItem(ACTIVE_PATIENT_KEY, JSON.stringify(payload));
+  const params = new URLSearchParams({ patient: day.patientName, id: String(day.id) });
+  window.location.href = `patient.html?${params.toString()}`;
+}
+
 function renderWeek(week, index) {
   const clone = weekTemplate.content.cloneNode(true);
   clone.querySelector(".week__title").textContent = week.label;
@@ -269,6 +408,10 @@ function renderWeek(week, index) {
 
   week.days.forEach((day, dayIndex) => {
     const row = document.createElement("tr");
+    row.classList.add("patient-row");
+    row.tabIndex = 0;
+    row.dataset.patient = day.patientName;
+    row.setAttribute("aria-label", `Open patient record for ${day.patientName}`);
 
     const indexCell = document.createElement("td");
     indexCell.textContent = `${index + 1}.${dayIndex + 1}`;
@@ -280,32 +423,57 @@ function renderWeek(week, index) {
     dayCell.classList.add("col-day");
     dayCell.dataset.label = "Day";
 
+    const dateCell = document.createElement("td");
+    dateCell.textContent = formatProcedureDate(day.procedureDate);
+    dateCell.classList.add("col-date");
+    dateCell.dataset.label = "Procedure Date";
+
     const patientCell = document.createElement("td");
-    patientCell.textContent = day.patient;
+    patientCell.textContent = day.patientName;
     patientCell.classList.add("col-patient");
     patientCell.dataset.label = "Patient";
 
     const statusCell = document.createElement("td");
     const badge = document.createElement("span");
-    badge.textContent = day.status;
+    badge.textContent = STATUS_LABELS[day.status] ?? day.status;
     badge.className = `status-badge ${statusClasses[day.status] ?? ""}`;
     statusCell.appendChild(badge);
     statusCell.classList.add("col-status");
     statusCell.dataset.label = "Status";
 
     const surgeryCell = document.createElement("td");
-    surgeryCell.textContent = day.surgeryType ?? "—";
+    surgeryCell.textContent = SURGERY_LABELS[day.surgeryType] ?? day.surgeryType ?? "—";
     surgeryCell.classList.add("col-surgery");
     surgeryCell.dataset.label = "Surgery Type";
 
-    const formsCell = createCheckCell(Boolean(day.forms), "Forms");
-    const consentsCell = createCheckCell(Boolean(day.consents), "Consents");
-    const paymentCell = createCheckCell(Boolean(day.payment), "Payment");
-    const photosCell = createCheckCell(Boolean(day.photos), "Photos");
+    const formsComplete = (day.forms ?? []).length === FORM_OPTIONS.length;
+    const consentsComplete = (day.consents ?? []).length === CONSENT_OPTIONS.length;
+    const formsCell = createCheckCell(formsComplete, "Forms");
+    const consentsCell = createCheckCell(consentsComplete, "Consents");
+
+    const paymentCell = document.createElement("td");
+    paymentCell.textContent = PAYMENT_LABELS[day.payment] ?? day.payment;
+    paymentCell.classList.add("col-payment");
+    paymentCell.dataset.label = "Payment";
+
+    const photosCell = document.createElement("td");
+    photosCell.textContent = formatPhotos(day.photos);
+    photosCell.classList.add("col-photos");
+    photosCell.dataset.label = "Photos";
+
+    const navigate = () => handleRowNavigation(day, week);
+    row.addEventListener("click", navigate);
+    row.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        navigate();
+      }
+    });
 
     row.append(
       indexCell,
       dayCell,
+      dateCell,
       patientCell,
       statusCell,
       surgeryCell,
@@ -320,4 +488,36 @@ function renderWeek(week, index) {
   scheduleEl.appendChild(clone);
 }
 
-scheduleData.weeks.forEach(renderWeek);
+if (monthPrevBtn) {
+  monthPrevBtn.addEventListener("click", handlePrevMonth);
+}
+if (monthNextBtn) {
+  monthNextBtn.addEventListener("click", handleNextMonth);
+}
+if (yearSelect) {
+  yearSelect.addEventListener("change", handleYearChange);
+}
+if (todayButton) {
+  todayButton.addEventListener("click", handleTodayClick);
+}
+if (addPatientBtn) {
+  addPatientBtn.addEventListener("click", handleAddPatientClick);
+}
+
+async function initializeSchedule() {
+  setScheduleStatus("Loading schedule...");
+  try {
+    const patients = await fetchPatients();
+    monthlySchedules = buildMonthlySchedules(patients);
+    updateYearOptions(selectedDate.getFullYear());
+    renderSelectedMonth();
+  } catch (error) {
+    console.error(error);
+    setScheduleStatus("Unable to load the schedule. Please try again later.");
+    monthLabel.textContent = "Consultation Planner";
+    weekCount.textContent = "";
+    updateControlState();
+  }
+}
+
+initializeSchedule();

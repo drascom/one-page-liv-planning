@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Settings · API Tokens</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body class="patient-page">
+    <header class="patient-header">
+      <a href="/" class="back-link">← Back to schedule</a>
+      <div class="patient-heading">
+        <p class="patient-week">Integration</p>
+        <h1>API Tokens</h1>
+        <p class="patient-city">Create tokens to connect external systems.</p>
+      </div>
+    </header>
+
+    <main class="patient-content">
+      <section class="patient-card">
+        <h2>Create Token</h2>
+        <form id="token-form" class="patient-form">
+          <div class="form-grid">
+            <label class="form-field">
+              <span>Token Name</span>
+              <input id="token-name" name="tokenName" type="text" placeholder="e.g. Zapier workflow" required />
+            </label>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="primary-btn" id="create-token-btn">Generate Token</button>
+            <span id="token-status" class="form-status" role="status"></span>
+          </div>
+        </form>
+        <p class="upload-status">Tokens never expire. Copy and store them securely.</p>
+      </section>
+
+      <section class="patient-card">
+        <h2>Existing Tokens</h2>
+        <div class="token-list" id="token-list"></div>
+      </section>
+    </main>
+
+    <script src="/app-config.js"></script>
+    <script src="/static/settings.js" type="module"></script>
+  </body>
+</html>

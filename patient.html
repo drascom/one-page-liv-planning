@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Patient Record</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body class="patient-page">
+    <header class="patient-header">
+      <a href="/" class="back-link">← Back to schedule</a>
+      <div class="patient-heading">
+        <p class="patient-week" id="patient-week"></p>
+        <h1 id="patient-name">Patient Record</h1>
+        <p class="patient-city" id="patient-city"></p>
+      </div>
+    </header>
+
+    <main class="patient-content">
+      <section class="patient-card">
+        <form id="patient-form" class="patient-form">
+          <div class="form-grid">
+            <label class="form-field">
+              <span>First Name</span>
+              <input id="first-name" name="firstName" type="text" required />
+            </label>
+            <label class="form-field">
+              <span>Last Name</span>
+              <input id="last-name" name="lastName" type="text" required />
+            </label>
+            <label class="form-field">
+              <span>Procedure Date</span>
+              <input id="patient-date" name="patientDate" type="date" />
+            </label>
+            <label class="form-field">
+              <span>Email</span>
+              <input id="email" name="email" type="email" required />
+            </label>
+            <label class="form-field">
+              <span>Phone</span>
+              <input id="phone" name="phone" type="tel" required />
+            </label>
+            <label class="form-field">
+              <span>City</span>
+              <input id="city" name="city" type="text" required />
+            </label>
+          </div>
+
+          <div class="form-grid">
+            <label class="form-field">
+              <span>Status</span>
+              <select id="status" name="status">
+                <option value="reserved">Reserved</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="insurgery">In Surgery</option>
+                <option value="done">Done</option>
+              </select>
+            </label>
+            <label class="form-field">
+              <span>Surgery Type</span>
+              <select id="surgery-type" name="surgeryType">
+                <option value="small">Small</option>
+                <option value="big">Big</option>
+                <option value="beard">Beard</option>
+                <option value="woman">Woman</option>
+              </select>
+            </label>
+            <label class="form-field">
+              <span>Payment</span>
+              <select id="payment" name="payment">
+                <option value="waiting">Waiting</option>
+                <option value="paid">Paid</option>
+                <option value="partially_paid">Partially Paid</option>
+              </select>
+            </label>
+            <label class="form-field">
+              <span>Photos</span>
+              <input id="photos" name="photos" type="text" placeholder="None" />
+            </label>
+          </div>
+
+          <div class="form-grid form-grid--stacked">
+            <label class="form-field">
+              <span>Forms</span>
+              <select id="forms" name="forms" multiple size="5">
+                <option value="form1">Form 1</option>
+                <option value="form2">Form 2</option>
+                <option value="form3">Form 3</option>
+                <option value="form4">Form 4</option>
+                <option value="form5">Form 5</option>
+              </select>
+            </label>
+            <label class="form-field">
+              <span>Consents</span>
+              <select id="consents" name="consents" multiple size="3">
+                <option value="form1">Consent 1</option>
+                <option value="form2">Consent 2</option>
+                <option value="form3">Consent 3</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="primary-btn">Save Patient</button>
+            <span id="form-status" class="form-status" role="status"></span>
+          </div>
+        </form>
+      </section>
+
+      <section class="patient-card">
+        <h2>Upload Photos</h2>
+        <p class="upload-hint">Drag & drop or browse to upload multiple photos.</p>
+        <div class="drop-zone" id="drop-zone">
+          <input id="photo-input" type="file" multiple accept="image/*" hidden />
+          <button type="button" class="secondary-btn" id="browse-button">Browse files</button>
+          <p class="drop-zone__text">Drop up to 10 images. Files will be saved under uploads/&lt;last-name&gt;</p>
+        </div>
+        <ul class="upload-list" id="upload-list"></ul>
+        <p class="upload-status" id="upload-status"></p>
+      </section>
+
+      <section class="patient-card photo-section">
+        <div class="photo-section__header">
+          <h2>Patient Photos</h2>
+          <p class="photo-empty" id="photo-empty">No photos uploaded yet.</p>
+        </div>
+        <div class="photo-gallery" id="photo-gallery"></div>
+      </section>
+    </main>
+
+    <div class="photo-viewer" id="photo-viewer" hidden>
+      <button type="button" class="photo-viewer__close" id="photo-viewer-close" aria-label="Close viewer">
+        ×
+      </button>
+      <button
+        type="button"
+        class="photo-viewer__nav photo-viewer__nav--prev"
+        id="photo-viewer-prev"
+        aria-label="Previous photo"
+      >
+        ←
+      </button>
+      <img id="photo-viewer-image" alt="Patient photo" />
+      <p id="photo-viewer-caption"></p>
+      <button
+        type="button"
+        class="photo-viewer__nav photo-viewer__nav--next"
+        id="photo-viewer-next"
+        aria-label="Next photo"
+      >
+        →
+      </button>
+      <button type="button" class="photo-viewer__delete" id="photo-viewer-delete">Delete photo</button>
+    </div>
+
+    <script src="/app-config.js"></script>
+    <script src="/static/patient.js" type="module"></script>
+  </body>
+</html>

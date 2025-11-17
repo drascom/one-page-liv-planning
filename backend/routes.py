@@ -120,6 +120,16 @@ def create_api_token(payload: ApiTokenCreate) -> ApiToken:
     return ApiToken(**record)
 
 
+@api_tokens_router.delete(
+    "/{token_id}", response_model=None, status_code=status.HTTP_204_NO_CONTENT
+)
+def delete_api_token(token_id: int) -> None:
+    """Delete an API token by id."""
+    deleted = database.delete_api_token(token_id)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Token not found")
+
+
 def _sanitize_segment(segment: str) -> str:
     value = re.sub(r"[^a-z0-9_-]+", "-", segment.lower()).strip("-")
     return value or "patient"

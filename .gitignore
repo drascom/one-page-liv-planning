@@ -1,0 +1,5 @@
+__pycache__/
+backend/__pycache__/
+backend/liv_planning.db
+uploads/
+.env

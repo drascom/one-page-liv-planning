@@ -423,6 +423,13 @@ def list_api_tokens() -> List[Dict[str, Any]]:
         return [dict(row) for row in cursor.fetchall()]
 
 
+def delete_api_token(token_id: int) -> bool:
+    with closing(get_connection()) as conn:
+        cursor = conn.execute("DELETE FROM api_tokens WHERE id = ?", (token_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+
+
 def seed_patients_if_empty() -> bool:
     """Seed demo patients when the table has no entries."""
     with closing(sqlite3.connect(DB_PATH)) as conn:
