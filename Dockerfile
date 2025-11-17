@@ -1,14 +1,24 @@
 # Use an official Python runtime as a parent image
 FROM python:3.11-slim
 
+ENV UV_LINK_MODE=copy \
+    PATH="/root/.local/bin:${PATH}"
+
 # Set the working directory in the container
 WORKDIR /app
 
-# Copy the requirements file into the container at /app
-COPY requirements.txt .
+# Install system dependencies and uv
+RUN apt-get update \
+    && apt-get install -y curl build-essential libsqlite3-dev \
+    && curl -LsSf https://astral.sh/uv/install.sh | sh \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy project metadata and resolve dependencies with uv
+COPY pyproject.toml /app/
+RUN uv sync --no-dev
+
+# Ensure the virtualenv binaries are on PATH
+ENV PATH="/app/.venv/bin:${PATH}"
 
 # Copy the backend code into the container at /app
 COPY ./backend /app/backend

@@ -11,7 +11,7 @@ dependencies = [
     "python-dotenv",
     "passlib[bcrypt]",
     "itsdangerous",
-    "bcrypt",
+    "bcrypt<4.0",
     "python-multipart",
 ]
 
