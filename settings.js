@@ -1,3 +1,5 @@
+import { handleUnauthorized, initSessionControls, requireAdminUser } from "./session.js";
+
 const API_BASE_URL =
   window.APP_CONFIG?.backendUrl ??
   `${window.location.protocol}//${window.location.host}`;
@@ -7,6 +9,49 @@ const tokenNameInput = document.getElementById("token-name");
 const tokenStatus = document.getElementById("token-status");
 const tokenList = document.getElementById("token-list");
 const createButton = document.getElementById("create-token-btn");
+const settingsTabs = Array.from(document.querySelectorAll("[data-settings-tab]"));
+const settingsSections = Array.from(document.querySelectorAll("[data-settings-section]"));
+
+initSessionControls();
+
+const sectionNames = new Set(settingsSections.map((section) => section.dataset.settingsSection));
+const defaultSection = settingsTabs[0]?.dataset.settingsTab ?? null;
+
+function getHashSection() {
+  return window.location.hash.replace(/^#/, "");
+}
+
+function activateSettingsSection(targetSection, { updateHash = true } = {}) {
+  if (!defaultSection) return;
+  const nextSection = sectionNames.has(targetSection) ? targetSection : defaultSection;
+  settingsTabs.forEach((tab) => {
+    const isActive = tab.dataset.settingsTab === nextSection;
+    tab.classList.toggle("is-active", isActive);
+    tab.setAttribute("aria-selected", isActive ? "true" : "false");
+    tab.tabIndex = isActive ? 0 : -1;
+  });
+  settingsSections.forEach((section) => {
+    const isActive = section.dataset.settingsSection === nextSection;
+    section.hidden = !isActive;
+  });
+  if (updateHash && window.location.hash !== `#${nextSection}`) {
+    window.history.replaceState(null, "", `#${nextSection}`);
+  }
+}
+
+function initializeSettingsTabs() {
+  if (!defaultSection) return;
+  const initialSection = getHashSection();
+  activateSettingsSection(initialSection || defaultSection, { updateHash: false });
+  settingsTabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      activateSettingsSection(tab.dataset.settingsTab);
+    });
+  });
+  window.addEventListener("hashchange", () => {
+    activateSettingsSection(getHashSection(), { updateHash: false });
+  });
+}
 
 function buildApiUrl(path) {
   return new URL(path, API_BASE_URL).toString();
@@ -45,6 +90,7 @@ function renderTokens(tokens) {
 async function fetchTokens() {
   try {
     const response = await fetch(buildApiUrl("/api-tokens"));
+    handleUnauthorized(response);
     if (!response.ok) {
       throw new Error("Unable to load tokens");
     }
@@ -72,6 +118,7 @@ async function createToken(event) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: tokenNameInput.value.trim() }),
     });
+    handleUnauthorized(response);
     if (!response.ok) {
       throw new Error(`Failed to create token (${response.status})`);
     }
@@ -109,6 +156,7 @@ tokenList?.addEventListener("click", async (event) => {
     const response = await fetch(buildApiUrl(`/api-tokens/${tokenId}`), {
       method: "DELETE",
     });
+    handleUnauthorized(response);
     if (!response.ok) {
       throw new Error("Failed to delete token");
     }
@@ -125,4 +173,461 @@ tokenList?.addEventListener("click", async (event) => {
     }, 4000);
   }
 });
-fetchTokens();
+
+const FIELD_METADATA = {
+  status: {
+    title: "Statuses",
+    description: "Controls the badges shown on the schedule.",
+    min: 1,
+    placeholder: "e.g. Confirmed",
+  },
+  surgery_type: {
+    title: "Surgery Types",
+    description: "Used to categorize procedures on the schedule.",
+    min: 1,
+    placeholder: "e.g. Minor Procedure",
+  },
+  forms: {
+    title: "Forms",
+    description: "Checklist requirements for each patient.",
+    min: 0,
+    placeholder: "e.g. Intake Packet",
+  },
+  consents: {
+    title: "Consents",
+    description: "Consent documents patients must complete.",
+    min: 0,
+    placeholder: "e.g. Surgical Consent",
+  },
+  consultation: {
+    title: "Consultations",
+    description: "Consultation touchpoints tracked per patient.",
+    min: 0,
+    placeholder: "e.g. Pre-op Call",
+  },
+  payment: {
+    title: "Payment Status",
+    description: "Displayed as the payment dropdown on the patient form.",
+    min: 1,
+    placeholder: "e.g. Deposit Paid",
+  },
+};
+
+const FIELD_DEFAULTS = {
+  status: [
+    { value: "reserved", label: "Reserved" },
+    { value: "confirmed", label: "Confirmed" },
+    { value: "insurgery", label: "In Surgery" },
+    { value: "done", label: "Done" },
+  ],
+  surgery_type: [
+    { value: "small", label: "Small" },
+    { value: "big", label: "Big" },
+    { value: "beard", label: "Beard" },
+    { value: "woman", label: "Woman" },
+  ],
+  payment: [
+    { value: "waiting", label: "Waiting" },
+    { value: "paid", label: "Paid" },
+    { value: "partially_paid", label: "Partially Paid" },
+  ],
+  forms: [
+    { value: "form1", label: "Form 1" },
+    { value: "form2", label: "Form 2" },
+    { value: "form3", label: "Form 3" },
+    { value: "form4", label: "Form 4" },
+    { value: "form5", label: "Form 5" },
+  ],
+  consents: [
+    { value: "form1", label: "Consent 1" },
+    { value: "form2", label: "Consent 2" },
+    { value: "form3", label: "Consent 3" },
+  ],
+  consultation: [
+    { value: "consultation1", label: "Consultation 1" },
+    { value: "consultation2", label: "Consultation 2" },
+  ],
+};
+
+const fieldOptionsContainer = document.getElementById("field-options-container");
+let currentFieldOptions = JSON.parse(JSON.stringify(FIELD_DEFAULTS));
+const optionEditorRefs = new Map();
+
+function escapeHtml(value) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+async function fetchFieldOptionsData() {
+  try {
+    const response = await fetch(buildApiUrl("/field-options"));
+    handleUnauthorized(response);
+    if (!response.ok) {
+      throw new Error("Unable to load option lists");
+    }
+    const payload = await response.json();
+    currentFieldOptions = Object.fromEntries(
+      Object.keys(FIELD_METADATA).map((field) => {
+        const incoming = Array.isArray(payload?.[field]) ? payload[field] : null;
+        return [field, incoming && incoming.length ? incoming : FIELD_DEFAULTS[field]];
+      })
+    );
+  } catch (error) {
+    console.error(error);
+    currentFieldOptions = JSON.parse(JSON.stringify(FIELD_DEFAULTS));
+  }
+}
+
+function generateUniqueValue(field, label) {
+  const base = label
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48) || "option";
+  const existingValues = new Set(currentFieldOptions[field]?.map((opt) => opt.value));
+  if (!existingValues.has(base)) {
+    return base;
+  }
+  let suffix = 2;
+  while (existingValues.has(`${base}-${suffix}`)) {
+    suffix += 1;
+  }
+  return `${base}-${suffix}`;
+}
+
+function renderOptionList(field) {
+  const refs = optionEditorRefs.get(field);
+  if (!refs) return;
+  const { list } = refs;
+  const options = currentFieldOptions[field] ?? [];
+  if (!options.length) {
+    list.innerHTML = `<li class="option-card__empty">No options yet.</li>`;
+    return;
+  }
+  list.innerHTML = options
+    .map(
+      (option) => `
+        <li class="option-card__item" data-value="${option.value}">
+          <span class="option-card__bullet">•</span>
+          <div class="option-card__text">
+            <span class="option-card__label">${escapeHtml(option.label)}</span>
+            <span class="option-card__value">${escapeHtml(option.value)}</span>
+          </div>
+          <button type="button" class="option-card__remove" aria-label="Remove option">×</button>
+        </li>
+      `
+    )
+    .join("");
+}
+
+function setStatus(field, message) {
+  const refs = optionEditorRefs.get(field);
+  if (!refs) return;
+  refs.status.textContent = message;
+  if (message) {
+    setTimeout(() => {
+      if (refs.status.textContent === message) {
+        refs.status.textContent = "";
+      }
+    }, 4000);
+  }
+}
+
+function addOptionFromInput(field) {
+  const refs = optionEditorRefs.get(field);
+  if (!refs) return;
+  const label = refs.input.value.trim();
+  if (!label) {
+    setStatus(field, "Enter a label before adding.");
+    return;
+  }
+  const value = generateUniqueValue(field, label);
+  currentFieldOptions[field] = [...(currentFieldOptions[field] ?? []), { label, value }];
+  refs.input.value = "";
+  renderOptionList(field);
+  setStatus(field, "Added locally. Click Save to persist.");
+}
+
+function removeOption(field, value) {
+  currentFieldOptions[field] = (currentFieldOptions[field] ?? []).filter((option) => option.value !== value);
+  renderOptionList(field);
+  setStatus(field, "Removed locally. Click Save to persist.");
+}
+
+async function saveFieldOptions(field) {
+  const refs = optionEditorRefs.get(field);
+  if (!refs) return;
+  const meta = FIELD_METADATA[field];
+  const options = currentFieldOptions[field] ?? [];
+  if (options.length < (meta.min ?? 0)) {
+    setStatus(field, `Add at least ${meta.min} option${meta.min === 1 ? "" : "s"}.`);
+    return;
+  }
+  refs.saveButton.disabled = true;
+  setStatus(field, "Saving...");
+  try {
+    const response = await fetch(buildApiUrl(`/field-options/${field}`), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ options }),
+    });
+    handleUnauthorized(response);
+    if (!response.ok) {
+      throw new Error("Failed to save options");
+    }
+    const updated = await response.json();
+    currentFieldOptions[field] = updated;
+    renderOptionList(field);
+    setStatus(field, "Saved.");
+  } catch (error) {
+    console.error(error);
+    setStatus(field, error.message);
+  } finally {
+    refs.saveButton.disabled = false;
+  }
+}
+
+function renderFieldOptionForms() {
+  if (!fieldOptionsContainer) return;
+  fieldOptionsContainer.innerHTML = "";
+  optionEditorRefs.clear();
+  Object.entries(FIELD_METADATA).forEach(([field, meta]) => {
+    const card = document.createElement("section");
+    card.className = "option-card";
+    card.dataset.field = field;
+    card.innerHTML = `
+      <div class="option-card__title">
+        <h3>${meta.title}</h3>
+        <p>${meta.description}</p>
+      </div>
+      <div class="option-card__input-row">
+        <input type="text" class="option-card__input" placeholder="${meta.placeholder ?? "Add option"}" />
+        <button type="button" class="option-card__add">Add</button>
+      </div>
+      <ul class="option-card__list"></ul>
+      <div class="option-card__footer">
+        <button type="button" class="primary-btn option-card__save">Save</button>
+        <span class="option-card__status" aria-live="polite"></span>
+      </div>
+    `;
+    const input = card.querySelector(".option-card__input");
+    const addButton = card.querySelector(".option-card__add");
+    const list = card.querySelector(".option-card__list");
+    const saveButton = card.querySelector(".option-card__save");
+    const status = card.querySelector(".option-card__status");
+    optionEditorRefs.set(field, { card, input, addButton, list, saveButton, status });
+
+    addButton.addEventListener("click", () => addOptionFromInput(field));
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        addOptionFromInput(field);
+      }
+    });
+    list.addEventListener("click", (event) => {
+      const removeBtn = event.target.closest(".option-card__remove");
+      if (!removeBtn) return;
+      const item = removeBtn.closest(".option-card__item");
+      const value = item?.dataset.value;
+      if (!value) return;
+      removeOption(field, value);
+    });
+    saveButton.addEventListener("click", () => saveFieldOptions(field));
+    renderOptionList(field);
+    fieldOptionsContainer.appendChild(card);
+  });
+}
+
+async function initializeFieldOptions() {
+  if (!fieldOptionsContainer) return;
+  fieldOptionsContainer.innerHTML = `<p class="option-card__loading">Loading options...</p>`;
+  await fetchFieldOptionsData();
+  renderFieldOptionForms();
+}
+
+const userAdminContainer = document.getElementById("user-admin");
+const userWarning = document.getElementById("user-admin-warning");
+const userList = document.getElementById("user-list");
+const userForm = document.getElementById("user-form");
+const newUsernameInput = document.getElementById("new-username");
+const newPasswordInput = document.getElementById("new-password");
+const newIsAdminInput = document.getElementById("new-is-admin");
+const userFormStatus = document.getElementById("user-form-status");
+let currentUser = null;
+
+function renderUserList(users) {
+  if (!userList) {
+    return;
+  }
+  if (!users.length) {
+    userList.innerHTML = `<li class="option-card__empty">No users yet.</li>`;
+    return;
+  }
+  userList.innerHTML = users
+    .map(
+      (user) => `
+        <li class="user-list__item" data-user-id="${user.id}" data-is-admin="${user.is_admin}">
+          <div class="user-list__info">
+            <span class="user-list__name">${escapeHtml(user.username)}</span>
+            <span class="user-list__role">${user.is_admin ? "Admin" : "User"}</span>
+          </div>
+          <div class="user-list__actions">
+            <button type="button" data-action="toggle-admin" class="secondary-btn">
+              ${user.is_admin ? "Remove admin" : "Make admin"}
+            </button>
+            <button type="button" data-action="reset-password" class="secondary-btn">Reset password</button>
+            ${currentUser && currentUser.id === user.id ? "" : '<button type="button" data-action="delete" class="danger-btn">Delete</button>'}
+          </div>
+        </li>
+      `
+    )
+    .join("");
+}
+
+async function fetchUsers() {
+  try {
+    const response = await fetch(buildApiUrl("/auth/users"));
+    handleUnauthorized(response);
+    if (!response.ok) {
+      throw new Error("Unable to load users");
+    }
+    const payload = await response.json();
+    renderUserList(payload);
+  } catch (error) {
+    userWarning.textContent = error.message;
+  }
+}
+
+async function createUser(event) {
+  event.preventDefault();
+  if (!userFormStatus) return;
+  userFormStatus.textContent = "Creating user...";
+  try {
+    const response = await fetch(buildApiUrl("/auth/users"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: newUsernameInput.value.trim(),
+        password: newPasswordInput.value,
+        is_admin: newIsAdminInput.checked,
+      }),
+    });
+    handleUnauthorized(response);
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.detail || "Unable to create user");
+    }
+    newUsernameInput.value = "";
+    newPasswordInput.value = "";
+    newIsAdminInput.checked = false;
+    await fetchUsers();
+    userFormStatus.textContent = "User created.";
+  } catch (error) {
+    userFormStatus.textContent = error.message;
+  } finally {
+    setTimeout(() => {
+      if (userFormStatus) {
+        userFormStatus.textContent = "";
+      }
+    }, 4000);
+  }
+}
+
+async function toggleUserAdmin(userId, isAdmin) {
+  const response = await fetch(buildApiUrl(`/auth/users/${userId}/role`), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ is_admin: !isAdmin }),
+  });
+  handleUnauthorized(response);
+  if (!response.ok) {
+    throw new Error("Unable to update role");
+  }
+  await fetchUsers();
+}
+
+async function resetUserPassword(userId) {
+  const nextPassword = window.prompt("Enter a new password.", "");
+  if (!nextPassword) return;
+  const response = await fetch(buildApiUrl(`/auth/users/${userId}/password`), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password: nextPassword }),
+  });
+  handleUnauthorized(response);
+  if (!response.ok) {
+    throw new Error("Unable to reset password");
+  }
+  userWarning.textContent = "Password updated.";
+  setTimeout(() => {
+    userWarning.textContent = "";
+  }, 3000);
+}
+
+async function deleteUser(userId) {
+  if (!window.confirm("Delete this user?")) {
+    return;
+  }
+  const response = await fetch(buildApiUrl(`/auth/users/${userId}`), {
+    method: "DELETE",
+  });
+  handleUnauthorized(response);
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.detail || "Unable to delete user");
+  }
+  await fetchUsers();
+}
+
+async function handleUserAction(event) {
+  const actionButton = event.target.closest("[data-action]");
+  if (!actionButton) return;
+  const row = actionButton.closest(".user-list__item");
+  if (!row) return;
+  const userId = Number(row.dataset.userId);
+  const isAdmin = row.dataset.isAdmin === "true";
+  try {
+    if (actionButton.dataset.action === "toggle-admin") {
+      await toggleUserAdmin(userId, isAdmin);
+    } else if (actionButton.dataset.action === "reset-password") {
+      await resetUserPassword(userId);
+    } else if (actionButton.dataset.action === "delete") {
+      await deleteUser(userId);
+    }
+  } catch (error) {
+    userWarning.textContent = error.message;
+  }
+}
+
+async function initializeUserManagement() {
+  if (!userAdminContainer) return;
+  if (!currentUser) {
+    userWarning.textContent = "Sign in again to manage users.";
+    return;
+  }
+  if (!currentUser.is_admin) {
+    userWarning.textContent = "Only admins can manage users.";
+    return;
+  }
+  userAdminContainer.hidden = false;
+  userForm?.addEventListener("submit", createUser);
+  userList?.addEventListener("click", handleUserAction);
+  await fetchUsers();
+}
+
+async function initializeSettingsPage() {
+  currentUser = await requireAdminUser({ redirectTo: "/" });
+  if (!currentUser) {
+    return;
+  }
+  initializeSettingsTabs();
+  initializeFieldOptions();
+  await initializeUserManagement();
+  fetchTokens();
+}
+
+initializeSettingsPage();

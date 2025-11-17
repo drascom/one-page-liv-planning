@@ -1,10 +1,104 @@
-const FORM_OPTIONS = ["form1", "form2", "form3", "form4", "form5"];
-const CONSENT_OPTIONS = ["form1", "form2", "form3"];
+import { handleUnauthorized, initSessionControls } from "./session.js";
+
+const DEFAULT_FIELD_OPTIONS = {
+  status: [
+    { value: "reserved", label: "Reserved" },
+    { value: "confirmed", label: "Confirmed" },
+    { value: "insurgery", label: "In Surgery" },
+    { value: "done", label: "Done" },
+  ],
+  surgery_type: [
+    { value: "small", label: "Small" },
+    { value: "big", label: "Big" },
+    { value: "beard", label: "Beard" },
+    { value: "woman", label: "Woman" },
+  ],
+  payment: [
+    { value: "waiting", label: "Waiting" },
+    { value: "paid", label: "Paid" },
+    { value: "partially_paid", label: "Partially Paid" },
+  ],
+  forms: [
+    { value: "form1", label: "Form 1" },
+    { value: "form2", label: "Form 2" },
+    { value: "form3", label: "Form 3" },
+    { value: "form4", label: "Form 4" },
+    { value: "form5", label: "Form 5" },
+  ],
+  consents: [
+    { value: "form1", label: "Consent 1" },
+    { value: "form2", label: "Consent 2" },
+    { value: "form3", label: "Consent 3" },
+  ],
+  consultation: [
+    { value: "consultation1", label: "Consultation 1" },
+    { value: "consultation2", label: "Consultation 2" },
+  ],
+};
+
+let fieldOptions = JSON.parse(JSON.stringify(DEFAULT_FIELD_OPTIONS));
 const ACTIVE_PATIENT_KEY = "activePatient";
 const API_BASE_URL =
   window.APP_CONFIG?.backendUrl ??
   `${window.location.protocol}//${window.location.host}`;
 const UPLOADS_BASE_URL = new URL("/uploaded-files/", API_BASE_URL).toString();
+
+function buildApiUrl(path) {
+  return new URL(path, API_BASE_URL).toString();
+}
+
+function getFieldOptions(field) {
+  return fieldOptions[field] ?? [];
+}
+
+function getFieldOptionValues(field) {
+  return getFieldOptions(field).map((option) => option.value);
+}
+
+initSessionControls();
+
+async function fetchFieldOptions() {
+  try {
+    const response = await fetch(buildApiUrl("/field-options"));
+    handleUnauthorized(response);
+    if (!response.ok) {
+      throw new Error("Unable to load field options");
+    }
+    const payload = await response.json();
+    fieldOptions = Object.fromEntries(
+      Object.keys(DEFAULT_FIELD_OPTIONS).map((field) => {
+        const incoming = Array.isArray(payload?.[field]) ? payload[field] : null;
+        return [field, incoming && incoming.length ? incoming : DEFAULT_FIELD_OPTIONS[field]];
+      })
+    );
+  } catch (error) {
+    console.error(error);
+    fieldOptions = JSON.parse(JSON.stringify(DEFAULT_FIELD_OPTIONS));
+  }
+}
+
+function populateSelectOptions(selectEl, field, { multiple = false } = {}) {
+  if (!selectEl) return;
+  const options = getFieldOptions(field);
+  selectEl.innerHTML = options
+    .map((option) => `<option value="${option.value}">${option.label}</option>`)
+    .join("");
+  if (!options.length && !multiple) {
+    selectEl.innerHTML = `<option value="">No options configured</option>`;
+    selectEl.disabled = true;
+  } else {
+    selectEl.disabled = false;
+  }
+}
+
+function renderOptionControls() {
+  populateSelectOptions(statusSelect, "status");
+  populateSelectOptions(surgerySelect, "surgery_type");
+  populateSelectOptions(paymentSelect, "payment");
+  populateSelectOptions(consultationSelect, "consultation", { multiple: true });
+  populateSelectOptions(formsSelect, "forms", { multiple: true });
+  populateSelectOptions(consentsSelect, "consents", { multiple: true });
+}
 
 const patientNameEl = document.getElementById("patient-name");
 const patientWeekEl = document.getElementById("patient-week");
@@ -21,6 +115,7 @@ const cityInput = document.getElementById("city");
 const statusSelect = document.getElementById("status");
 const surgerySelect = document.getElementById("surgery-type");
 const paymentSelect = document.getElementById("payment");
+const consultationSelect = document.getElementById("consultation");
 const photosInput = document.getElementById("photos");
 const formsSelect = document.getElementById("forms");
 const consentsSelect = document.getElementById("consents");
@@ -89,6 +184,14 @@ function populateForm(record) {
   statusSelect.value = record.status || "reserved";
   surgerySelect.value = record.surgery_type || "small";
   paymentSelect.value = record.payment || "waiting";
+  if (consultationSelect) {
+    const selectedConsultations = Array.isArray(record.consultation)
+      ? record.consultation
+      : record.consultation
+        ? [record.consultation]
+        : [];
+    setMultiValue(consultationSelect, selectedConsultations);
+  }
   photosInput.value =
     (record.photo_files?.length ?? record.photos ?? 0) > 0
       ? String(record.photo_files.length ?? record.photos)
@@ -116,7 +219,8 @@ async function fetchPatient() {
     return;
   }
   try {
-    const response = await fetch(new URL(`/patients/${requestedId}`, API_BASE_URL));
+    const response = await fetch(buildApiUrl(`/patients/${requestedId}`));
+    handleUnauthorized(response);
     if (!response.ok) {
       throw new Error(`Server responded with ${response.status}`);
     }
@@ -232,13 +336,10 @@ function showRelativePhoto(step) {
 async function deletePhoto(relativePath) {
   if (!currentPatient) return;
   try {
-    const response = await fetch(
-      new URL(
-        `/uploads/${currentPatient.id}?file=${encodeURIComponent(relativePath)}`,
-        API_BASE_URL
-      ),
-      { method: "DELETE" }
-    );
+    const deleteUrl = new URL(`/uploads/${currentPatient.id}`, API_BASE_URL);
+    deleteUrl.searchParams.set("file", relativePath);
+    const response = await fetch(deleteUrl, { method: "DELETE" });
+    handleUnauthorized(response);
     if (!response.ok) {
       throw new Error(`Failed to delete photo (${response.status})`);
     }
@@ -281,6 +382,7 @@ function buildPayloadFromForm() {
     status: statusSelect.value,
     surgery_type: surgerySelect.value,
     payment: paymentSelect.value,
+    consultation: consultationSelect ? collectMultiValue(consultationSelect) : [],
     forms: collectMultiValue(formsSelect),
     consents: collectMultiValue(consentsSelect),
     photos: getPhotoFiles().length,
@@ -299,13 +401,14 @@ async function savePatient(event) {
   }
   formStatusEl.textContent = "Saving...";
   try {
-    const response = await fetch(new URL(`/patients/${currentPatient.id}`, API_BASE_URL), {
+    const response = await fetch(buildApiUrl(`/patients/${currentPatient.id}`), {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(payload),
     });
+    handleUnauthorized(response);
     if (!response.ok) {
       throw new Error(`Failed to save (status ${response.status})`);
     }
@@ -375,6 +478,7 @@ async function uploadFiles(fileList) {
       method: "POST",
       body: formData,
     });
+    handleUnauthorized(response);
     if (!response.ok) {
       throw new Error(`Upload failed (${response.status})`);
     }
@@ -463,4 +567,10 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
-fetchPatient();
+async function initializePatientPage() {
+  await fetchFieldOptions();
+  renderOptionControls();
+  await fetchPatient();
+}
+
+initializePatientPage();

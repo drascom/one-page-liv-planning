@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import List, Literal, Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -39,15 +39,10 @@ class PatientBase(BaseModel):
     phone: str = Field(..., description="Preferred phone number")
     city: str = Field(..., description="Patient city")
     patient_date: Optional[str] = Field(None, description="ISO date for the scheduled procedure")
-    status: Literal["reserved", "confirmed", "insurgery", "done"] = Field(
-        ..., description="Surgery workflow status"
-    )
-    surgery_type: Literal["small", "big", "beard", "woman"] = Field(
-        ..., description="Buckets used to filter surgeries"
-    )
-    payment: Literal["waiting", "paid", "partially_paid"] = Field(
-        ..., description="Payment collection status"
-    )
+    status: str = Field(..., description="Surgery workflow status")
+    surgery_type: str = Field(..., description="Buckets used to filter surgeries")
+    payment: str = Field(..., description="Payment collection status")
+    consultation: List[str] = Field(default_factory=list, description="Consultations recorded for the patient")
     forms: List[str] = Field(default_factory=list, description="Completed form identifiers")
     consents: List[str] = Field(default_factory=list, description="Completed consent identifiers")
     photos: int = Field(0, description="Number of uploaded photos", ge=0)
@@ -77,6 +72,41 @@ class ApiToken(ApiTokenBase):
     id: int = Field(..., description="Database identifier for the token")
     token: str = Field(..., description="Raw token string (store securely)")
     created_at: str = Field(..., description="ISO timestamp when the token was created")
+    user_id: Optional[int] = Field(None, description="Identifier for the user that created the token")
 
     class Config:
         from_attributes = True
+
+
+class FieldOption(BaseModel):
+    value: str = Field(..., description="Stored value for the option", min_length=1)
+    label: str = Field(..., description="Human-friendly label", min_length=1)
+
+
+class FieldOptionUpdate(BaseModel):
+    options: List[FieldOption]
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class User(BaseModel):
+    id: int
+    username: str
+    is_admin: bool
+
+
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    is_admin: bool = False
+
+
+class UserPasswordUpdate(BaseModel):
+    password: str
+
+
+class UserRoleUpdate(BaseModel):
+    is_admin: bool

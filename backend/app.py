@@ -1,17 +1,23 @@
 """FastAPI application that exposes Liv's weekly planning data."""
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from urllib.parse import quote
 
 from . import database
+from .auth import get_current_user, hash_password, require_current_user
 from .routes import (
     api_tokens_router,
+    auth_router,
     config_router,
+    field_options_router,
     patients_router,
+    require_api_token,
     router as plans_router,
+    status_router,
     upload_router,
 )
 from .settings import get_settings
@@ -31,21 +37,76 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory=str(settings.static_root)), name="static")
 app.mount("/uploaded-files", StaticFiles(directory=str(settings.uploads_root)), name="uploaded-files")
 
+PROTECTED_FRONTEND_PREFIXES: tuple[str, ...] = ("/plans", "/patients", "/uploads", "/field-options", "/api-tokens")
+
+
+def _redirect_to_login(request: Request) -> RedirectResponse:
+    next_path = request.url.path
+    if request.url.query:
+        next_path = f"{next_path}?{request.url.query}"
+    if next_path in ("/login", "/login/"):
+        return RedirectResponse("/login")
+    encoded = quote(next_path, safe="") if next_path else ""
+    target = "/login"
+    if encoded:
+        target = f"/login?next={encoded}"
+    return RedirectResponse(target)
+
+
+def _path_requires_frontend_login(path: str) -> bool:
+    """Return True when the request should only be served to authenticated users."""
+    for prefix in PROTECTED_FRONTEND_PREFIXES:
+        if path == prefix or path == f"{prefix}/" or path.startswith(f"{prefix}/"):
+            return True
+    return False
+
+
+def _prefers_html(request: Request) -> bool:
+    accept = request.headers.get("accept") or ""
+    return "text/html" in accept.lower()
+
+
+def _register_frontend_security_middleware(api: FastAPI) -> None:
+    @api.middleware("http")
+    async def enforce_frontend_authentication(request: Request, call_next):
+        """Require authenticated sessions for internal (non-API) endpoints."""
+        if request.method == "OPTIONS":
+            return await call_next(request)
+        path = request.url.path
+        if not _path_requires_frontend_login(path):
+            return await call_next(request)
+        if get_current_user(request):
+            return await call_next(request)
+        if _prefers_html(request):
+            return _redirect_to_login(request)
+        return JSONResponse({"detail": "Not authenticated"}, status_code=401)
+
 
 @app.on_event("startup")
 def startup_event() -> None:
     database.init_db()
+    database.seed_default_admin_user(hash_password(settings.default_admin_password))
 
 
 def create_app() -> FastAPI:
     """Return a configured FastAPI app (useful for testing)."""
     database.init_db()
+    database.seed_default_admin_user(hash_password(settings.default_admin_password))
     api = FastAPI(title="Liv Planning API", version="0.1.0")
-    api.include_router(plans_router)
-    api.include_router(patients_router)
-    api.include_router(api_tokens_router)
     api.include_router(config_router)
-    api.include_router(upload_router)
+    api.include_router(auth_router)
+    auth_dependency = [Depends(require_current_user)]
+    api.include_router(plans_router, dependencies=auth_dependency)
+    api.include_router(patients_router, dependencies=auth_dependency)
+    api.include_router(api_tokens_router, dependencies=auth_dependency)
+    api.include_router(upload_router, dependencies=auth_dependency)
+    api.include_router(field_options_router, dependencies=auth_dependency)
+    for protected_router in (plans_router, patients_router, upload_router, field_options_router, status_router):
+        api.include_router(
+            protected_router,
+            prefix="/api/v1",
+            dependencies=[Depends(require_api_token)],
+        )
     api.add_middleware(
         CORSMiddleware,
         allow_origins=allowed_origins,
@@ -54,26 +115,52 @@ def create_app() -> FastAPI:
     )
     api.mount("/static", StaticFiles(directory=str(settings.static_root)), name="static")
     api.mount("/uploaded-files", StaticFiles(directory=str(settings.uploads_root)), name="uploaded-files")
+    _register_frontend_security_middleware(api)
     return api
 
 
-app.include_router(plans_router)
-app.include_router(patients_router)
-app.include_router(api_tokens_router)
 app.include_router(config_router)
-app.include_router(upload_router)
+app.include_router(auth_router)
+auth_dependency = [Depends(require_current_user)]
+app.include_router(plans_router, dependencies=auth_dependency)
+app.include_router(patients_router, dependencies=auth_dependency)
+app.include_router(api_tokens_router, dependencies=auth_dependency)
+app.include_router(upload_router, dependencies=auth_dependency)
+app.include_router(field_options_router, dependencies=auth_dependency)
+for protected_router in (plans_router, patients_router, upload_router, field_options_router, status_router):
+    app.include_router(
+        protected_router,
+        prefix="/api/v1",
+        dependencies=[Depends(require_api_token)],
+    )
+
+_register_frontend_security_middleware(app)
 
 
 @app.get("/", include_in_schema=False)
-def serve_index() -> FileResponse:
+def serve_index(request: Request):
+    if not get_current_user(request):
+        return _redirect_to_login(request)
     return FileResponse(settings.static_root / "index.html")
 
 
 @app.get("/patient.html", include_in_schema=False)
-def serve_patient() -> FileResponse:
+def serve_patient(request: Request):
+    if not get_current_user(request):
+        return _redirect_to_login(request)
     return FileResponse(settings.static_root / "patient.html")
 
 
 @app.get("/settings.html", include_in_schema=False)
-def serve_settings() -> FileResponse:
+def serve_settings(request: Request):
+    if not get_current_user(request):
+        return _redirect_to_login(request)
     return FileResponse(settings.static_root / "settings.html")
+
+
+@app.get("/login", include_in_schema=False)
+def serve_login(request: Request):
+    if get_current_user(request):
+        next_url = request.query_params.get("next") or "/"
+        return RedirectResponse(next_url)
+    return FileResponse(settings.static_root / "login.html")

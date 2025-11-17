@@ -9,6 +9,7 @@
   <body class="patient-page">
     <header class="patient-header">
       <a href="/" class="back-link">← Back to schedule</a>
+      <button type="button" class="logout-link" data-logout-btn>Logout</button>
       <div class="patient-heading">
         <p class="patient-week" id="patient-week"></p>
         <h1 id="patient-name">Patient Record</h1>
@@ -49,28 +50,19 @@
           <div class="form-grid">
             <label class="form-field">
               <span>Status</span>
-              <select id="status" name="status">
-                <option value="reserved">Reserved</option>
-                <option value="confirmed">Confirmed</option>
-                <option value="insurgery">In Surgery</option>
-                <option value="done">Done</option>
-              </select>
+              <select id="status" name="status"></select>
             </label>
             <label class="form-field">
               <span>Surgery Type</span>
-              <select id="surgery-type" name="surgeryType">
-                <option value="small">Small</option>
-                <option value="big">Big</option>
-                <option value="beard">Beard</option>
-                <option value="woman">Woman</option>
-              </select>
+              <select id="surgery-type" name="surgeryType"></select>
             </label>
             <label class="form-field">
               <span>Payment</span>
-              <select id="payment" name="payment">
-                <option value="waiting">Waiting</option>
-                <option value="paid">Paid</option>
-                <option value="partially_paid">Partially Paid</option>
+              <select id="payment" name="payment"></select>
+            </label>
+            <label class="form-field">
+              <span>Consultations</span>
+              <select id="consultation" name="consultation" multiple size="2">
               </select>
             </label>
             <label class="form-field">
@@ -82,21 +74,11 @@
           <div class="form-grid form-grid--stacked">
             <label class="form-field">
               <span>Forms</span>
-              <select id="forms" name="forms" multiple size="5">
-                <option value="form1">Form 1</option>
-                <option value="form2">Form 2</option>
-                <option value="form3">Form 3</option>
-                <option value="form4">Form 4</option>
-                <option value="form5">Form 5</option>
-              </select>
+              <select id="forms" name="forms" multiple size="5"></select>
             </label>
             <label class="form-field">
               <span>Consents</span>
-              <select id="consents" name="consents" multiple size="3">
-                <option value="form1">Consent 1</option>
-                <option value="form2">Consent 2</option>
-                <option value="form3">Consent 3</option>
-              </select>
+              <select id="consents" name="consents" multiple size="3"></select>
             </label>
           </div>
 

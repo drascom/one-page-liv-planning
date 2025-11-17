@@ -1,40 +1,120 @@
+import { fetchCurrentUser, handleUnauthorized, initSessionControls } from "./session.js";
+
 const scheduleEl = document.getElementById("schedule");
 const weekTemplate = document.getElementById("week-template");
 
-const FORM_OPTIONS = ["form1", "form2", "form3", "form4", "form5"];
-const CONSENT_OPTIONS = ["form1", "form2", "form3"];
-
-const STATUS_LABELS = {
-  reserved: "Reserved",
-  confirmed: "Confirmed",
-  insurgery: "In Surgery",
-  done: "Done",
+const DEFAULT_FIELD_OPTIONS = {
+  status: [
+    { value: "reserved", label: "Reserved" },
+    { value: "confirmed", label: "Confirmed" },
+    { value: "insurgery", label: "In Surgery" },
+    { value: "done", label: "Done" },
+  ],
+  surgery_type: [
+    { value: "small", label: "Small" },
+    { value: "big", label: "Big" },
+    { value: "beard", label: "Beard" },
+    { value: "woman", label: "Woman" },
+  ],
+  payment: [
+    { value: "waiting", label: "Waiting" },
+    { value: "paid", label: "Paid" },
+    { value: "partially_paid", label: "Partially Paid" },
+  ],
+  forms: [
+    { value: "form1", label: "Form 1" },
+    { value: "form2", label: "Form 2" },
+    { value: "form3", label: "Form 3" },
+    { value: "form4", label: "Form 4" },
+    { value: "form5", label: "Form 5" },
+  ],
+  consents: [
+    { value: "form1", label: "Consent 1" },
+    { value: "form2", label: "Consent 2" },
+    { value: "form3", label: "Consent 3" },
+  ],
+  consultation: [
+    { value: "consultation1", label: "Consultation 1" },
+    { value: "consultation2", label: "Consultation 2" },
+  ],
 };
 
-const statusClasses = {
-  reserved: "status-reserved",
-  confirmed: "status-confirmed",
-  insurgery: "status-insurgery",
-  done: "status-done",
-};
-
-const SURGERY_LABELS = {
-  small: "Small",
-  big: "Big",
-  beard: "Beard",
-  woman: "Woman",
-};
-
-const PAYMENT_LABELS = {
-  waiting: "Waiting",
-  paid: "Paid",
-  partially_paid: "Partially Paid",
-};
+let fieldOptions = JSON.parse(JSON.stringify(DEFAULT_FIELD_OPTIONS));
 
 const CHECKED_ICON = {
   true: "☑",
   false: "☐",
 };
+
+function getFieldOptions(field) {
+  return fieldOptions[field] ?? [];
+}
+
+function getFieldOptionValues(field) {
+  return getFieldOptions(field).map((option) => option.value);
+}
+
+function getOptionLabel(field, value) {
+  if (!value) {
+    return "";
+  }
+  const match = getFieldOptions(field).find((option) => option.value === value);
+  return match?.label ?? value;
+}
+
+function getDefaultFieldValue(field, fallback = "") {
+  const options = getFieldOptions(field);
+  return options[0]?.value ?? fallback;
+}
+
+function getStatusClass(value) {
+  if (!value) {
+    return "status-generic";
+  }
+  const normalized = value.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const defaults = {
+    reserved: "status-reserved",
+    confirmed: "status-confirmed",
+    insurgery: "status-insurgery",
+    done: "status-done",
+  };
+  if (defaults[value]) {
+    return defaults[value];
+  }
+  if (!normalized) {
+    return "status-generic";
+  }
+  return `status-generic status-${normalized}`;
+}
+
+function hasCompletedChecklist(field, values) {
+  const required = getFieldOptionValues(field);
+  if (!required.length) {
+    return false;
+  }
+  const provided = new Set(Array.isArray(values) ? values : []);
+  return required.every((value) => provided.has(value));
+}
+
+async function fetchFieldOptions() {
+  try {
+    const response = await fetch(buildApiUrl("/field-options"));
+    handleUnauthorized(response);
+    if (!response.ok) {
+      throw new Error("Unable to load field options");
+    }
+    const payload = await response.json();
+    fieldOptions = Object.fromEntries(
+      Object.keys(DEFAULT_FIELD_OPTIONS).map((field) => {
+        const incoming = Array.isArray(payload?.[field]) ? payload[field] : null;
+        return [field, incoming && incoming.length ? incoming : DEFAULT_FIELD_OPTIONS[field]];
+      })
+    );
+  } catch (error) {
+    console.error(error);
+    fieldOptions = JSON.parse(JSON.stringify(DEFAULT_FIELD_OPTIONS));
+  }
+}
 
 const ACTIVE_PATIENT_KEY = "activePatient";
 const API_BASE_URL =
@@ -51,6 +131,26 @@ const monthNextBtn = document.getElementById("month-next");
 const yearSelect = document.getElementById("year-select");
 const todayButton = document.getElementById("month-today");
 const addPatientBtn = document.getElementById("add-patient-btn");
+const settingsLink = document.querySelector("[data-admin-link]");
+
+initSessionControls();
+initializeAdminControls();
+
+async function initializeAdminControls() {
+  if (!settingsLink) {
+    return;
+  }
+  try {
+    const user = await fetchCurrentUser();
+    if (user?.is_admin) {
+      settingsLink.hidden = false;
+      return;
+    }
+  } catch (_error) {
+    // ignore fetch errors and hide the control
+  }
+  settingsLink.remove();
+}
 
 let monthlySchedules = [];
 let selectedDate = new Date();
@@ -71,6 +171,7 @@ function buildApiUrl(path) {
 
 async function fetchPatients() {
   const response = await fetch(buildApiUrl("/patients"));
+  handleUnauthorized(response);
   if (!response.ok) {
     throw new Error(`Unable to load patients (${response.status})`);
   }
@@ -114,6 +215,11 @@ function normalizePatientForSchedule(patient) {
     scheduleDayLabel: scheduleDayLabel || patient.day_label,
     scheduleProcedureDate,
     scheduleSortKey: date ? date.getTime() : patient.day_order ?? 0,
+    consultation: Array.isArray(patient.consultation)
+      ? patient.consultation
+      : patient.consultation
+        ? [patient.consultation]
+        : [],
   };
 }
 
@@ -144,6 +250,7 @@ function buildWeeksForPatients(patients) {
       consents: patient.consents,
       payment: patient.payment,
       photos: patient.photos,
+      consultation: patient.consultation,
       weekLabel: patient.scheduleWeekLabel,
       weekRange: patient.scheduleWeekRange,
       monthLabel: patient.scheduleMonthLabel,
@@ -196,6 +303,18 @@ function createCheckCell(value, label) {
 
 function formatPhotos(value) {
   return value > 0 ? String(value) : "None";
+}
+
+function formatConsultation(value) {
+  const list = Array.isArray(value)
+    ? value
+    : value
+      ? [value]
+      : [];
+  if (!list.length) {
+    return "—";
+  }
+  return list.map((entry) => getOptionLabel("consultation", entry)).join(", ");
 }
 
 function formatMonthLabelFromDate(date) {
@@ -315,6 +434,9 @@ function buildDefaultPatientPayload() {
       ? existingWeeks[existingWeeks.length - 1].order + 1
       : 1;
   const weekLabel = `Week ${existingWeeks.length + 1 || 1}`;
+  const defaultStatus = getDefaultFieldValue("status", "reserved");
+  const defaultSurgery = getDefaultFieldValue("surgery_type", "small");
+  const defaultPayment = getDefaultFieldValue("payment", "waiting");
 
   return {
     month_label: monthLabel,
@@ -329,9 +451,10 @@ function buildDefaultPatientPayload() {
     email: "",
     phone: "",
     city: "",
-    status: "reserved",
-    surgery_type: "small",
-    payment: "waiting",
+    status: defaultStatus,
+    surgery_type: defaultSurgery,
+    payment: defaultPayment,
+    consultation: [],
     forms: [],
     consents: [],
     photos: 0,
@@ -357,6 +480,7 @@ async function handleAddPatientClick() {
       },
       body: JSON.stringify(payload),
     });
+    handleUnauthorized(response);
     if (!response.ok) {
       throw new Error(`Failed to create patient (${response.status})`);
     }
@@ -372,9 +496,11 @@ async function handleAddPatientClick() {
         capturedAt: new Date().toISOString(),
       })
     );
-    window.location.href = `patient.html?id=${patient.id}&patient=${encodeURIComponent(
-      `${patient.first_name} ${patient.last_name}`
-    )}`;
+    const params = new URLSearchParams({
+      id: String(patient.id),
+      patient: `${patient.first_name} ${patient.last_name}`.trim(),
+    });
+    window.location.href = `patient.html?${params.toString()}`;
   } catch (error) {
     console.error(error);
     if (addPatientBtn) {
@@ -435,24 +561,28 @@ function renderWeek(week, index) {
 
     const statusCell = document.createElement("td");
     const badge = document.createElement("span");
-    badge.textContent = STATUS_LABELS[day.status] ?? day.status;
-    badge.className = `status-badge ${statusClasses[day.status] ?? ""}`;
+    badge.textContent = getOptionLabel("status", day.status) || day.status || "—";
+    badge.className = `status-badge ${getStatusClass(day.status)}`;
     statusCell.appendChild(badge);
     statusCell.classList.add("col-status");
     statusCell.dataset.label = "Status";
 
     const surgeryCell = document.createElement("td");
-    surgeryCell.textContent = SURGERY_LABELS[day.surgeryType] ?? day.surgeryType ?? "—";
+    surgeryCell.textContent = getOptionLabel("surgery_type", day.surgeryType) || day.surgeryType || "—";
     surgeryCell.classList.add("col-surgery");
     surgeryCell.dataset.label = "Surgery Type";
 
-    const formsComplete = (day.forms ?? []).length === FORM_OPTIONS.length;
-    const consentsComplete = (day.consents ?? []).length === CONSENT_OPTIONS.length;
+    const formsComplete = hasCompletedChecklist("forms", day.forms);
+    const consentsComplete = hasCompletedChecklist("consents", day.consents);
     const formsCell = createCheckCell(formsComplete, "Forms");
     const consentsCell = createCheckCell(consentsComplete, "Consents");
+    const consultationCell = document.createElement("td");
+    consultationCell.textContent = formatConsultation(day.consultation);
+    consultationCell.classList.add("col-consult");
+    consultationCell.dataset.label = "Consulted";
 
     const paymentCell = document.createElement("td");
-    paymentCell.textContent = PAYMENT_LABELS[day.payment] ?? day.payment;
+    paymentCell.textContent = getOptionLabel("payment", day.payment) || day.payment;
     paymentCell.classList.add("col-payment");
     paymentCell.dataset.label = "Payment";
 
@@ -479,6 +609,7 @@ function renderWeek(week, index) {
       surgeryCell,
       formsCell,
       consentsCell,
+      consultationCell,
       paymentCell,
       photosCell
     );
@@ -507,6 +638,7 @@ if (addPatientBtn) {
 async function initializeSchedule() {
   setScheduleStatus("Loading schedule...");
   try {
+    await fetchFieldOptions();
     const patients = await fetchPatients();
     monthlySchedules = buildMonthlySchedules(patients);
     updateYearOptions(selectedDate.getFullYear());

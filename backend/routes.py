@@ -4,23 +4,57 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
-from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from fastapi.responses import JSONResponse, PlainTextResponse
 
 from . import database
-from .models import ApiToken, ApiTokenCreate, Patient, PatientCreate, WeeklyPlan, WeeklyPlanCreate
+from .auth import (
+    clear_login_cookie,
+    hash_password,
+    require_admin_user,
+    require_current_user,
+    sanitize_user,
+    set_login_cookie,
+    verify_password,
+)
+from .models import (
+    ApiToken,
+    ApiTokenCreate,
+    FieldOption,
+    FieldOptionUpdate,
+    LoginRequest,
+    Patient,
+    PatientCreate,
+    User,
+    UserCreate,
+    UserPasswordUpdate,
+    UserRoleUpdate,
+    WeeklyPlan,
+    WeeklyPlanCreate,
+)
 from .settings import get_settings
 
 router = APIRouter(prefix="/plans", tags=["plans"])
 patients_router = APIRouter(prefix="/patients", tags=["patients"])
 upload_router = APIRouter(prefix="/uploads", tags=["uploads"])
 api_tokens_router = APIRouter(prefix="/api-tokens", tags=["api tokens"])
+auth_router = APIRouter(prefix="/auth", tags=["auth"])
+field_options_router = APIRouter(prefix="/field-options", tags=["field options"])
+status_router = APIRouter(prefix="/status", tags=["status"])
 config_router = APIRouter(tags=["config"])
 
 settings = get_settings()
 UPLOAD_ROOT = settings.uploads_root
+REQUIRED_MIN_OPTION_COUNTS: Dict[str, int] = {"status": 1, "surgery_type": 1, "payment": 1}
+
+
+def require_api_token(token: str = Query(..., description="API token", alias="token")) -> ApiToken:
+    record = database.get_api_token_by_value(token)
+    if not record:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API token")
+    return ApiToken(**record)
 
 
 @router.get("/", response_model=List[WeeklyPlan])
@@ -106,26 +140,150 @@ def app_config_js() -> str:
     return f"window.APP_CONFIG = {payload};"
 
 
+@auth_router.post("/login", response_model=User)
+def login(payload: LoginRequest, response: Response) -> User:
+    record = database.get_user_by_username(payload.username)
+    if not record or not verify_password(payload.password, record["password_hash"]):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    set_login_cookie(response, record["id"])
+    return User(**sanitize_user(record))
+
+
+@auth_router.post("/logout")
+def logout(response: Response, _: dict = Depends(require_current_user)) -> dict[str, str]:
+    clear_login_cookie(response)
+    return {"detail": "Logged out"}
+
+
+@auth_router.get("/me", response_model=User)
+def current_user_route(current_user: dict = Depends(require_current_user)) -> User:
+    return User(**sanitize_user(current_user))
+
+
+@auth_router.get("/users", response_model=List[User])
+def list_users_route(_: dict = Depends(require_admin_user)) -> List[User]:
+    users = database.list_users()
+    return [User(**sanitize_user(user)) for user in users]
+
+
+@auth_router.post("/users", response_model=User, status_code=status.HTTP_201_CREATED)
+def create_user_route(payload: UserCreate, _: dict = Depends(require_admin_user)) -> User:
+    existing = database.get_user_by_username(payload.username)
+    if existing:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username already exists")
+    record = database.create_user(payload.username, hash_password(payload.password), payload.is_admin)
+    return User(**sanitize_user(record))
+
+
+@auth_router.put("/users/{user_id}/password", response_model=User)
+def update_user_password_route(
+    user_id: int,
+    payload: UserPasswordUpdate,
+    _: dict = Depends(require_admin_user),
+) -> User:
+    updated = database.update_user_password(user_id, hash_password(payload.password))
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    record = database.get_user(user_id)
+    return User(**sanitize_user(record))
+
+
+@auth_router.put("/users/{user_id}/role", response_model=User)
+def update_user_role_route(
+    user_id: int,
+    payload: UserRoleUpdate,
+    current_user: dict = Depends(require_admin_user),
+) -> User:
+    record = database.get_user(user_id)
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if user_id == current_user["id"] and not payload.is_admin:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot remove your own admin rights")
+    if record["is_admin"] and not payload.is_admin:
+        admins = [user for user in database.list_users() if user["is_admin"]]
+        if len(admins) <= 1:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="At least one admin is required")
+    updated = database.update_user_admin_flag(user_id, payload.is_admin)
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to update user")
+    record = database.get_user(user_id)
+    return User(**sanitize_user(record))
+
+
+@auth_router.delete(
+    "/users/{user_id}", response_model=None, status_code=status.HTTP_204_NO_CONTENT
+)
+def delete_user_route(user_id: int, current_user: dict = Depends(require_admin_user)) -> None:
+    if user_id == current_user["id"]:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete your own account")
+    record = database.get_user(user_id)
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if record["is_admin"]:
+        admins = [user for user in database.list_users() if user["is_admin"]]
+        if len(admins) <= 1:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="At least one admin is required")
+    deleted = database.delete_user(user_id)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to delete user")
+
+
+@field_options_router.get("/", response_model=Dict[str, List[FieldOption]])
+def list_field_options_route(_: dict = Depends(require_current_user)) -> Dict[str, List[FieldOption]]:
+    """Return every configurable select option list."""
+    return {field: [FieldOption(**option) for option in options] for field, options in database.list_field_options().items()}
+
+
+@field_options_router.get("/{field_name}", response_model=List[FieldOption])
+def get_field_options_route(field_name: str, _: dict = Depends(require_current_user)) -> List[FieldOption]:
+    """Return options for a specific field."""
+    try:
+        options = database.get_field_options(field_name)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return [FieldOption(**option) for option in options]
+
+
+@field_options_router.put("/{field_name}", response_model=List[FieldOption])
+def update_field_options_route(
+    field_name: str,
+    payload: FieldOptionUpdate,
+    _: dict = Depends(require_admin_user),
+) -> List[FieldOption]:
+    """Replace the option list for the given field."""
+    min_required = REQUIRED_MIN_OPTION_COUNTS.get(field_name, 0)
+    if len(payload.options) < min_required:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"{field_name} requires at least {min_required} option(s)",
+        )
+    try:
+        normalized = database.update_field_options(field_name, [option.model_dump() for option in payload.options])
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return [FieldOption(**option) for option in normalized]
+
+
 @api_tokens_router.get("/", response_model=List[ApiToken])
-def list_api_tokens() -> List[ApiToken]:
-    """Return every API token (tokens do not expire)."""
-    records = database.list_api_tokens()
+def list_api_tokens(current_user: dict = Depends(require_admin_user)) -> List[ApiToken]:
+    """Return every API token created by the current user (tokens do not expire)."""
+    records = database.list_api_tokens(user_id=current_user["id"])
     return [ApiToken(**record) for record in records]
 
 
 @api_tokens_router.post("/", response_model=ApiToken, status_code=status.HTTP_201_CREATED)
-def create_api_token(payload: ApiTokenCreate) -> ApiToken:
-    """Create a new API token that never expires."""
-    record = database.create_api_token(payload.name)
+def create_api_token(payload: ApiTokenCreate, current_user: dict = Depends(require_admin_user)) -> ApiToken:
+    """Create a new API token tied to the requesting user."""
+    record = database.create_api_token(payload.name, current_user["id"])
     return ApiToken(**record)
 
 
 @api_tokens_router.delete(
     "/{token_id}", response_model=None, status_code=status.HTTP_204_NO_CONTENT
 )
-def delete_api_token(token_id: int) -> None:
-    """Delete an API token by id."""
-    deleted = database.delete_api_token(token_id)
+def delete_api_token(token_id: int, current_user: dict = Depends(require_admin_user)) -> None:
+    """Delete one of the current user's API tokens by id."""
+    deleted = database.delete_api_token(token_id, user_id=current_user["id"])
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Token not found")
 
@@ -196,3 +354,9 @@ def delete_patient_photo(patient_id: int, file: str) -> dict[str, object]:
     if updated is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     return {"photoFiles": updated}
+
+
+@status_router.get("/connection-check")
+def verify_api_connection(_: ApiToken = Depends(require_api_token)) -> dict[str, str]:
+    """Confirm that an API token is valid for integrations."""
+    return {"detail": "API token verified"}

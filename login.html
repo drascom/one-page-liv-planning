@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign in · Liv CRM</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body class="login-page">
+    <main class="login-card">
+      <h1>Sign in</h1>
+      <p>Use your Liv CRM credentials to continue.</p>
+      <form id="login-form" class="login-form">
+        <label>
+          <span>Username</span>
+          <input id="login-username" type="text" autocomplete="username" required />
+        </label>
+        <label>
+          <span>Password</span>
+          <input id="login-password" type="password" autocomplete="current-password" required />
+        </label>
+        <button type="submit" class="primary-btn">Sign in</button>
+        <p id="login-status" class="form-status" role="status"></p>
+      </form>
+    </main>
+    <script src="/app-config.js"></script>
+    <script src="/static/login.js" type="module"></script>
+  </body>
+</html>

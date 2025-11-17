@@ -12,6 +12,120 @@ from typing import Any, Dict, List, Optional
 
 DB_PATH = Path(__file__).resolve().parent / "liv_planning.db"
 
+FIELD_OPTION_FIELDS: List[str] = [
+    "status",
+    "surgery_type",
+    "forms",
+    "consents",
+    "consultation",
+    "payment",
+]
+
+
+def seed_default_admin_user(password_hash: str, username: str = "admin") -> None:
+    with closing(get_connection()) as conn:
+        cursor = conn.execute("SELECT COUNT(*) FROM users")
+        if cursor.fetchone()[0]:
+            return
+        conn.execute(
+            "INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, 1)",
+            (username, password_hash),
+        )
+        conn.commit()
+
+
+def list_users() -> List[Dict[str, Any]]:
+    with closing(get_connection()) as conn:
+        cursor = conn.execute("SELECT id, username, is_admin FROM users ORDER BY username")
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def get_user_by_username(username: str) -> Optional[Dict[str, Any]]:
+    with closing(get_connection()) as conn:
+        cursor = conn.execute("SELECT id, username, password_hash, is_admin FROM users WHERE username = ?", (username,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+
+def get_user(user_id: int) -> Optional[Dict[str, Any]]:
+    with closing(get_connection()) as conn:
+        cursor = conn.execute("SELECT id, username, password_hash, is_admin FROM users WHERE id = ?", (user_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+
+def create_user(username: str, password_hash: str, is_admin: bool = False) -> Dict[str, Any]:
+    with closing(get_connection()) as conn:
+        cursor = conn.execute(
+            "INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, ?)",
+            (username, password_hash, 1 if is_admin else 0),
+        )
+        conn.commit()
+        return get_user(cursor.lastrowid)
+
+
+def update_user_password(user_id: int, password_hash: str) -> bool:
+    with closing(get_connection()) as conn:
+        cursor = conn.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?",
+            (password_hash, user_id),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+
+
+def update_user_admin_flag(user_id: int, is_admin: bool) -> bool:
+    with closing(get_connection()) as conn:
+        cursor = conn.execute(
+            "UPDATE users SET is_admin = ? WHERE id = ?",
+            (1 if is_admin else 0, user_id),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+
+
+def delete_user(user_id: int) -> bool:
+    with closing(get_connection()) as conn:
+        cursor = conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+
+DEFAULT_FIELD_OPTIONS: Dict[str, List[Dict[str, str]]] = {
+    "status": [
+        {"value": "reserved", "label": "Reserved"},
+        {"value": "confirmed", "label": "Confirmed"},
+        {"value": "insurgery", "label": "In Surgery"},
+        {"value": "done", "label": "Done"},
+    ],
+    "surgery_type": [
+        {"value": "small", "label": "Small"},
+        {"value": "big", "label": "Big"},
+        {"value": "beard", "label": "Beard"},
+        {"value": "woman", "label": "Woman"},
+    ],
+    "forms": [
+        {"value": "form1", "label": "Form 1"},
+        {"value": "form2", "label": "Form 2"},
+        {"value": "form3", "label": "Form 3"},
+        {"value": "form4", "label": "Form 4"},
+        {"value": "form5", "label": "Form 5"},
+    ],
+    "consents": [
+        {"value": "form1", "label": "Consent 1"},
+        {"value": "form2", "label": "Consent 2"},
+        {"value": "form3", "label": "Consent 3"},
+    ],
+    "consultation": [
+        {"value": "consultation1", "label": "Consultation 1"},
+        {"value": "consultation2", "label": "Consultation 2"},
+    ],
+    "payment": [
+        {"value": "waiting", "label": "Waiting"},
+        {"value": "paid", "label": "Paid"},
+        {"value": "partially_paid", "label": "Partially Paid"},
+    ],
+}
+
 
 def init_db() -> None:
     """Create the database tables and seed demo patients if empty."""
@@ -47,6 +161,7 @@ def init_db() -> None:
                 status TEXT NOT NULL,
                 surgery_type TEXT NOT NULL,
                 payment TEXT NOT NULL,
+                consultation TEXT,
                 forms TEXT NOT NULL DEFAULT '[]',
                 consents TEXT NOT NULL DEFAULT '[]',
                 photos INTEGER NOT NULL DEFAULT 0,
@@ -56,16 +171,39 @@ def init_db() -> None:
         )
         _ensure_patient_date_column(conn)
         _ensure_photo_files_column(conn)
+        _ensure_consultation_column(conn)
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS api_tokens (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 token TEXT NOT NULL UNIQUE,
-                created_at TEXT NOT NULL
+                created_at TEXT NOT NULL,
+                user_id INTEGER,
+                FOREIGN KEY(user_id) REFERENCES users(id)
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS field_options (
+                field TEXT PRIMARY KEY,
+                options TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                is_admin INTEGER NOT NULL DEFAULT 0
+            )
+            """
+        )
+        _ensure_api_token_user_column(conn)
+        _ensure_field_options(conn)
         conn.commit()
         _seed_patients_if_empty(conn)
 
@@ -87,6 +225,141 @@ def _ensure_photo_files_column(conn: sqlite3.Connection) -> None:
         conn.commit()
 
 
+def _ensure_consultation_column(conn: sqlite3.Connection) -> None:
+    cursor = conn.execute("PRAGMA table_info(patients)")
+    columns = {row[1] for row in cursor.fetchall()}
+    if "consultation" not in columns:
+        conn.execute("ALTER TABLE patients ADD COLUMN consultation TEXT")
+        conn.commit()
+    _normalize_consultation_column(conn)
+
+
+def _ensure_field_options(conn: sqlite3.Connection) -> None:
+    cursor = conn.execute("SELECT field FROM field_options")
+    existing = {row[0] for row in cursor.fetchall()}
+    inserted = False
+    for field in FIELD_OPTION_FIELDS:
+        if field not in existing:
+            conn.execute(
+                "INSERT INTO field_options (field, options) VALUES (?, ?)",
+                (field, json.dumps(DEFAULT_FIELD_OPTIONS[field])),
+            )
+            inserted = True
+    if inserted:
+        conn.commit()
+
+
+def _ensure_api_token_user_column(conn: sqlite3.Connection) -> None:
+    cursor = conn.execute("PRAGMA table_info(api_tokens)")
+    columns = {row[1] for row in cursor.fetchall()}
+    if "user_id" not in columns:
+        conn.execute("ALTER TABLE api_tokens ADD COLUMN user_id INTEGER")
+        conn.commit()
+        conn.execute(
+            """
+            UPDATE api_tokens
+            SET user_id = (
+                SELECT id FROM users ORDER BY is_admin DESC, id ASC LIMIT 1
+            )
+            WHERE user_id IS NULL
+            """
+        )
+        conn.commit()
+
+
+def _normalize_consultation_column(conn: sqlite3.Connection) -> None:
+    cursor = conn.execute("SELECT id, consultation FROM patients WHERE consultation IS NOT NULL")
+    rows = cursor.fetchall()
+    updated = False
+    for patient_id, value in rows:
+        if not value:
+            new_value = json.dumps([])
+        else:
+            try:
+                parsed = json.loads(value)
+            except json.JSONDecodeError:
+                parsed = None
+            if isinstance(parsed, list):
+                continue
+            if isinstance(parsed, str):
+                new_value = json.dumps([parsed])
+            elif parsed is None:
+                new_value = json.dumps([])
+            else:
+                new_value = json.dumps([value])
+        conn.execute("UPDATE patients SET consultation = ? WHERE id = ?", (new_value, patient_id))
+        updated = True
+    if updated:
+        conn.commit()
+
+
+def _deserialize_field_option_payload(payload: Optional[str]) -> Optional[List[Dict[str, str]]]:
+    if not payload:
+        return None
+    try:
+        data = json.loads(payload)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(data, list):
+        return None
+    normalized: List[Dict[str, str]] = []
+    for entry in data:
+        if not isinstance(entry, dict):
+            continue
+        value = str(entry.get("value", "")).strip()
+        label = str(entry.get("label", "")).strip() or value
+        if not value:
+            continue
+        normalized.append({"value": value, "label": label})
+    return normalized
+
+
+def list_field_options() -> Dict[str, List[Dict[str, str]]]:
+    with closing(get_connection()) as conn:
+        cursor = conn.execute("SELECT field, options FROM field_options")
+        data = {row[0]: _deserialize_field_option_payload(row[1]) for row in cursor.fetchall()}
+    result: Dict[str, List[Dict[str, str]]] = {}
+    for field in FIELD_OPTION_FIELDS:
+        options = data.get(field)
+        result[field] = options if options is not None else DEFAULT_FIELD_OPTIONS[field]
+    return result
+
+
+def get_field_options(field: str) -> List[Dict[str, str]]:
+    if field not in FIELD_OPTION_FIELDS:
+        raise ValueError("Unknown field option")
+    with closing(get_connection()) as conn:
+        cursor = conn.execute("SELECT options FROM field_options WHERE field = ?", (field,))
+        row = cursor.fetchone()
+    if not row:
+        return DEFAULT_FIELD_OPTIONS[field]
+    options = _deserialize_field_option_payload(row["options"])
+    return options if options is not None else DEFAULT_FIELD_OPTIONS[field]
+
+
+def update_field_options(field: str, options: List[Dict[str, str]]) -> List[Dict[str, str]]:
+    if field not in FIELD_OPTION_FIELDS:
+        raise ValueError("Unknown field option")
+    normalized: List[Dict[str, str]] = []
+    seen: set[str] = set()
+    for option in options:
+        value = str(option.get("value", "")).strip()
+        label = str(option.get("label", "")).strip() or value
+        if not value:
+            continue
+        if value in seen:
+            continue
+        seen.add(value)
+        normalized.append({"value": value, "label": label})
+    with closing(get_connection()) as conn:
+        conn.execute(
+            "INSERT INTO field_options (field, options) VALUES (?, ?) ON CONFLICT(field) DO UPDATE SET options = excluded.options",
+            (field, json.dumps(normalized)),
+        )
+        conn.commit()
+    return normalized
+
+
 def get_connection() -> sqlite3.Connection:
     """Return a connection with row results as dictionaries."""
     conn = sqlite3.connect(DB_PATH)
@@ -103,6 +376,20 @@ def _row_to_plan(row: sqlite3.Row) -> Dict[str, Any]:
         "metrics": row["metrics"],
         "notes": row["notes"],
     }
+
+
+def _deserialize_consultation(value: Optional[str]) -> List[str]:
+    if not value:
+        return []
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return [value]
+    if isinstance(parsed, list):
+        return [str(item) for item in parsed]
+    if isinstance(parsed, str):
+        return [parsed]
+    return []
 
 
 def _row_to_patient(row: sqlite3.Row) -> Dict[str, Any]:
@@ -123,6 +410,7 @@ def _row_to_patient(row: sqlite3.Row) -> Dict[str, Any]:
         "status": row["status"],
         "surgery_type": row["surgery_type"],
         "payment": row["payment"],
+        "consultation": _deserialize_consultation(row["consultation"]),
         "forms": json.loads(row["forms"]) if row["forms"] else [],
         "consents": json.loads(row["consents"]) if row["consents"] else [],
         "photos": row["photos"],
@@ -229,6 +517,11 @@ def fetch_patient(patient_id: int) -> Optional[Dict[str, Any]]:
 
 
 def _serialize_patient_payload(data: Dict[str, Any]) -> Dict[str, Any]:
+    consultation_value = data.get("consultation") or []
+    if isinstance(consultation_value, str):
+        consultation_list: List[str] = [consultation_value]
+    else:
+        consultation_list = list(consultation_value)
     return {
         "month_label": data["month_label"],
         "week_label": data["week_label"],
@@ -245,6 +538,7 @@ def _serialize_patient_payload(data: Dict[str, Any]) -> Dict[str, Any]:
         "status": data["status"],
         "surgery_type": data["surgery_type"],
         "payment": data["payment"],
+        "consultation": json.dumps(consultation_list),
         "forms": json.dumps(data.get("forms") or []),
         "consents": json.dumps(data.get("consents") or []),
         "photos": data.get("photos", 0),
@@ -261,8 +555,8 @@ def create_patient(data: Dict[str, Any]) -> Dict[str, Any]:
                 month_label, week_label, week_range, week_order,
                 day_label, day_order, patient_date,
                 first_name, last_name, email, phone, city,
-                status, surgery_type, payment, forms, consents, photos, photo_files
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                status, surgery_type, payment, consultation, forms, consents, photos, photo_files
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 payload["month_label"],
@@ -280,6 +574,7 @@ def create_patient(data: Dict[str, Any]) -> Dict[str, Any]:
                 payload["status"],
                 payload["surgery_type"],
                 payload["payment"],
+                payload["consultation"],
                 payload["forms"],
                 payload["consents"],
                 payload["photos"],
@@ -316,6 +611,7 @@ def update_patient(patient_id: int, data: Dict[str, Any]) -> Optional[Dict[str, 
                 surgery_type = ?,
                 patient_date = ?,
                 payment = ?,
+                consultation = ?,
                 forms = ?,
                 consents = ?,
                 photos = ?,
@@ -338,6 +634,7 @@ def update_patient(patient_id: int, data: Dict[str, Any]) -> Optional[Dict[str, 
                 payload["surgery_type"],
                 payload["patient_date"],
                 payload["payment"],
+                payload["consultation"],
                 payload["forms"],
                 payload["consents"],
                 payload["photos"],
@@ -401,33 +698,60 @@ def _generate_token_value(length: int = 48) -> str:
     return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
-def create_api_token(name: str) -> Dict[str, Any]:
+def create_api_token(name: str, user_id: int) -> Dict[str, Any]:
     token_value = _generate_token_value()
     created_at = datetime.utcnow().isoformat()
     with closing(get_connection()) as conn:
         conn.execute(
-            "INSERT INTO api_tokens (name, token, created_at) VALUES (?, ?, ?)",
-            (name, token_value, created_at),
+            "INSERT INTO api_tokens (name, token, created_at, user_id) VALUES (?, ?, ?, ?)",
+            (name, token_value, created_at, user_id),
         )
         conn.commit()
         cursor = conn.execute(
-            "SELECT id, name, token, created_at FROM api_tokens WHERE token = ?", (token_value,)
+            "SELECT id, name, token, created_at, user_id FROM api_tokens WHERE token = ?",
+            (token_value,),
         )
         row = cursor.fetchone()
         return dict(row)
 
 
-def list_api_tokens() -> List[Dict[str, Any]]:
+def list_api_tokens(user_id: Optional[int] = None) -> List[Dict[str, Any]]:
     with closing(get_connection()) as conn:
-        cursor = conn.execute("SELECT id, name, token, created_at FROM api_tokens ORDER BY created_at DESC")
+        if user_id is None:
+            cursor = conn.execute(
+                "SELECT id, name, token, created_at, user_id FROM api_tokens ORDER BY created_at DESC"
+            )
+        else:
+            cursor = conn.execute(
+                """
+                SELECT id, name, token, created_at, user_id
+                FROM api_tokens
+                WHERE user_id = ?
+                ORDER BY created_at DESC
+                """,
+                (user_id,),
+            )
         return [dict(row) for row in cursor.fetchall()]
 
 
-def delete_api_token(token_id: int) -> bool:
+def delete_api_token(token_id: int, user_id: Optional[int] = None) -> bool:
     with closing(get_connection()) as conn:
-        cursor = conn.execute("DELETE FROM api_tokens WHERE id = ?", (token_id,))
+        if user_id is None:
+            cursor = conn.execute("DELETE FROM api_tokens WHERE id = ?", (token_id,))
+        else:
+            cursor = conn.execute("DELETE FROM api_tokens WHERE id = ? AND user_id = ?", (token_id, user_id))
         conn.commit()
         return cursor.rowcount > 0
+
+
+def get_api_token_by_value(token_value: str) -> Optional[Dict[str, Any]]:
+    with closing(get_connection()) as conn:
+        cursor = conn.execute(
+            "SELECT id, name, token, created_at, user_id FROM api_tokens WHERE token = ?",
+            (token_value,),
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
 
 
 def seed_patients_if_empty() -> bool:
@@ -444,6 +768,7 @@ def _seed_patients_if_empty(conn: sqlite3.Connection) -> bool:
     for patient in DEFAULT_PATIENTS:
         patient.setdefault("photo_files", [])
         patient.setdefault("patient_date", None)
+        patient.setdefault("consultation", [])
         payload = _serialize_patient_payload(patient)
         conn.execute(
             """
@@ -451,8 +776,8 @@ def _seed_patients_if_empty(conn: sqlite3.Connection) -> bool:
                 month_label, week_label, week_range, week_order,
                 day_label, day_order, patient_date,
                 first_name, last_name, email, phone, city,
-                status, surgery_type, payment, forms, consents, photos, photo_files
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                status, surgery_type, payment, consultation, forms, consents, photos, photo_files
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 payload["month_label"],
@@ -470,6 +795,7 @@ def _seed_patients_if_empty(conn: sqlite3.Connection) -> bool:
                 payload["status"],
                 payload["surgery_type"],
                 payload["payment"],
+                payload["consultation"],
                 payload["forms"],
                 payload["consents"],
                 payload["photos"],
