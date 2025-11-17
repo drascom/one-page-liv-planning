@@ -21,7 +21,16 @@ built from consistent data.
 ## Getting started
 
 1. Clone the repository (Python 3.11+).
-2. Install [uv](https://github.com/astral-sh/uv) if it's not already available:
+2. **Ubuntu/Debian quick install:** run the bundled script to install apt deps, uv, Python packages, and `.env` defaults:
+
+   ```bash
+   chmod +x install.sh
+   ./install.sh
+   ```
+
+   (For manual control or non-Debian systems, continue with the steps below.)
+
+3. Install [uv](https://github.com/astral-sh/uv) if it's not already available:
 
    ```bash
    curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -29,13 +38,13 @@ built from consistent data.
 
    (Or `pip install uv` on Windows.)
 
-3. Install the project dependencies into `.venv` with uv:
+4. Install the project dependencies into `.venv` with uv:
 
    ```bash
    uv sync
    ```
 
-4. Configure the `.env` file (optional but recommended):
+5. Configure the `.env` file (optional but recommended):
 
    ```bash
    cp .env.example .env
@@ -44,7 +53,7 @@ built from consistent data.
    * `APP_SECRET_KEY` – random string used to sign session cookies.
    * `DEFAULT_ADMIN_PASSWORD` – temporary password for the auto-seeded admin user (`admin`).
 
-5. Start the API server with uv (which automatically uses the synced virtualenv) and bind it to `0.0.0.0` so other machines can reach it:
+6. Start the API server with uv (which automatically uses the synced virtualenv) and bind it to `0.0.0.0` so other machines can reach it:
 
    ```bash
     uv run uvicorn backend.app:app --reload --host 0.0.0.0 --port 8000
@@ -52,7 +61,7 @@ built from consistent data.
 
    The server now accepts traffic on all interfaces (e.g. `http://127.0.0.1:8000` locally or your machine's LAN IP). Visit `/login` and sign in using `admin` plus the password from `.env`. From there you can invite teammates, issue API tokens, and manage dropdown options.
 
-6. Build or serve the static frontend: the repository ships with prebuilt `index.html`, `patient.html`, `settings.html`, and `login.html` files under `static/` (served automatically by FastAPI).
+7. Build or serve the static frontend: the repository ships with prebuilt `index.html`, `patient.html`, `settings.html`, and `login.html` files under `static/` (served automatically by FastAPI).
 
 ## API reference
 
