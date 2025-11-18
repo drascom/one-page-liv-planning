@@ -8,7 +8,7 @@ import string
 from contextlib import closing
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 DB_PATH = Path(__file__).resolve().parent / "liv_planning.db"
 
@@ -512,6 +512,36 @@ def _fetch_patient_rows() -> List[Dict[str, Any]]:
 def fetch_patient(patient_id: int) -> Optional[Dict[str, Any]]:
     with closing(get_connection()) as conn:
         cursor = conn.execute("SELECT * FROM patients WHERE id = ?", (patient_id,))
+        row = cursor.fetchone()
+        return _row_to_patient(row) if row else None
+
+
+def _split_full_name(full_name: str) -> Tuple[str, str]:
+    normalized = " ".join(full_name.split())
+    if not normalized:
+        raise ValueError("Full name is required")
+    parts = normalized.split(" ", 1)
+    if len(parts) < 2:
+        raise ValueError("Full name must include both first and last name")
+    first_name = parts[0].strip()
+    last_name = parts[1].strip()
+    if not first_name or not last_name:
+        raise ValueError("Full name must include both first and last name")
+    return first_name, last_name
+
+
+def find_patient_by_full_name(full_name: str) -> Optional[Dict[str, Any]]:
+    first_name, last_name = _split_full_name(full_name)
+    with closing(get_connection()) as conn:
+        cursor = conn.execute(
+            """
+            SELECT * FROM patients
+            WHERE LOWER(first_name) = ? AND LOWER(last_name) = ?
+            ORDER BY week_order ASC, day_order ASC, last_name ASC
+            LIMIT 1
+            """,
+            (first_name.lower(), last_name.lower()),
+        )
         row = cursor.fetchone()
         return _row_to_patient(row) if row else None
 

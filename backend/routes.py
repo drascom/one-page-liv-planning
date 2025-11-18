@@ -27,6 +27,7 @@ from .models import (
     LoginRequest,
     Patient,
     PatientCreate,
+    PatientSearchResult,
     User,
     UserCreate,
     UserPasswordUpdate,
@@ -43,6 +44,7 @@ api_tokens_router = APIRouter(prefix="/api-tokens", tags=["api tokens"])
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
 field_options_router = APIRouter(prefix="/field-options", tags=["field options"])
 status_router = APIRouter(prefix="/status", tags=["status"])
+search_router = APIRouter(tags=["search"])
 config_router = APIRouter(tags=["config"])
 
 settings = get_settings()
@@ -381,3 +383,28 @@ def delete_patient_photo(patient_id: int, file: str) -> dict[str, object]:
 def verify_api_connection(_: ApiToken = Depends(require_api_token)) -> dict[str, str]:
     """Confirm that an API token is valid for integrations."""
     return {"detail": "API token verified"}
+
+
+@search_router.get("/search", response_model=PatientSearchResult)
+def search_patients_route(
+    full_name: Optional[str] = Query(
+        None,
+        alias="name",
+        description="Patient full name (e.g. 'Randhir Sandhu'). If provided, this overrides the separate surname.",
+    ),
+    surname: Optional[str] = Query(
+        None,
+        description="Optional surname parameter kept for backwards compatibility; appended to the name if provided.",
+    ),
+) -> PatientSearchResult:
+    raw_value = " ".join(part for part in (full_name, surname) if part)
+    normalized_value = " ".join(raw_value.split())
+    if not normalized_value:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Provide the patient's full name")
+    try:
+        record = database.find_patient_by_full_name(normalized_value)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Record not found")
+    return PatientSearchResult(success=True, id=record["id"], surgery_date=record["patient_date"])

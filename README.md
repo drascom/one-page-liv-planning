@@ -101,6 +101,7 @@ If you are behind nginx proxy manager with ssl certificate than use
 | GET | `/auth/me` | Return the current user |
 | GET/POST/PUT/DELETE | `/auth/users` | Admin user management APIs |
 | GET/POST/DELETE | `/api-tokens` | Manage integration tokens scoped to the current admin user |
+| GET | `/api/v1/search?token=abc123xyz&name=Randhir%20Sandhu` | External-only endpoint that finds a patient by full name and returns `{ "success": true, "id": 123, "surgery_date": "2024-03-11" }` or 404 with `detail: "Record not found"` |
 
 ### Frontend capabilities
 
@@ -113,4 +114,6 @@ If you are behind nginx proxy manager with ssl certificate than use
 - **Login/logout** – `login.html` provides the session entry point while logout buttons are available on every authenticated page.
 
 All HTTP APIs include interactive docs at `http://127.0.0.1:8000/docs` once the server is running.
+
+**External integrations:** Every route above is mirrored under `/api/v1/*` and requires a `token` query parameter tied to an admin-created API token. The `/api/v1/search` helper is specifically designed for lightweight patient lookups from outside systems—you must pass the exact full name (e.g. `name=Randhir%20Sandhu`, optionally with an additional `surname` param), and the response indicates success with the matching patient id and surgery date so you can sync downstream systems.
 <!--  -->

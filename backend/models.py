@@ -60,6 +60,12 @@ class Patient(PatientBase):
         from_attributes = True
 
 
+class PatientSearchResult(BaseModel):
+    success: bool = Field(..., description="Indicates whether the patient was found")
+    id: int = Field(..., description="Database identifier for the matching patient")
+    surgery_date: Optional[str] = Field(None, description="ISO surgery date (patient_date in the DB)")
+
+
 class ApiTokenBase(BaseModel):
     name: str = Field(..., description="Friendly name to identify where the token is used")
 

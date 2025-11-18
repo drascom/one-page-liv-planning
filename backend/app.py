@@ -17,6 +17,7 @@ from .routes import (
     patients_router,
     require_api_token,
     router as plans_router,
+    search_router,
     status_router,
     upload_router,
 )
@@ -116,7 +117,7 @@ def create_app() -> FastAPI:
     api.include_router(api_tokens_router, dependencies=auth_dependency)
     api.include_router(upload_router, dependencies=auth_dependency)
     api.include_router(field_options_router, dependencies=auth_dependency)
-    for protected_router in (plans_router, patients_router, upload_router, field_options_router, status_router):
+    for protected_router in (plans_router, patients_router, upload_router, field_options_router, status_router, search_router):
         api.include_router(
             protected_router,
             prefix="/api/v1",
@@ -145,7 +146,7 @@ app.include_router(patients_router, dependencies=auth_dependency)
 app.include_router(api_tokens_router, dependencies=auth_dependency)
 app.include_router(upload_router, dependencies=auth_dependency)
 app.include_router(field_options_router, dependencies=auth_dependency)
-for protected_router in (plans_router, patients_router, upload_router, field_options_router, status_router):
+for protected_router in (plans_router, patients_router, upload_router, field_options_router, status_router, search_router):
     app.include_router(
         protected_router,
         prefix="/api/v1",
