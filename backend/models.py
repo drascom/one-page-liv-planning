@@ -62,8 +62,9 @@ class Patient(PatientBase):
 
 class PatientSearchResult(BaseModel):
     success: bool = Field(..., description="Indicates whether the patient was found")
-    id: int = Field(..., description="Database identifier for the matching patient")
+    id: Optional[int] = Field(None, description="Database identifier for the matching patient")
     surgery_date: Optional[str] = Field(None, description="ISO surgery date (patient_date in the DB)")
+    message: Optional[str] = Field(None, description="Human readable message (e.g. when the patient is missing)")
 
 
 class ApiTokenBase(BaseModel):

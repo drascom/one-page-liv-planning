@@ -47,4 +47,4 @@ The frontend uses the base endpoints below directly and no token is required for
 - connection check url is `GET api/v1/status/connection-check?token=abc123xyz`
 - Every endpoint listed above is also exposed under the `/api/v1/` prefix (e.g. `GET /api/v1/patients`).
 - All `/api/v1/...` requests require a `token` query parameter (e.g. `/api/v1/patients?token=abc123xyz`).
-- `GET /api/v1/search?token=abc123xyz&name=Randhir%20Sandhu` – Provide the full name (optionally along with `surname`, kept for backwards compatibility) to look up a single patient. Returns `{ "success": true, "id": 123, "surgery_date": "2024-03-11" }` when found and a 404 error with `detail: "Record not found"` otherwise.
+- `GET /api/v1/search?token=abc123xyz&name=Randhir%20Sandhu` – Provide the full name (optionally along with `surname`, kept for backwards compatibility) to look up a single patient. Returns `{ "success": true, "id": 123, "surgery_date": "2024-03-11" }` when found and `{ "success": false, "message": "Patient record not found" }` otherwise.
