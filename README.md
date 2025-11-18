@@ -59,7 +59,12 @@ built from consistent data.
    ```bash
     uv run uvicorn backend.app:app --reload --host 0.0.0.0 --port 8000
    ```
-
+If you are behind nginx proxy manager with ssl certificate than use 
+```bash
+   uv run uvicorn backend.app:app --host 0.0.0.0 --port 8000 \
+  --proxy-headers --forwarded-allow-ips="*"
+  ```
+  
    The server now accepts traffic on all interfaces (e.g. `http://127.0.0.1:8000` locally or your machine's LAN IP). The frontend automatically talks to the same origin it was loaded from, so you can deploy to any IP without editing `.env`. Visit `/login` and sign in using `admin` plus the password from `.env`. From there you can invite teammates, issue API tokens, and manage dropdown options.
 
 7. (Optional) Serve HTTPS locally with a self-signed certificate:

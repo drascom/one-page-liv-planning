@@ -269,6 +269,7 @@ async function fetchFieldOptionsData() {
       throw new Error("Unable to load option lists");
     }
     const payload = await response.json();
+    console.log('field options',payload)
     currentFieldOptions = Object.fromEntries(
       Object.keys(FIELD_METADATA).map((field) => {
         const incoming = Array.isArray(payload?.[field]) ? payload[field] : null;
@@ -410,7 +411,7 @@ function renderFieldOptionForms() {
       </div>
       <ul class="option-card__list"></ul>
       <div class="option-card__footer">
-        <button type="button" class="primary-btn option-card__save">Save</button>
+        <button type="button" style="display:none;" class="primary-btn option-card__save">Save</button>
         <span class="option-card__status" aria-live="polite"></span>
       </div>
     `;
@@ -421,7 +422,10 @@ function renderFieldOptionForms() {
     const status = card.querySelector(".option-card__status");
     optionEditorRefs.set(field, { card, input, addButton, list, saveButton, status });
 
-    addButton.addEventListener("click", () => addOptionFromInput(field));
+    addButton.addEventListener("click", () => { 
+      addOptionFromInput(field);
+      saveFieldOptions(field);
+    });
     input.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
         event.preventDefault();
@@ -435,6 +439,7 @@ function renderFieldOptionForms() {
       const value = item?.dataset.value;
       if (!value) return;
       removeOption(field, value);
+      saveFieldOptions(field)
     });
     saveButton.addEventListener("click", () => saveFieldOptions(field));
     renderOptionList(field);
