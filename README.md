@@ -103,6 +103,66 @@ If you are behind nginx proxy manager with ssl certificate than use
 | GET/POST/DELETE | `/api-tokens` | Manage integration tokens scoped to the current admin user |
 | GET | `/api/v1/search?token=abc123xyz&name=Randhir%20Sandhu` | External-only endpoint that finds a patient by full name and returns `{ "success": true, "id": 123, "surgery_date": "2024-03-11" }` or `{ "success": false, "message": "Patient record not found" }` |
 
+### Sample patient requests
+
+Create a patient (internal session cookie example):
+
+```bash
+curl -X POST "http://127.0.0.1:8000/patients" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "month_label": "June 2024",
+    "week_label": "Week 2",
+    "week_range": "Jun 10 – Jun 16",
+    "week_order": 2,
+    "day_label": "Tue",
+    "day_order": 2,
+    "first_name": "Jane",
+    "last_name": "Doe",
+    "email": "jane.doe@example.com",
+    "phone": "+1-555-123-4567",
+    "city": "Los Angeles",
+    "procedure_date": "2024-06-12",
+    "status": "consult",
+    "surgery_type": "Facelift",
+    "payment": "Deposit received",
+    "consultation": [],
+    "forms": [],
+    "consents": [],
+    "photos": 0,
+    "photo_files": []
+  }'
+```
+
+Update an existing patient (replace `123` with the record id):
+
+```bash
+curl -X PUT "http://127.0.0.1:8000/patients/123" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "month_label": "June 2024",
+    "week_label": "Week 2",
+    "week_range": "Jun 10 – Jun 16",
+    "week_order": 2,
+    "day_label": "Tue",
+    "day_order": 2,
+    "first_name": "Jane",
+    "last_name": "Doe",
+    "email": "jane.doe@example.com",
+    "phone": "+1-555-987-6543",
+    "city": "Los Angeles",
+    "procedure_date": "2024-06-18",
+    "status": "pre-op",
+    "surgery_type": "Facelift",
+    "payment": "Paid in full",
+    "consultation": ["consultation1"],
+    "forms": ["health_history"],
+    "consents": ["photo_release"],
+    "photos": 0,
+    "photo_files": []
+  }'
+```
+
 ### Frontend capabilities
 
 - **Weekly schedule** – `index.html` renders the one-page calendar. Authenticated users can page through months, create placeholder patients, and drill into patient details. All data flows through the FastAPI APIs.

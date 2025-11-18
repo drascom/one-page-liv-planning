@@ -197,14 +197,14 @@ function parseMonthMetadata(label) {
 }
 
 function normalizePatientForSchedule(patient) {
-  const date = parseISODate(patient.patient_date);
+  const date = parseISODate(patient.procedure_date);
   const scheduleMonthLabel = date ? formatMonthLabelFromDate(date) : patient.month_label;
   const weekMeta = date ? getWeekMetaForDate(date) : null;
   const scheduleWeekLabel = weekMeta?.label ?? patient.week_label ?? "Week 1";
   const scheduleWeekRange = weekMeta?.range ?? patient.week_range ?? scheduleMonthLabel;
   const scheduleWeekOrder = weekMeta?.order ?? patient.week_order ?? 1;
   const scheduleDayLabel = date ? DAY_FORMATTER.format(date) : patient.day_label;
-  const scheduleProcedureDate = date ? date.toISOString().slice(0, 10) : patient.patient_date;
+  const scheduleProcedureDate = date ? date.toISOString().slice(0, 10) : patient.procedure_date;
 
   return {
     ...patient,
@@ -445,7 +445,7 @@ function buildDefaultPatientPayload() {
     week_order: newWeekOrder,
     day_label: "TBD",
     day_order: 1,
-    patient_date: selectedDate.toISOString().slice(0, 10),
+    procedure_date: selectedDate.toISOString().slice(0, 10),
     first_name: "New",
     last_name: "Patient",
     email: "",

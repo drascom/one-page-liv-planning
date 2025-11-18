@@ -152,7 +152,7 @@ def init_db() -> None:
                 week_order INTEGER NOT NULL,
                 day_label TEXT NOT NULL,
                 day_order INTEGER NOT NULL,
-                patient_date TEXT,
+                procedure_date TEXT,
                 first_name TEXT NOT NULL,
                 last_name TEXT NOT NULL,
                 email TEXT NOT NULL,
@@ -169,7 +169,7 @@ def init_db() -> None:
             )
             """
         )
-        _ensure_patient_date_column(conn)
+        _ensure_procedure_date_column(conn)
         _ensure_photo_files_column(conn)
         _ensure_consultation_column(conn)
         conn.execute(
@@ -208,12 +208,17 @@ def init_db() -> None:
         _seed_patients_if_empty(conn)
 
 
-def _ensure_patient_date_column(conn: sqlite3.Connection) -> None:
+def _ensure_procedure_date_column(conn: sqlite3.Connection) -> None:
     cursor = conn.execute("PRAGMA table_info(patients)")
     columns = {row[1] for row in cursor.fetchall()}
-    if "patient_date" not in columns:
-        conn.execute("ALTER TABLE patients ADD COLUMN patient_date TEXT")
+    if "procedure_date" in columns:
+        return
+    if "patient_date" in columns:
+        conn.execute("ALTER TABLE patients RENAME COLUMN patient_date TO procedure_date")
         conn.commit()
+        return
+    conn.execute("ALTER TABLE patients ADD COLUMN procedure_date TEXT")
+    conn.commit()
 
 
 def _ensure_photo_files_column(conn: sqlite3.Connection) -> None:
@@ -401,7 +406,7 @@ def _row_to_patient(row: sqlite3.Row) -> Dict[str, Any]:
         "week_order": row["week_order"],
         "day_label": row["day_label"],
         "day_order": row["day_order"],
-        "patient_date": row["patient_date"],
+        "procedure_date": row["procedure_date"],
         "first_name": row["first_name"],
         "last_name": row["last_name"],
         "email": row["email"],
@@ -559,7 +564,7 @@ def _serialize_patient_payload(data: Dict[str, Any]) -> Dict[str, Any]:
         "week_order": data["week_order"],
         "day_label": data["day_label"],
         "day_order": data["day_order"],
-        "patient_date": data.get("patient_date"),
+        "procedure_date": data.get("procedure_date"),
         "first_name": data["first_name"],
         "last_name": data["last_name"],
         "email": data["email"],
@@ -583,7 +588,7 @@ def create_patient(data: Dict[str, Any]) -> Dict[str, Any]:
             """
             INSERT INTO patients (
                 month_label, week_label, week_range, week_order,
-                day_label, day_order, patient_date,
+                day_label, day_order, procedure_date,
                 first_name, last_name, email, phone, city,
                 status, surgery_type, payment, consultation, forms, consents, photos, photo_files
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -595,7 +600,7 @@ def create_patient(data: Dict[str, Any]) -> Dict[str, Any]:
                 payload["week_order"],
                 payload["day_label"],
                 payload["day_order"],
-                payload["patient_date"],
+                payload["procedure_date"],
                 payload["first_name"],
                 payload["last_name"],
                 payload["email"],
@@ -639,7 +644,7 @@ def update_patient(patient_id: int, data: Dict[str, Any]) -> Optional[Dict[str, 
                 city = ?,
                 status = ?,
                 surgery_type = ?,
-                patient_date = ?,
+                procedure_date = ?,
                 payment = ?,
                 consultation = ?,
                 forms = ?,
@@ -662,7 +667,7 @@ def update_patient(patient_id: int, data: Dict[str, Any]) -> Optional[Dict[str, 
                 payload["city"],
                 payload["status"],
                 payload["surgery_type"],
-                payload["patient_date"],
+                payload["procedure_date"],
                 payload["payment"],
                 payload["consultation"],
                 payload["forms"],
@@ -797,14 +802,14 @@ def _seed_patients_if_empty(conn: sqlite3.Connection) -> bool:
         return False
     for patient in DEFAULT_PATIENTS:
         patient.setdefault("photo_files", [])
-        patient.setdefault("patient_date", None)
+        patient.setdefault("procedure_date", None)
         patient.setdefault("consultation", [])
         payload = _serialize_patient_payload(patient)
         conn.execute(
             """
             INSERT INTO patients (
                 month_label, week_label, week_range, week_order,
-                day_label, day_order, patient_date,
+                day_label, day_order, procedure_date,
                 first_name, last_name, email, phone, city,
                 status, surgery_type, payment, consultation, forms, consents, photos, photo_files
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -816,7 +821,7 @@ def _seed_patients_if_empty(conn: sqlite3.Connection) -> bool:
                 payload["week_order"],
                 payload["day_label"],
                 payload["day_order"],
-                payload["patient_date"],
+                payload["procedure_date"],
                 payload["first_name"],
                 payload["last_name"],
                 payload["email"],

@@ -108,7 +108,7 @@ const formStatusEl = document.getElementById("form-status");
 
 const firstNameInput = document.getElementById("first-name");
 const lastNameInput = document.getElementById("last-name");
-const patientDateInput = document.getElementById("patient-date");
+const procedureDateInput = document.getElementById("procedure-date");
 const emailInput = document.getElementById("email");
 const phoneInput = document.getElementById("phone");
 const cityInput = document.getElementById("city");
@@ -177,7 +177,7 @@ function populateForm(record) {
   }
   firstNameInput.value = record.first_name || "";
   lastNameInput.value = record.last_name || "";
-  patientDateInput.value = record.patient_date || "";
+  procedureDateInput.value = record.procedure_date || "";
   emailInput.value = record.email || "";
   phoneInput.value = record.phone || "";
   cityInput.value = record.city || "";
@@ -373,7 +373,7 @@ function buildPayloadFromForm() {
     week_order: currentPatient.week_order,
     day_label: currentPatient.day_label,
     day_order: currentPatient.day_order,
-    patient_date: patientDateInput.value || currentPatient.patient_date,
+    procedure_date: procedureDateInput.value || currentPatient.procedure_date,
     first_name: firstNameInput.value.trim() || currentPatient.first_name,
     last_name: lastNameInput.value.trim() || currentPatient.last_name,
     email: emailInput.value.trim(),

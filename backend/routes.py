@@ -407,4 +407,4 @@ def search_patients_route(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     if not record:
         return PatientSearchResult(success=False, message="Patient record not found")
-    return PatientSearchResult(success=True, id=record["id"], surgery_date=record["patient_date"])
+    return PatientSearchResult(success=True, id=record["id"], surgery_date=record["procedure_date"])

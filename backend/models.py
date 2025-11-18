@@ -38,7 +38,7 @@ class PatientBase(BaseModel):
     email: str = Field(..., description="Preferred contact email")
     phone: str = Field(..., description="Preferred phone number")
     city: str = Field(..., description="Patient city")
-    patient_date: Optional[str] = Field(None, description="ISO date for the scheduled procedure")
+    procedure_date: Optional[str] = Field(None, description="ISO date for the scheduled procedure")
     status: str = Field(..., description="Surgery workflow status")
     surgery_type: str = Field(..., description="Buckets used to filter surgeries")
     payment: str = Field(..., description="Payment collection status")
@@ -63,7 +63,7 @@ class Patient(PatientBase):
 class PatientSearchResult(BaseModel):
     success: bool = Field(..., description="Indicates whether the patient was found")
     id: Optional[int] = Field(None, description="Database identifier for the matching patient")
-    surgery_date: Optional[str] = Field(None, description="ISO surgery date (patient_date in the DB)")
+    surgery_date: Optional[str] = Field(None, description="ISO surgery date (procedure_date in the DB)")
     message: Optional[str] = Field(None, description="Human readable message (e.g. when the patient is missing)")
 
 
