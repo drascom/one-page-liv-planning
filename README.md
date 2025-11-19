@@ -163,30 +163,31 @@ curl -X PUT "http://127.0.0.1:8000/patients/123" \
   }'
 ```
 
-### Simplified importer (`POST /patients/import`)
+### Simplified payloads (`POST /patients` or `POST /patients/multiple`)
 
 Some integrations (n8n, webhooks, etc.) only provide entries like the following:
 
 ```json
 [
   {
-    "body.procedures": {
-      "surgery_type": "R",
-      "name": "Emin Colak",
-      "number": "2500"
-    },
-    "body.date": "2025-11-05T00:00:00.000Z"
+    "status": "Reserved",
+    "surgery_type": "Hair Transplant",
+    "name": "Emin Colak",
+    "number": "2500",
+    "date": "2025-11-05T00:00:00.000Z"
   }
 ]
 ```
 
-Send that exact array to `POST /patients/import` (or `/api/v1/patients/import` with an API token) and the backend will:
+You can send that payload directly to `POST /patients` (single record) or batch it via `POST /patients/multiple`. The `/api/v1` prefixed routes accept the exact same JSON with an API token.
 
-- Parse `body.date`, derive `month_label`, `week_label`, `week_range`, `week_order`, `day_label`, `day_order`, and `procedure_date`.
-- Split `body.procedures.name` into `first_name`/`last_name` so the calendar displays the same wording.
-- Copy `body.procedures.surgery_type` into `procedure_type` (fallbacks to your first dropdown option).
-- Copy `body.procedures.status` (when provided) or use your default status.
-- Treat `body.procedures.number` as the payment string when it looks like an amount; if it looks like a phone number we store it as the phone instead.
+Behind the scenes the backend will:
+
+- Parse `date`, derive `month_label`, `week_label`, `week_range`, `week_order`, `day_label`, `day_order`, and `procedure_date`.
+- Split `name` into `first_name`/`last_name` so the calendar displays the same wording.
+- Copy `surgery_type` into `procedure_type` (fallbacks to your first dropdown option).
+- Copy `status` (when provided) or use your default status.
+- Treat `number` as the payment string when it looks like an amount; if it looks like a phone number we store it as the phone instead.
 - Extract embedded phone numbers from the `name` text so contacts stay searchable.
 - Fill the remaining required fields (`email`, `city`, `payment`, `consultation`, `forms`, `consents`, etc.) with sensible defaults so records remain editable in the UI.
 

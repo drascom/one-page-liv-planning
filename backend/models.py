@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import List, Optional
 
-from pydantic import AliasChoices, AliasPath, BaseModel, Field, ConfigDict
+from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field
 
 
 class WeeklyPlanBase(BaseModel):
@@ -68,33 +68,48 @@ class PatientSearchResult(BaseModel):
     message: Optional[str] = Field(None, description="Human readable message (e.g. when the patient is missing)")
 
 
-class ExternalProcedurePayload(BaseModel):
-    name: str = Field(..., description="Raw full name or description of the entry")
-    surgery_type: Optional[str] = Field(
-        None,
-        description="Optional surgery/procedure type indicator (R, C, CONSULTATION, etc.)",
-    )
-    status: Optional[str] = Field(
-        None,
-        description="Optional workflow status value to reuse as the patient status (PRP, etc.)",
-    )
-    number: Optional[str] = Field(
-        None,
-        description="Optional numeric/string identifier (often mapped to payment or phone info)",
-    )
-
-
-class ExternalPatientPayload(BaseModel):
-    procedures: ExternalProcedurePayload = Field(
+class SimplifiedPatientPayload(BaseModel):
+    name: str = Field(
         ...,
-        validation_alias=AliasChoices("body.procedures", AliasPath("body", "procedures"), "procedures"),
+        description="Raw full name/description",
+        validation_alias=AliasChoices(
+            "name",
+            AliasPath("body", "procedures", "name"),
+            AliasPath("body.procedures", "name"),
+        ),
     )
     date: datetime = Field(
         ...,
-        validation_alias=AliasChoices("body.date", AliasPath("body", "date"), "date"),
-        description="ISO timestamp the upstream system captured; converted to our schedule date",
+        description="ISO timestamp supplied by upstream integrations",
+        validation_alias=AliasChoices("date", AliasPath("body", "date"), "body.date"),
     )
-    detail: Optional[str] = Field(None, description="Pass-through detail field (ignored)")
+    status: Optional[str] = Field(
+        None,
+        description="Workflow status value",
+        validation_alias=AliasChoices(
+            "status",
+            AliasPath("body", "procedures", "status"),
+            AliasPath("body.procedures", "status"),
+        ),
+    )
+    surgery_type: Optional[str] = Field(
+        None,
+        description="Procedure type identifier (R, C, Hair Transplant, etc.)",
+        validation_alias=AliasChoices(
+            "surgery_type",
+            AliasPath("body", "procedures", "surgery_type"),
+            AliasPath("body.procedures", "surgery_type"),
+        ),
+    )
+    number: Optional[str] = Field(
+        None,
+        description="Optional numeric/string detail (payment amount, phone, etc.)",
+        validation_alias=AliasChoices(
+            "number",
+            AliasPath("body", "procedures", "number"),
+            AliasPath("body.procedures", "number"),
+        ),
+    )
 
     model_config = ConfigDict(populate_by_name=True)
 

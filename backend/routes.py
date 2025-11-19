@@ -9,6 +9,7 @@ from typing import Dict, List, Optional
 
 from fastapi import (
     APIRouter,
+    Body,
     Depends,
     File,
     Header,
@@ -21,6 +22,7 @@ from fastapi import (
 )
 from fastapi.responses import JSONResponse, PlainTextResponse
 
+from pydantic import ValidationError
 from . import database
 from .auth import (
     clear_login_cookie,
@@ -34,13 +36,13 @@ from .auth import (
 from .models import (
     ApiToken,
     ApiTokenCreate,
-    ExternalPatientPayload,
     FieldOption,
     FieldOptionUpdate,
     LoginRequest,
     Patient,
     PatientCreate,
     PatientSearchResult,
+    SimplifiedPatientPayload,
     User,
     UserCreate,
     UserPasswordUpdate,
@@ -118,21 +120,21 @@ def _resolve_import_defaults() -> Dict[str, str]:
     }
 
 
-def _normalize_import_record(record: ExternalPatientPayload, defaults: Dict[str, str]) -> PatientCreate:
+def _normalize_import_record(record: SimplifiedPatientPayload, defaults: Dict[str, str]) -> PatientCreate:
     scheduled_date = record.date.date()
     week_order = _week_of_month(scheduled_date)
     week_label = f"Week {week_order}"
-    first_name, last_name = _split_full_name(record.procedures.name)
-    extracted_phone = _extract_phone_from_text(record.procedures.name)
-    number_value = (record.procedures.number or "").strip()
+    first_name, last_name = _split_full_name(record.name)
+    extracted_phone = _extract_phone_from_text(record.name)
+    number_value = (record.number or "").strip()
     phone_value = extracted_phone or ""
     if not phone_value and number_value and _looks_like_phone(number_value):
         phone_value = number_value
     payment_value = (
         number_value if number_value and not _looks_like_phone(number_value) else defaults["payment"]
     )
-    status_value = record.procedures.status or defaults["status"]
-    procedure_type_value = record.procedures.surgery_type or defaults["procedure_type"]
+    status_value = record.status or defaults["status"]
+    procedure_type_value = record.surgery_type or defaults["procedure_type"]
     return PatientCreate(
         month_label=scheduled_date.strftime("%B %Y"),
         week_label=week_label,
@@ -155,6 +157,22 @@ def _normalize_import_record(record: ExternalPatientPayload, defaults: Dict[str,
         photos=0,
         photo_files=[],
     )
+
+
+def _coerce_patient_payload(data: dict, defaults: Dict[str, str]) -> PatientCreate:
+    try:
+        return PatientCreate.model_validate(data)
+    except ValidationError as patient_error:
+        try:
+            simplified_payload = SimplifiedPatientPayload.model_validate(data)
+        except ValidationError as simplified_error:
+            detail = json.loads(patient_error.json())
+            detail.extend(json.loads(simplified_error.json()))
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=detail,
+            )
+        return _normalize_import_record(simplified_payload, defaults)
 
 
 def _authorization_header_token(header_value: Optional[str]) -> Optional[str]:
@@ -230,9 +248,12 @@ def get_patient(patient_id: int) -> Patient:
 
 
 @patients_router.post("/", response_model=Patient, status_code=status.HTTP_201_CREATED)
-def create_patient(payload: PatientCreate) -> Patient:
-    """Create a new patient record."""
-    record = database.create_patient(payload.model_dump())
+def create_patient(payload: dict = Body(...)) -> Patient:
+    """Create a new patient record (full payload or simplified integration payload)."""
+    defaults = _resolve_import_defaults()
+    patient_payload = _coerce_patient_payload(payload, defaults)
+    record_data = patient_payload.model_dump()
+    record = database.create_patient(record_data)
     return Patient(**record)
 
 
@@ -245,18 +266,15 @@ def update_patient(patient_id: int, payload: PatientCreate) -> Patient:
     return Patient(**updated)
 
 
-@patients_router.post("/import", response_model=List[Patient], status_code=status.HTTP_201_CREATED)
-def import_patients(payload: List[ExternalPatientPayload]) -> List[Patient]:
-    """
-    Convert simplified integration payloads into full-fledged patient records.
-    Accepts the documented `body.date` + `body.procedures` keys (dot or nested objects).
-    """
+@patients_router.post("/multiple", response_model=List[Patient], status_code=status.HTTP_201_CREATED)
+def import_patients(payload: List[dict] = Body(...)) -> List[Patient]:
+    """Convert simplified integration payloads into full-fledged patient records."""
     if not payload:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Provide at least one record")
     defaults = _resolve_import_defaults()
     created: List[Patient] = []
     for record in payload:
-        patient_payload = _normalize_import_record(record, defaults)
+        patient_payload = _coerce_patient_payload(record, defaults)
         created_record = database.create_patient(patient_payload.model_dump())
         created.append(Patient(**created_record))
     return created
