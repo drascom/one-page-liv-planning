@@ -616,7 +616,7 @@ def search_patients_route(
         raw_value = " ".join(part for part in (name, surname) if part)
     normalized_value = " ".join(raw_value.split())
     if not normalized_value:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Provide the patient's full name")
+        return PatientSearchResult(success=False, message="Name is missing")
     try:
         record = database.find_patient_by_full_name(normalized_value)
     except ValueError as exc:
