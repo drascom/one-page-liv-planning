@@ -112,11 +112,11 @@ def create_app() -> FastAPI:
     api.include_router(config_router)
     api.include_router(auth_router)
     auth_dependency = [Depends(require_current_user)]
-    api.include_router(plans_router, dependencies=auth_dependency)
-    api.include_router(patients_router, dependencies=auth_dependency)
+    api.include_router(plans_router, dependencies=auth_dependency, include_in_schema=False)
+    api.include_router(patients_router, dependencies=auth_dependency, include_in_schema=False)
     api.include_router(api_tokens_router, dependencies=auth_dependency)
-    api.include_router(upload_router, dependencies=auth_dependency)
-    api.include_router(field_options_router, dependencies=auth_dependency)
+    api.include_router(upload_router, dependencies=auth_dependency, include_in_schema=False)
+    api.include_router(field_options_router, dependencies=auth_dependency, include_in_schema=False)
     for protected_router in (plans_router, patients_router, upload_router, field_options_router, status_router, search_router):
         api.include_router(
             protected_router,
@@ -141,11 +141,11 @@ def create_app() -> FastAPI:
 app.include_router(config_router)
 app.include_router(auth_router)
 auth_dependency = [Depends(require_current_user)]
-app.include_router(plans_router, dependencies=auth_dependency)
-app.include_router(patients_router, dependencies=auth_dependency)
+app.include_router(plans_router, dependencies=auth_dependency, include_in_schema=False)
+app.include_router(patients_router, dependencies=auth_dependency, include_in_schema=False)
 app.include_router(api_tokens_router, dependencies=auth_dependency)
-app.include_router(upload_router, dependencies=auth_dependency)
-app.include_router(field_options_router, dependencies=auth_dependency)
+app.include_router(upload_router, dependencies=auth_dependency, include_in_schema=False)
+app.include_router(field_options_router, dependencies=auth_dependency, include_in_schema=False)
 for protected_router in (plans_router, patients_router, upload_router, field_options_router, status_router, search_router):
     app.include_router(
         protected_router,
