@@ -175,6 +175,46 @@ def _coerce_patient_payload(data: dict, defaults: Dict[str, str]) -> PatientCrea
         return _normalize_import_record(simplified_payload, defaults)
 
 
+UPDATE_OVERRIDABLE_FIELDS: set[str] = {
+    "month_label",
+    "week_label",
+    "week_range",
+    "week_order",
+    "day_label",
+    "day_order",
+    "procedure_date",
+    "first_name",
+    "last_name",
+    "status",
+    "procedure_type",
+    "payment",
+    "phone",
+}
+
+
+def _coerce_update_payload(existing: dict, data: dict, defaults: Dict[str, str]) -> PatientCreate:
+    try:
+        return PatientCreate.model_validate(data)
+    except ValidationError as patient_error:
+        try:
+            simplified_payload = SimplifiedPatientPayload.model_validate(data)
+        except ValidationError as simplified_error:
+            detail = json.loads(patient_error.json())
+            detail.extend(json.loads(simplified_error.json()))
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=detail,
+            )
+        normalized = _normalize_import_record(simplified_payload, defaults).model_dump()
+        merged_data = {
+            field: existing[field]
+            for field in PatientCreate.model_fields
+        }
+        for key in UPDATE_OVERRIDABLE_FIELDS:
+            merged_data[key] = normalized[key]
+        return PatientCreate(**merged_data)
+
+
 def _authorization_header_token(header_value: Optional[str]) -> Optional[str]:
     """Return the bearer token portion of an Authorization header, if present."""
     if not header_value:
@@ -258,9 +298,14 @@ def create_patient(payload: dict = Body(...)) -> Patient:
 
 
 @patients_router.put("/{patient_id}", response_model=Patient)
-def update_patient(patient_id: int, payload: PatientCreate) -> Patient:
+def update_patient(patient_id: int, payload: dict = Body(...)) -> Patient:
     """Update the patient record identified by ``patient_id``."""
-    updated = database.update_patient(patient_id, payload.model_dump())
+    existing = database.fetch_patient(patient_id)
+    if not existing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    defaults = _resolve_import_defaults()
+    patient_payload = _coerce_update_payload(existing, payload, defaults)
+    updated = database.update_patient(patient_id, patient_payload.model_dump())
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     return Patient(**updated)
