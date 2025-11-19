@@ -8,6 +8,7 @@ const tokenForm = document.getElementById("token-form");
 const tokenNameInput = document.getElementById("token-name");
 const tokenStatus = document.getElementById("token-status");
 const tokenList = document.getElementById("token-list");
+const tokenTestLink = document.getElementById("token-test-link");
 const createButton = document.getElementById("create-token-btn");
 const settingsTabs = Array.from(document.querySelectorAll("[data-settings-tab]"));
 const settingsSections = Array.from(document.querySelectorAll("[data-settings-section]"));
@@ -57,6 +58,11 @@ function buildApiUrl(path) {
   return new URL(path, API_BASE_URL).toString();
 }
 
+const SEARCH_DOC_PATH = "/docs#/default/search_patients_route_api_v1_search_get";
+if (tokenTestLink) {
+  tokenTestLink.href = buildApiUrl(SEARCH_DOC_PATH);
+}
+
 function renderTokens(tokens) {
   if (!tokenList) return;
   if (!tokens.length) {
@@ -71,7 +77,17 @@ function renderTokens(tokens) {
             <p class="token-name">${token.name}</p>
             <p class="token-created">Created ${new Date(token.created_at).toLocaleString()}</p>
           </div>
-          <code class="token-value">${token.token}</code>
+          <div class="token-value-group">
+            <code class="token-value">${token.token}</code>
+            <button
+              type="button"
+              class="token-copy-btn"
+              data-token-value="${token.token}"
+              aria-label="Copy token ${token.name}"
+            >
+              Copy
+            </button>
+          </div>
           <button
             type="button"
             class="token-delete-btn"
@@ -140,6 +156,12 @@ async function createToken(event) {
 
 tokenForm.addEventListener("submit", createToken);
 tokenList?.addEventListener("click", async (event) => {
+  const copyButton = event.target.closest(".token-copy-btn");
+  if (copyButton) {
+    const value = copyButton.dataset.tokenValue ?? "";
+    await copyTokenValue(value);
+    return;
+  }
   const deleteButton = event.target.closest(".token-delete-btn");
   if (!deleteButton) return;
   const tokenId = Number(deleteButton.dataset.tokenId);
@@ -173,6 +195,45 @@ tokenList?.addEventListener("click", async (event) => {
     }, 4000);
   }
 });
+
+async function copyTokenValue(value) {
+  if (!value) return;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+    } else {
+      fallbackCopy(value);
+    }
+    tokenStatus.textContent = "Token copied to clipboard.";
+  } catch (error) {
+    console.error(error);
+    try {
+      fallbackCopy(value);
+      tokenStatus.textContent = "Token copied to clipboard.";
+    } catch (fallbackError) {
+      console.error(fallbackError);
+      tokenStatus.textContent = "Unable to copy token automatically.";
+    }
+  } finally {
+    setTimeout(() => {
+      if (tokenStatus.textContent.includes("copied") || tokenStatus.textContent.includes("Unable to copy")) {
+        tokenStatus.textContent = "";
+      }
+    }, 2500);
+  }
+}
+
+function fallbackCopy(value) {
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.append(textarea);
+  textarea.focus();
+  textarea.select();
+  document.execCommand("copy");
+  textarea.remove();
+}
 
 const FIELD_METADATA = {
   status: {

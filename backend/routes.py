@@ -416,15 +416,22 @@ def verify_api_connection(_: ApiToken = Depends(require_api_token)) -> dict[str,
 def search_patients_route(
     full_name: Optional[str] = Query(
         None,
-        alias="name",
-        description="Patient full name (e.g. 'Randhir Sandhu'). If provided, this overrides the separate surname.",
+        alias="full_name",
+        description="Preferred parameter that should contain the patient's full name (e.g. 'Randhir Sandhu').",
+    ),
+    name: Optional[str] = Query(
+        None,
+        description="Optional first/full name parameter kept for backwards compatibility; combined with surname when provided.",
     ),
     surname: Optional[str] = Query(
         None,
         description="Optional surname parameter kept for backwards compatibility; appended to the name if provided.",
     ),
 ) -> PatientSearchResult:
-    raw_value = " ".join(part for part in (full_name, surname) if part)
+    if full_name:
+        raw_value = full_name
+    else:
+        raw_value = " ".join(part for part in (name, surname) if part)
     normalized_value = " ".join(raw_value.split())
     if not normalized_value:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Provide the patient's full name")

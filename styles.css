@@ -935,6 +935,14 @@ body {
   position: relative;
 }
 
+.token-value-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 260px;
+}
+
 .token-name {
   margin: 0;
   font-weight: 600;
@@ -953,6 +961,23 @@ body {
   border-radius: 8px;
   font-size: 0.9rem;
   word-break: break-all;
+}
+
+.token-copy-btn {
+  border: 1px solid #0f172a;
+  background: transparent;
+  color: #0f172a;
+  font-weight: 600;
+  padding: 0.35rem 0.75rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.token-copy-btn:hover,
+.token-copy-btn:focus-visible {
+  background: #0f172a;
+  color: #f8fafc;
 }
 
 .token-delete-btn {
@@ -977,6 +1002,23 @@ body {
   opacity: 1;
   transform: translateY(0);
   pointer-events: auto;
+}
+
+.token-test {
+  margin-top: 1rem;
+  font-size: 0.95rem;
+  color: #475569;
+}
+
+.token-test a {
+  font-weight: 600;
+  color: #0f766e;
+  text-decoration: none;
+}
+
+.token-test a:hover,
+.token-test a:focus-visible {
+  text-decoration: underline;
 }
 
 .option-forms {

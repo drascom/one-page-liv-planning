@@ -101,7 +101,7 @@ If you are behind nginx proxy manager with ssl certificate than use
 | GET | `/auth/me` | Return the current user |
 | GET/POST/PUT/DELETE | `/auth/users` | Admin user management APIs |
 | GET/POST/DELETE | `/api-tokens` | Manage integration tokens scoped to the current admin user |
-| GET | `/api/v1/search?token=abc123xyz&name=Randhir%20Sandhu` | External-only endpoint that finds a patient by full name and returns `{ "success": true, "patient": { ... } }` (with `id`/`surgery_date` for backwards compatibility) or `{ "success": false, "message": "Patient record not found" }` |
+| GET | `/api/v1/search?token=abc123xyz&full_name=Randhir%20Sandhu` | External-only endpoint that finds a patient by full name and returns `{ "success": true, "patient": { ... } }` (with `id`/`surgery_date` for backwards compatibility) or `{ "success": false, "message": "Patient record not found" }`. You can also continue sending `name`+`surname` pairs for backwards compatibility. |
 
 ### Sample patient requests
 
@@ -175,5 +175,5 @@ curl -X PUT "http://127.0.0.1:8000/patients/123" \
 
 All HTTP APIs include interactive docs at `http://127.0.0.1:8000/docs` once the server is running.
 
-**External integrations:** Every route above is mirrored under `/api/v1/*` and requires an API token created in the Settings → API Tokens UI. Send it in the `Authorization: Bearer <token>` header (recommended) or fall back to the legacy `token` query string parameter if your client cannot set headers. The `/api/v1/search` helper is specifically designed for lightweight patient lookups from outside systems—you must pass the exact full name (e.g. `name=Randhir%20Sandhu`, optionally with an additional `surname` param). The response now includes the full patient payload when found (along with `id` and `surgery_date` for backwards compatibility) or sets `success: false` with `message: "Patient record not found"` when no match exists so you can gracefully handle misses.
+**External integrations:** Every route above is mirrored under `/api/v1/*` and requires an API token created in the Settings → API Tokens UI. Send it in the `Authorization: Bearer <token>` header (recommended) or fall back to the legacy `token` query string parameter if your client cannot set headers. The `/api/v1/search` helper is specifically designed for lightweight patient lookups from outside systems—you can now pass `full_name=Randhir%20Sandhu` (preferred) or continue using the legacy `name` and optional `surname` parameters. The response includes the full patient payload when found (along with `id` and `surgery_date` for backwards compatibility) or sets `success: false` with `message: "Patient record not found"` when no match exists so you can gracefully handle misses.
 <!--  -->
