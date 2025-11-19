@@ -703,6 +703,13 @@ def update_patient(patient_id: int, data: Dict[str, Any]) -> Optional[Dict[str, 
     return fetch_patient(patient_id)
 
 
+def delete_patient(patient_id: int) -> bool:
+    with closing(get_connection()) as conn:
+        cursor = conn.execute("DELETE FROM patients WHERE id = ?", (patient_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+
+
 def append_patient_photos(patient_id: int, relative_paths: List[str]) -> Optional[List[str]]:
     if not relative_paths:
         return fetch_patient_photos(patient_id)

@@ -311,6 +311,14 @@ def update_patient(patient_id: int, payload: dict = Body(...)) -> Patient:
     return Patient(**updated)
 
 
+@patients_router.delete("/{patient_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_patient_route(patient_id: int, _: dict = Depends(require_admin_user)) -> None:
+    """Delete the patient record (admin only)."""
+    deleted = database.delete_patient(patient_id)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+
+
 @patients_router.post("/multiple", response_model=List[Patient], status_code=status.HTTP_201_CREATED)
 def import_patients(payload: List[dict] = Body(...)) -> List[Patient]:
     """Convert simplified integration payloads into full-fledged patient records."""

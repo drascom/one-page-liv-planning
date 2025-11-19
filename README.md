@@ -92,6 +92,7 @@ If you are behind nginx proxy manager with ssl certificate than use
 | GET | `/patients/` | List the patient schedule |
 | POST | `/patients/` | Create a placeholder patient |
 | GET/PUT | `/patients/{id}` | Fetch or update a patient record |
+| DELETE | `/patients/{id}` | Delete a patient (admin session only) |
 | POST | `/uploads/{last_name}` | Upload photos for a patient |
 | DELETE | `/uploads/{patient_id}?file=path` | Remove a photo |
 | GET | `/field-options` | Fetch the dropdown metadata (status, forms, etc.) |

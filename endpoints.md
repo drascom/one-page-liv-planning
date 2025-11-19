@@ -8,6 +8,7 @@ The frontend uses the base endpoints below directly and no token is required for
 - `POST /patients/multiple` – Send an array of simplified payloads (same shape as above) and let the backend derive calendar fields + insert patients.
 - `GET /patients/{id}` – Fetch a single patient.
 - `PUT /patients/{id}` – Update an existing patient.
+- `DELETE /patients/{id}` – (Admin only) Delete a patient record and return 204.
 - Patient payloads include a `consultation` array (values `consultation1`, `consultation2`) to track completed consultations.
 
 ## `/uploads`
@@ -48,5 +49,6 @@ The frontend uses the base endpoints below directly and no token is required for
 - connection check url is `GET api/v1/status/connection-check` with `Authorization: Bearer <token>` header
 - Every endpoint listed above is also exposed under the `/api/v1/` prefix (e.g. `GET /api/v1/patients`).
 - Importer endpoint: `POST /api/v1/patients/multiple` accepts the same simplified payload array for integrations, and `POST /api/v1/patients` accepts a single simplified payload as well.
+- `DELETE /api/v1/patients/{id}` – Listed for completeness; it still requires an authenticated admin session (intended for the internal UI).
 - All `/api/v1/...` requests require either an `Authorization: Bearer <token>` header (preferred) or the `token` query parameter (e.g. `/api/v1/patients?token=abc123xyz`) for backwards compatibility.
 - `GET /api/v1/search` – Provide the full name via `full_name=Randhir%20Sandhu` (preferred) or continue using the legacy `name`/`surname` parameters to look up a single patient. Returns `{ "success": true, "patient": { ... }, "id": 123, "surgery_date": "2024-03-11" }` when found and `{ "success": false, "message": "Patient record not found" }` otherwise.

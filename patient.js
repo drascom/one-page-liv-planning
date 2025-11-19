@@ -1,4 +1,4 @@
-import { handleUnauthorized, initSessionControls } from "./session.js";
+import { fetchCurrentUser, handleUnauthorized, initSessionControls } from "./session.js";
 
 const DEFAULT_FIELD_OPTIONS = {
   status: [
@@ -105,6 +105,7 @@ const patientWeekEl = document.getElementById("patient-week");
 const patientCityEl = document.getElementById("patient-city");
 const formEl = document.getElementById("patient-form");
 const formStatusEl = document.getElementById("form-status");
+const deletePatientBtn = document.getElementById("delete-patient-btn");
 
 const firstNameInput = document.getElementById("first-name");
 const lastNameInput = document.getElementById("last-name");
@@ -141,6 +142,7 @@ const requestedName = params.get("patient");
 
 let currentPatient = null;
 let activePhotoIndex = 0;
+let isAdminUser = false;
 
 function loadActiveContext() {
   if (typeof window === "undefined" || !window.localStorage) {
@@ -200,6 +202,7 @@ function populateForm(record) {
   setMultiValue(consentsSelect, record.consents || []);
   syncHeader(record);
   renderPhotoGallery();
+  refreshDeleteButtonState();
 }
 
 function disableForm(disabled) {
@@ -216,6 +219,8 @@ async function fetchPatient() {
     patientWeekEl.textContent = context?.weekLabel || "";
     formStatusEl.textContent = "Select a patient from the schedule first.";
     disableForm(true);
+    currentPatient = null;
+    refreshDeleteButtonState();
     return;
   }
   try {
@@ -232,10 +237,13 @@ async function fetchPatient() {
     updatePhotoCountInput();
     formStatusEl.textContent = "";
     disableForm(false);
+    refreshDeleteButtonState();
   } catch (error) {
     console.error(error);
     formStatusEl.textContent = "Unable to load patient details.";
     disableForm(true);
+    currentPatient = null;
+    refreshDeleteButtonState();
   }
 }
 
@@ -567,9 +575,53 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
+function refreshDeleteButtonState() {
+  if (!deletePatientBtn) {
+    return;
+  }
+  deletePatientBtn.hidden = !isAdminUser;
+  deletePatientBtn.disabled = !currentPatient;
+}
+
+async function handleDeletePatient() {
+  if (!currentPatient || !isAdminUser) {
+    return;
+  }
+  const confirmed = window.confirm("Delete this patient record? This action cannot be undone.");
+  if (!confirmed) {
+    return;
+  }
+  const originalLabel = deletePatientBtn.textContent;
+  deletePatientBtn.disabled = true;
+  deletePatientBtn.textContent = "Deleting...";
+  try {
+    const response = await fetch(buildApiUrl(`/patients/${currentPatient.id}`), {
+      method: "DELETE",
+    });
+    handleUnauthorized(response);
+    if (!response.ok) {
+      throw new Error(`Failed to delete (status ${response.status})`);
+    }
+    window.location.href = "/";
+  } catch (error) {
+    console.error(error);
+    alert(`Unable to delete this patient: ${error.message}`);
+  } finally {
+    deletePatientBtn.textContent = originalLabel;
+    deletePatientBtn.disabled = false;
+  }
+}
+
+if (deletePatientBtn) {
+  deletePatientBtn.addEventListener("click", handleDeletePatient);
+}
+
 async function initializePatientPage() {
   await fetchFieldOptions();
   renderOptionControls();
+  const user = await fetchCurrentUser().catch(() => null);
+  isAdminUser = Boolean(user?.is_admin);
+  refreshDeleteButtonState();
   await fetchPatient();
 }
 
