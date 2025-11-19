@@ -10,7 +10,7 @@ const DEFAULT_FIELD_OPTIONS = {
     { value: "insurgery", label: "In Surgery" },
     { value: "done", label: "Done" },
   ],
-  surgery_type: [
+  procedure_type: [
     { value: "small", label: "Small" },
     { value: "big", label: "Big" },
     { value: "beard", label: "Beard" },
@@ -245,7 +245,7 @@ function buildWeeksForPatients(patients) {
       firstName: patient.first_name,
       lastName: patient.last_name,
       status: patient.status,
-      surgeryType: patient.surgery_type,
+      procedureType: patient.procedure_type,
       forms: patient.forms,
       consents: patient.consents,
       payment: patient.payment,
@@ -435,7 +435,7 @@ function buildDefaultPatientPayload() {
       : 1;
   const weekLabel = `Week ${existingWeeks.length + 1 || 1}`;
   const defaultStatus = getDefaultFieldValue("status", "reserved");
-  const defaultSurgery = getDefaultFieldValue("surgery_type", "small");
+  const defaultProcedure = getDefaultFieldValue("procedure_type", "small");
   const defaultPayment = getDefaultFieldValue("payment", "waiting");
 
   return {
@@ -452,7 +452,7 @@ function buildDefaultPatientPayload() {
     phone: "",
     city: "",
     status: defaultStatus,
-    surgery_type: defaultSurgery,
+    procedure_type: defaultProcedure,
     payment: defaultPayment,
     consultation: [],
     forms: [],
@@ -567,10 +567,11 @@ function renderWeek(week, index) {
     statusCell.classList.add("col-status");
     statusCell.dataset.label = "Status";
 
-    const surgeryCell = document.createElement("td");
-    surgeryCell.textContent = getOptionLabel("surgery_type", day.surgeryType) || day.surgeryType || "—";
-    surgeryCell.classList.add("col-surgery");
-    surgeryCell.dataset.label = "Surgery Type";
+    const procedureCell = document.createElement("td");
+    procedureCell.textContent =
+      getOptionLabel("procedure_type", day.procedureType) || day.procedureType || "—";
+    procedureCell.classList.add("col-procedure");
+    procedureCell.dataset.label = "Procedure Type";
 
     const formsComplete = hasCompletedChecklist("forms", day.forms);
     const consentsComplete = hasCompletedChecklist("consents", day.consents);
@@ -606,7 +607,7 @@ function renderWeek(week, index) {
       dateCell,
       patientCell,
       statusCell,
-      surgeryCell,
+      procedureCell,
       formsCell,
       consentsCell,
       consultationCell,

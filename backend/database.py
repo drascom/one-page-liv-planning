@@ -14,7 +14,7 @@ DB_PATH = Path(__file__).resolve().parent / "liv_planning.db"
 
 FIELD_OPTION_FIELDS: List[str] = [
     "status",
-    "surgery_type",
+    "procedure_type",
     "forms",
     "consents",
     "consultation",
@@ -97,7 +97,7 @@ DEFAULT_FIELD_OPTIONS: Dict[str, List[Dict[str, str]]] = {
         {"value": "insurgery", "label": "In Surgery"},
         {"value": "done", "label": "Done"},
     ],
-    "surgery_type": [
+    "procedure_type": [
         {"value": "small", "label": "Small"},
         {"value": "big", "label": "Big"},
         {"value": "beard", "label": "Beard"},
@@ -159,7 +159,7 @@ def init_db() -> None:
                 phone TEXT NOT NULL,
                 city TEXT NOT NULL,
                 status TEXT NOT NULL,
-                surgery_type TEXT NOT NULL,
+                procedure_type TEXT NOT NULL,
                 payment TEXT NOT NULL,
                 consultation TEXT,
                 forms TEXT NOT NULL DEFAULT '[]',
@@ -170,6 +170,7 @@ def init_db() -> None:
             """
         )
         _ensure_procedure_date_column(conn)
+        _ensure_procedure_type_column(conn)
         _ensure_photo_files_column(conn)
         _ensure_consultation_column(conn)
         conn.execute(
@@ -221,6 +222,20 @@ def _ensure_procedure_date_column(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _ensure_procedure_type_column(conn: sqlite3.Connection) -> None:
+    cursor = conn.execute("PRAGMA table_info(patients)")
+    columns = {row[1] for row in cursor.fetchall()}
+    if "procedure_type" in columns:
+        return
+    if "surgery_type" in columns:
+        conn.execute("ALTER TABLE patients RENAME COLUMN surgery_type TO procedure_type")
+        conn.commit()
+        return
+    conn.execute("ALTER TABLE patients ADD COLUMN procedure_type TEXT")
+    conn.execute("UPDATE patients SET procedure_type = 'small' WHERE procedure_type IS NULL OR procedure_type = ''")
+    conn.commit()
+
+
 def _ensure_photo_files_column(conn: sqlite3.Connection) -> None:
     cursor = conn.execute("PRAGMA table_info(patients)")
     columns = {row[1] for row in cursor.fetchall()}
@@ -242,15 +257,20 @@ def _ensure_consultation_column(conn: sqlite3.Connection) -> None:
 def _ensure_field_options(conn: sqlite3.Connection) -> None:
     cursor = conn.execute("SELECT field FROM field_options")
     existing = {row[0] for row in cursor.fetchall()}
-    inserted = False
+    updated = False
+    if "surgery_type" in existing and "procedure_type" not in existing:
+        conn.execute("UPDATE field_options SET field = 'procedure_type' WHERE field = 'surgery_type'")
+        existing.remove("surgery_type")
+        existing.add("procedure_type")
+        updated = True
     for field in FIELD_OPTION_FIELDS:
         if field not in existing:
             conn.execute(
                 "INSERT INTO field_options (field, options) VALUES (?, ?)",
                 (field, json.dumps(DEFAULT_FIELD_OPTIONS[field])),
             )
-            inserted = True
-    if inserted:
+            updated = True
+    if updated:
         conn.commit()
 
 
@@ -413,7 +433,7 @@ def _row_to_patient(row: sqlite3.Row) -> Dict[str, Any]:
         "phone": row["phone"],
         "city": row["city"],
         "status": row["status"],
-        "surgery_type": row["surgery_type"],
+        "procedure_type": row["procedure_type"],
         "payment": row["payment"],
         "consultation": _deserialize_consultation(row["consultation"]),
         "forms": json.loads(row["forms"]) if row["forms"] else [],
@@ -571,7 +591,7 @@ def _serialize_patient_payload(data: Dict[str, Any]) -> Dict[str, Any]:
         "phone": data["phone"],
         "city": data["city"],
         "status": data["status"],
-        "surgery_type": data["surgery_type"],
+        "procedure_type": data["procedure_type"],
         "payment": data["payment"],
         "consultation": json.dumps(consultation_list),
         "forms": json.dumps(data.get("forms") or []),
@@ -590,7 +610,7 @@ def create_patient(data: Dict[str, Any]) -> Dict[str, Any]:
                 month_label, week_label, week_range, week_order,
                 day_label, day_order, procedure_date,
                 first_name, last_name, email, phone, city,
-                status, surgery_type, payment, consultation, forms, consents, photos, photo_files
+                status, procedure_type, payment, consultation, forms, consents, photos, photo_files
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
@@ -607,7 +627,7 @@ def create_patient(data: Dict[str, Any]) -> Dict[str, Any]:
                 payload["phone"],
                 payload["city"],
                 payload["status"],
-                payload["surgery_type"],
+                payload["procedure_type"],
                 payload["payment"],
                 payload["consultation"],
                 payload["forms"],
@@ -643,7 +663,7 @@ def update_patient(patient_id: int, data: Dict[str, Any]) -> Optional[Dict[str, 
                 phone = ?,
                 city = ?,
                 status = ?,
-                surgery_type = ?,
+                procedure_type = ?,
                 procedure_date = ?,
                 payment = ?,
                 consultation = ?,
@@ -666,7 +686,7 @@ def update_patient(patient_id: int, data: Dict[str, Any]) -> Optional[Dict[str, 
                 payload["phone"],
                 payload["city"],
                 payload["status"],
-                payload["surgery_type"],
+                payload["procedure_type"],
                 payload["procedure_date"],
                 payload["payment"],
                 payload["consultation"],
@@ -811,7 +831,7 @@ def _seed_patients_if_empty(conn: sqlite3.Connection) -> bool:
                 month_label, week_label, week_range, week_order,
                 day_label, day_order, procedure_date,
                 first_name, last_name, email, phone, city,
-                status, surgery_type, payment, consultation, forms, consents, photos, photo_files
+                status, procedure_type, payment, consultation, forms, consents, photos, photo_files
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
@@ -828,7 +848,7 @@ def _seed_patients_if_empty(conn: sqlite3.Connection) -> bool:
                 payload["phone"],
                 payload["city"],
                 payload["status"],
-                payload["surgery_type"],
+                payload["procedure_type"],
                 payload["payment"],
                 payload["consultation"],
                 payload["forms"],
@@ -855,7 +875,7 @@ DEFAULT_PATIENTS: List[Dict[str, Any]] = [
         "phone": "+351 910 200 001",
         "city": "Lisbon",
         "status": "reserved",
-        "surgery_type": "small",
+        "procedure_type": "small",
         "payment": "waiting",
         "forms": ["form1", "form2"],
         "consents": ["form1"],
@@ -874,7 +894,7 @@ DEFAULT_PATIENTS: List[Dict[str, Any]] = [
         "phone": "+351 910 200 002",
         "city": "Porto",
         "status": "confirmed",
-        "surgery_type": "big",
+        "procedure_type": "big",
         "payment": "paid",
         "forms": ["form1", "form2", "form3"],
         "consents": ["form1", "form2", "form3"],
@@ -893,7 +913,7 @@ DEFAULT_PATIENTS: List[Dict[str, Any]] = [
         "phone": "+351 910 200 003",
         "city": "Coimbra",
         "status": "confirmed",
-        "surgery_type": "woman",
+        "procedure_type": "woman",
         "payment": "waiting",
         "forms": ["form1", "form2", "form3", "form4", "form5"],
         "consents": ["form1", "form2"],
@@ -912,7 +932,7 @@ DEFAULT_PATIENTS: List[Dict[str, Any]] = [
         "phone": "+351 910 200 004",
         "city": "Braga",
         "status": "insurgery",
-        "surgery_type": "beard",
+        "procedure_type": "beard",
         "payment": "partially_paid",
         "forms": ["form1", "form2", "form3", "form4"],
         "consents": ["form1", "form2", "form3"],
@@ -931,7 +951,7 @@ DEFAULT_PATIENTS: List[Dict[str, Any]] = [
         "phone": "+351 910 200 005",
         "city": "Faro",
         "status": "done",
-        "surgery_type": "woman",
+        "procedure_type": "woman",
         "payment": "paid",
         "forms": ["form1", "form2", "form3", "form4", "form5"],
         "consents": ["form1", "form2", "form3"],
@@ -950,7 +970,7 @@ DEFAULT_PATIENTS: List[Dict[str, Any]] = [
         "phone": "+351 910 200 006",
         "city": "Lisbon",
         "status": "confirmed",
-        "surgery_type": "beard",
+        "procedure_type": "beard",
         "payment": "waiting",
         "forms": ["form1", "form2", "form3"],
         "consents": ["form1", "form2"],
@@ -969,7 +989,7 @@ DEFAULT_PATIENTS: List[Dict[str, Any]] = [
         "phone": "+351 910 200 007",
         "city": "Porto",
         "status": "reserved",
-        "surgery_type": "small",
+        "procedure_type": "small",
         "payment": "waiting",
         "forms": ["form1", "form2"],
         "consents": ["form1"],
@@ -988,7 +1008,7 @@ DEFAULT_PATIENTS: List[Dict[str, Any]] = [
         "phone": "+351 910 200 008",
         "city": "Aveiro",
         "status": "confirmed",
-        "surgery_type": "big",
+        "procedure_type": "big",
         "payment": "partially_paid",
         "forms": ["form1", "form2", "form3", "form4", "form5"],
         "consents": ["form1", "form2", "form3"],
@@ -1007,7 +1027,7 @@ DEFAULT_PATIENTS: List[Dict[str, Any]] = [
         "phone": "+351 910 200 009",
         "city": "Setubal",
         "status": "reserved",
-        "surgery_type": "woman",
+        "procedure_type": "woman",
         "payment": "waiting",
         "forms": ["form1", "form2", "form3"],
         "consents": ["form1", "form2"],
@@ -1026,7 +1046,7 @@ DEFAULT_PATIENTS: List[Dict[str, Any]] = [
         "phone": "+351 910 200 010",
         "city": "Braga",
         "status": "done",
-        "surgery_type": "big",
+        "procedure_type": "big",
         "payment": "paid",
         "forms": ["form1", "form2", "form3", "form4", "form5"],
         "consents": ["form1", "form2", "form3"],

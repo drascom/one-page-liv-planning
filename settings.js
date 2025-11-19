@@ -242,8 +242,8 @@ const FIELD_METADATA = {
     min: 1,
     placeholder: "e.g. Confirmed",
   },
-  surgery_type: {
-    title: "Surgery Types",
+  procedure_type: {
+    title: "Procedure Types",
     description: "Used to categorize procedures on the schedule.",
     min: 1,
     placeholder: "e.g. Minor Procedure",
@@ -281,7 +281,7 @@ const FIELD_DEFAULTS = {
     { value: "insurgery", label: "In Surgery" },
     { value: "done", label: "Done" },
   ],
-  surgery_type: [
+  procedure_type: [
     { value: "small", label: "Small" },
     { value: "big", label: "Big" },
     { value: "beard", label: "Beard" },

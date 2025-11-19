@@ -344,7 +344,7 @@ body {
   width: 18%;
 }
 
-.col-surgery {
+.col-procedure {
   text-align: center;
   width: 12%;
   font-weight: 500;
@@ -1371,7 +1371,7 @@ body {
       "index date"
       "index patient"
       "index status"
-      "index surgery"
+      "index procedure"
       "index forms"
       "index consents"
       "index consultation"
@@ -1406,7 +1406,7 @@ body {
   }
 
   .week__table td:nth-child(6) {
-    grid-area: surgery;
+    grid-area: procedure;
   }
 
   .week__table td:nth-child(7) {

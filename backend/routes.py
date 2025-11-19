@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -33,6 +34,7 @@ from .auth import (
 from .models import (
     ApiToken,
     ApiTokenCreate,
+    ExternalPatientPayload,
     FieldOption,
     FieldOptionUpdate,
     LoginRequest,
@@ -60,7 +62,99 @@ config_router = APIRouter(tags=["config"])
 
 settings = get_settings()
 UPLOAD_ROOT = settings.uploads_root
-REQUIRED_MIN_OPTION_COUNTS: Dict[str, int] = {"status": 1, "surgery_type": 1, "payment": 1}
+REQUIRED_MIN_OPTION_COUNTS: Dict[str, int] = {"status": 1, "procedure_type": 1, "payment": 1}
+IMPORTED_DEFAULT_FALLBACKS: Dict[str, str] = {"status": "reserved", "procedure_type": "small", "payment": "waiting"}
+PHONE_PATTERN = re.compile(r"(\+?\d[\d\s().-]{6,})")
+
+
+def _week_of_month(target: date) -> int:
+    return (target.day - 1) // 7 + 1
+
+
+def _format_week_range(target: date) -> str:
+    start = target - timedelta(days=target.weekday())
+    end = start + timedelta(days=6)
+    return f"{start.strftime('%b')} {start.day} – {end.strftime('%b')} {end.day}"
+
+
+def _split_full_name(raw_value: str) -> tuple[str, str]:
+    cleaned = " ".join((raw_value or "").split())
+    if not cleaned:
+        return ("Imported", "Patient")
+    parts = cleaned.split(" ", 1)
+    if len(parts) == 1:
+        return (parts[0], "")
+    return parts[0], parts[1]
+
+
+def _looks_like_phone(value: str) -> bool:
+    digits = re.sub(r"\D", "", value or "")
+    return len(digits) >= 7
+
+
+def _extract_phone_from_text(value: str) -> Optional[str]:
+    if not value:
+        return None
+    match = PHONE_PATTERN.search(value)
+    if match:
+        return match.group(0).strip()
+    return None
+
+
+def _default_field_value(field: str, fallback: str) -> str:
+    try:
+        options = database.get_field_options(field)
+    except ValueError:
+        return fallback
+    if options:
+        return options[0]["value"]
+    return fallback
+
+
+def _resolve_import_defaults() -> Dict[str, str]:
+    return {
+        key: _default_field_value(key, IMPORTED_DEFAULT_FALLBACKS[key])
+        for key in IMPORTED_DEFAULT_FALLBACKS
+    }
+
+
+def _normalize_import_record(record: ExternalPatientPayload, defaults: Dict[str, str]) -> PatientCreate:
+    scheduled_date = record.date.date()
+    week_order = _week_of_month(scheduled_date)
+    week_label = f"Week {week_order}"
+    first_name, last_name = _split_full_name(record.procedures.name)
+    extracted_phone = _extract_phone_from_text(record.procedures.name)
+    number_value = (record.procedures.number or "").strip()
+    phone_value = extracted_phone or ""
+    if not phone_value and number_value and _looks_like_phone(number_value):
+        phone_value = number_value
+    payment_value = (
+        number_value if number_value and not _looks_like_phone(number_value) else defaults["payment"]
+    )
+    status_value = record.procedures.status or defaults["status"]
+    procedure_type_value = record.procedures.surgery_type or defaults["procedure_type"]
+    return PatientCreate(
+        month_label=scheduled_date.strftime("%B %Y"),
+        week_label=week_label,
+        week_range=_format_week_range(scheduled_date),
+        week_order=week_order,
+        day_label=scheduled_date.strftime("%a"),
+        day_order=scheduled_date.weekday() + 1,
+        first_name=first_name,
+        last_name=last_name,
+        email="",
+        phone=phone_value,
+        city="",
+        procedure_date=scheduled_date.isoformat(),
+        status=status_value,
+        procedure_type=procedure_type_value,
+        payment=payment_value,
+        consultation=[],
+        forms=[],
+        consents=[],
+        photos=0,
+        photo_files=[],
+    )
 
 
 def _authorization_header_token(header_value: Optional[str]) -> Optional[str]:
@@ -149,6 +243,23 @@ def update_patient(patient_id: int, payload: PatientCreate) -> Patient:
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     return Patient(**updated)
+
+
+@patients_router.post("/import", response_model=List[Patient], status_code=status.HTTP_201_CREATED)
+def import_patients(payload: List[ExternalPatientPayload]) -> List[Patient]:
+    """
+    Convert simplified integration payloads into full-fledged patient records.
+    Accepts the documented `body.date` + `body.procedures` keys (dot or nested objects).
+    """
+    if not payload:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Provide at least one record")
+    defaults = _resolve_import_defaults()
+    created: List[Patient] = []
+    for record in payload:
+        patient_payload = _normalize_import_record(record, defaults)
+        created_record = database.create_patient(patient_payload.model_dump())
+        created.append(Patient(**created_record))
+    return created
 
 
 def _request_origin(request: Request) -> str:

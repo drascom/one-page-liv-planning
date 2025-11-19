@@ -124,7 +124,7 @@ curl -X POST "http://127.0.0.1:8000/patients" \
     "city": "Los Angeles",
     "procedure_date": "2024-06-12",
     "status": "consult",
-    "surgery_type": "Facelift",
+    "procedure_type": "Facelift",
     "payment": "Deposit received",
     "consultation": [],
     "forms": [],
@@ -153,7 +153,7 @@ curl -X PUT "http://127.0.0.1:8000/patients/123" \
     "city": "Los Angeles",
     "procedure_date": "2024-06-18",
     "status": "pre-op",
-    "surgery_type": "Facelift",
+    "procedure_type": "Facelift",
     "payment": "Paid in full",
     "consultation": ["consultation1"],
     "forms": ["health_history"],
@@ -163,13 +163,42 @@ curl -X PUT "http://127.0.0.1:8000/patients/123" \
   }'
 ```
 
+### Simplified importer (`POST /patients/import`)
+
+Some integrations (n8n, webhooks, etc.) only provide entries like the following:
+
+```json
+[
+  {
+    "body.procedures": {
+      "surgery_type": "R",
+      "name": "Emin Colak",
+      "number": "2500"
+    },
+    "body.date": "2025-11-05T00:00:00.000Z"
+  }
+]
+```
+
+Send that exact array to `POST /patients/import` (or `/api/v1/patients/import` with an API token) and the backend will:
+
+- Parse `body.date`, derive `month_label`, `week_label`, `week_range`, `week_order`, `day_label`, `day_order`, and `procedure_date`.
+- Split `body.procedures.name` into `first_name`/`last_name` so the calendar displays the same wording.
+- Copy `body.procedures.surgery_type` into `procedure_type` (fallbacks to your first dropdown option).
+- Copy `body.procedures.status` (when provided) or use your default status.
+- Treat `body.procedures.number` as the payment string when it looks like an amount; if it looks like a phone number we store it as the phone instead.
+- Extract embedded phone numbers from the `name` text so contacts stay searchable.
+- Fill the remaining required fields (`email`, `city`, `payment`, `consultation`, `forms`, `consents`, etc.) with sensible defaults so records remain editable in the UI.
+
+This keeps the integration payload minimal—the server handles all of the calendar bookkeeping for you.
+
 ### Frontend capabilities
 
 - **Weekly schedule** – `index.html` renders the one-page calendar. Authenticated users can page through months, create placeholder patients, and drill into patient details. All data flows through the FastAPI APIs.
 - **Patient editor** – `patient.html` lets you edit contact info, forms/consents, consultation status, and upload photos.
 - **Settings dashboard** – `settings.html` combines multiple admin tools:
   - API token generator (with delete controls)
-  - Option manager for every dropdown (status, surgery type, payment, forms, consents, consultation). The UI mirrors the provided todo-style design.
+  - Option manager for every dropdown (status, procedure type, payment, forms, consents, consultation). The UI mirrors the provided todo-style design.
   - User management (create users, toggle admin, reset passwords, delete accounts)
 - **Login/logout** – `login.html` provides the session entry point while logout buttons are available on every authenticated page.
 

@@ -5,6 +5,7 @@ The frontend uses the base endpoints below directly and no token is required for
 ## `/patients`
 - `GET /patients` – Fetch every patient ordered by procedure date/month.
 - `POST /patients` – Create a new patient (body: `PatientCreate`).
+- `POST /patients/import` – Send an array of simplified payloads (see README) and let the backend derive calendar fields + insert patients.
 - `GET /patients/{id}` – Fetch a single patient.
 - `PUT /patients/{id}` – Update an existing patient.
 - Patient payloads include a `consultation` array (values `consultation1`, `consultation2`) to track completed consultations.
@@ -39,12 +40,13 @@ The frontend uses the base endpoints below directly and no token is required for
 - `GET /app-config.js` – Injects `window.APP_CONFIG`.
 
 ## `/field-options`
-- `GET /field-options` – Fetch every configurable dropdown list (status, surgery type, forms, consents, consultations, payment).
+- `GET /field-options` – Fetch every configurable dropdown list (status, procedure type, forms, consents, consultations, payment).
 - `GET /field-options/{field}` – Fetch a single field's options.
 - `PUT /field-options/{field}` – Replace the option list for a field by sending `{ "options": [{"value": "id", "label": "Label"}, ...] }`.
 
 ## External API (`/api/v1/*`)
 - connection check url is `GET api/v1/status/connection-check` with `Authorization: Bearer <token>` header
 - Every endpoint listed above is also exposed under the `/api/v1/` prefix (e.g. `GET /api/v1/patients`).
+- Importer endpoint: `POST /api/v1/patients/import` accepts the same simplified payload array for integrations.
 - All `/api/v1/...` requests require either an `Authorization: Bearer <token>` header (preferred) or the `token` query parameter (e.g. `/api/v1/patients?token=abc123xyz`) for backwards compatibility.
 - `GET /api/v1/search` – Provide the full name via `full_name=Randhir%20Sandhu` (preferred) or continue using the legacy `name`/`surname` parameters to look up a single patient. Returns `{ "success": true, "patient": { ... }, "id": 123, "surgery_date": "2024-03-11" }` when found and `{ "success": false, "message": "Patient record not found" }` otherwise.

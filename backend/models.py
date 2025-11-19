@@ -1,10 +1,10 @@
 """Pydantic models representing Liv's weekly planning data."""
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, AliasPath, BaseModel, Field, ConfigDict
 
 
 class WeeklyPlanBase(BaseModel):
@@ -40,7 +40,7 @@ class PatientBase(BaseModel):
     city: str = Field(..., description="Patient city")
     procedure_date: Optional[str] = Field(None, description="ISO date for the scheduled procedure")
     status: str = Field(..., description="Surgery workflow status")
-    surgery_type: str = Field(..., description="Buckets used to filter surgeries")
+    procedure_type: str = Field(..., description="Buckets used to filter surgeries")
     payment: str = Field(..., description="Payment collection status")
     consultation: List[str] = Field(default_factory=list, description="Consultations recorded for the patient")
     forms: List[str] = Field(default_factory=list, description="Completed form identifiers")
@@ -66,6 +66,37 @@ class PatientSearchResult(BaseModel):
     surgery_date: Optional[str] = Field(None, description="ISO surgery date (procedure_date in the DB)")
     patient: Optional[Patient] = Field(None, description="Full patient record when a match is found")
     message: Optional[str] = Field(None, description="Human readable message (e.g. when the patient is missing)")
+
+
+class ExternalProcedurePayload(BaseModel):
+    name: str = Field(..., description="Raw full name or description of the entry")
+    surgery_type: Optional[str] = Field(
+        None,
+        description="Optional surgery/procedure type indicator (R, C, CONSULTATION, etc.)",
+    )
+    status: Optional[str] = Field(
+        None,
+        description="Optional workflow status value to reuse as the patient status (PRP, etc.)",
+    )
+    number: Optional[str] = Field(
+        None,
+        description="Optional numeric/string identifier (often mapped to payment or phone info)",
+    )
+
+
+class ExternalPatientPayload(BaseModel):
+    procedures: ExternalProcedurePayload = Field(
+        ...,
+        validation_alias=AliasChoices("body.procedures", AliasPath("body", "procedures"), "procedures"),
+    )
+    date: datetime = Field(
+        ...,
+        validation_alias=AliasChoices("body.date", AliasPath("body", "date"), "date"),
+        description="ISO timestamp the upstream system captured; converted to our schedule date",
+    )
+    detail: Optional[str] = Field(None, description="Pass-through detail field (ignored)")
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class ApiTokenBase(BaseModel):

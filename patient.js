@@ -7,7 +7,7 @@ const DEFAULT_FIELD_OPTIONS = {
     { value: "insurgery", label: "In Surgery" },
     { value: "done", label: "Done" },
   ],
-  surgery_type: [
+  procedure_type: [
     { value: "small", label: "Small" },
     { value: "big", label: "Big" },
     { value: "beard", label: "Beard" },
@@ -93,7 +93,7 @@ function populateSelectOptions(selectEl, field, { multiple = false } = {}) {
 
 function renderOptionControls() {
   populateSelectOptions(statusSelect, "status");
-  populateSelectOptions(surgerySelect, "surgery_type");
+  populateSelectOptions(procedureSelect, "procedure_type");
   populateSelectOptions(paymentSelect, "payment");
   populateSelectOptions(consultationSelect, "consultation", { multiple: true });
   populateSelectOptions(formsSelect, "forms", { multiple: true });
@@ -113,7 +113,7 @@ const emailInput = document.getElementById("email");
 const phoneInput = document.getElementById("phone");
 const cityInput = document.getElementById("city");
 const statusSelect = document.getElementById("status");
-const surgerySelect = document.getElementById("surgery-type");
+const procedureSelect = document.getElementById("procedure-type");
 const paymentSelect = document.getElementById("payment");
 const consultationSelect = document.getElementById("consultation");
 const photosInput = document.getElementById("photos");
@@ -182,7 +182,7 @@ function populateForm(record) {
   phoneInput.value = record.phone || "";
   cityInput.value = record.city || "";
   statusSelect.value = record.status || "reserved";
-  surgerySelect.value = record.surgery_type || "small";
+  procedureSelect.value = record.procedure_type || "small";
   paymentSelect.value = record.payment || "waiting";
   if (consultationSelect) {
     const selectedConsultations = Array.isArray(record.consultation)
@@ -380,7 +380,7 @@ function buildPayloadFromForm() {
     phone: phoneInput.value.trim(),
     city: cityInput.value.trim(),
     status: statusSelect.value,
-    surgery_type: surgerySelect.value,
+    procedure_type: procedureSelect.value,
     payment: paymentSelect.value,
     consultation: consultationSelect ? collectMultiValue(consultationSelect) : [],
     forms: collectMultiValue(formsSelect),
