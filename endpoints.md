@@ -44,7 +44,7 @@ The frontend uses the base endpoints below directly and no token is required for
 - `PUT /field-options/{field}` – Replace the option list for a field by sending `{ "options": [{"value": "id", "label": "Label"}, ...] }`.
 
 ## External API (`/api/v1/*`)
-- connection check url is `GET api/v1/status/connection-check?token=abc123xyz`
+- connection check url is `GET api/v1/status/connection-check` with `Authorization: Bearer <token>` header
 - Every endpoint listed above is also exposed under the `/api/v1/` prefix (e.g. `GET /api/v1/patients`).
-- All `/api/v1/...` requests require a `token` query parameter (e.g. `/api/v1/patients?token=abc123xyz`).
-- `GET /api/v1/search?token=abc123xyz&name=Randhir%20Sandhu` – Provide the full name (optionally along with `surname`, kept for backwards compatibility) to look up a single patient. Returns `{ "success": true, "id": 123, "surgery_date": "2024-03-11" }` when found and `{ "success": false, "message": "Patient record not found" }` otherwise.
+- All `/api/v1/...` requests require either an `Authorization: Bearer <token>` header (preferred) or the `token` query parameter (e.g. `/api/v1/patients?token=abc123xyz`) for backwards compatibility.
+- `GET /api/v1/search` – Provide the full name via `name=Randhir%20Sandhu` (optionally along with `surname`, kept for backwards compatibility) to look up a single patient. Returns `{ "success": true, "patient": { ... }, "id": 123, "surgery_date": "2024-03-11" }` when found and `{ "success": false, "message": "Patient record not found" }` otherwise.

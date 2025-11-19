@@ -64,6 +64,7 @@ class PatientSearchResult(BaseModel):
     success: bool = Field(..., description="Indicates whether the patient was found")
     id: Optional[int] = Field(None, description="Database identifier for the matching patient")
     surgery_date: Optional[str] = Field(None, description="ISO surgery date (procedure_date in the DB)")
+    patient: Optional[Patient] = Field(None, description="Full patient record when a match is found")
     message: Optional[str] = Field(None, description="Human readable message (e.g. when the patient is missing)")
 
 

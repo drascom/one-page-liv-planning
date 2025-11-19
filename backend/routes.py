@@ -6,7 +6,18 @@ import re
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Response, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+    status,
+)
 from fastapi.responses import JSONResponse, PlainTextResponse
 
 from . import database
@@ -52,8 +63,24 @@ UPLOAD_ROOT = settings.uploads_root
 REQUIRED_MIN_OPTION_COUNTS: Dict[str, int] = {"status": 1, "surgery_type": 1, "payment": 1}
 
 
-def require_api_token(token: str = Query(..., description="API token", alias="token")) -> ApiToken:
-    record = database.get_api_token_by_value(token)
+def _authorization_header_token(header_value: Optional[str]) -> Optional[str]:
+    """Return the bearer token portion of an Authorization header, if present."""
+    if not header_value:
+        return None
+    scheme, _, credentials = header_value.partition(" ")
+    if scheme.lower() != "bearer" or not credentials:
+        return None
+    return credentials.strip()
+
+
+def require_api_token(
+    token: Optional[str] = Query(None, description="API token", alias="token"),
+    authorization: Optional[str] = Header(None, convert_underscores=False),
+) -> ApiToken:
+    token_value = token or _authorization_header_token(authorization)
+    if not token_value:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="API token required")
+    record = database.get_api_token_by_value(token_value)
     if not record:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API token")
     return ApiToken(**record)
@@ -407,4 +434,10 @@ def search_patients_route(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     if not record:
         return PatientSearchResult(success=False, message="Patient record not found")
-    return PatientSearchResult(success=True, id=record["id"], surgery_date=record["procedure_date"])
+    patient = Patient(**record)
+    return PatientSearchResult(
+        success=True,
+        id=patient.id,
+        surgery_date=patient.procedure_date,
+        patient=patient,
+    )
