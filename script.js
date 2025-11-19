@@ -132,25 +132,19 @@ const yearSelect = document.getElementById("year-select");
 const todayButton = document.getElementById("month-today");
 const addPatientBtn = document.getElementById("add-patient-btn");
 const settingsLink = document.querySelector("[data-admin-link]");
+const adminTools = document.querySelector("[data-admin-tools]");
+const selectAllCheckbox = document.getElementById("select-all-patients");
+const deleteSelectedBtn = document.getElementById("delete-selected-btn");
 
 initSessionControls();
-initializeAdminControls();
+let isAdminUser = false;
+const selectedPatientIds = new Set();
+let fieldOptionsLoaded = false;
 
-async function initializeAdminControls() {
-  if (!settingsLink) {
-    return;
-  }
-  try {
-    const user = await fetchCurrentUser();
-    if (user?.is_admin) {
-      settingsLink.hidden = false;
-      return;
-    }
-  } catch (_error) {
-    // ignore fetch errors and hide the control
-  }
-  settingsLink.remove();
-}
+(async function bootstrap() {
+  await initializeAdminControls();
+  await initializeSchedule();
+})();
 
 let monthlySchedules = [];
 let selectedDate = new Date();
@@ -167,6 +161,30 @@ function setScheduleStatus(message) {
 
 function buildApiUrl(path) {
   return new URL(path, API_BASE_URL).toString();
+}
+
+async function initializeAdminControls() {
+  try {
+    const user = await fetchCurrentUser();
+    isAdminUser = Boolean(user?.is_admin);
+  } catch (_error) {
+    isAdminUser = false;
+  }
+  if (isAdminUser) {
+    settingsLink?.removeAttribute("hidden");
+    if (adminTools) {
+      adminTools.hidden = false;
+    }
+    if (selectAllCheckbox) {
+      selectAllCheckbox.checked = false;
+      selectAllCheckbox.indeterminate = false;
+      selectAllCheckbox.disabled = true;
+    }
+  } else {
+    settingsLink?.remove();
+    adminTools?.remove();
+  }
+  updateSelectionControlsState();
 }
 
 async function fetchPatients() {
@@ -374,6 +392,9 @@ function updateControlState() {
 }
 
 function renderSelectedMonth() {
+  if (isAdminUser) {
+    selectedPatientIds.clear();
+  }
   const selectedLabel = formatMonthLabelFromDate(selectedDate);
   monthLabel.textContent = selectedLabel;
   const currentMonth = monthlySchedules.find((month) => month.label === selectedLabel);
@@ -398,6 +419,7 @@ function renderSelectedMonth() {
     weekCount.textContent = `${currentMonth.weeks.length} weeks scheduled`;
   }
   updateControlState();
+  updateSelectionControlsState();
 }
 
 function handlePrevMonth() {
@@ -526,23 +548,152 @@ function handleRowNavigation(day, week) {
   window.location.href = `patient.html?${params.toString()}`;
 }
 
-function renderWeek(week, index) {
+function handleRowSelectionChange(patientId, checked) {
+  if (!isAdminUser || !Number.isFinite(patientId)) {
+    return;
+  }
+  if (checked) {
+    selectedPatientIds.add(patientId);
+  } else {
+    selectedPatientIds.delete(patientId);
+  }
+  updateSelectionControlsState();
+}
+
+function updateSelectionControlsState() {
+  if (!isAdminUser) {
+    return;
+  }
+  const hasSelection = selectedPatientIds.size > 0;
+  if (deleteSelectedBtn) {
+    deleteSelectedBtn.hidden = !hasSelection;
+    deleteSelectedBtn.disabled = !hasSelection;
+  }
+  if (!selectAllCheckbox) {
+    return;
+  }
+  const checkboxes = document.querySelectorAll(".patient-select");
+  const totalCheckboxes = checkboxes.length;
+  if (!totalCheckboxes) {
+    selectAllCheckbox.checked = false;
+    selectAllCheckbox.indeterminate = false;
+    selectAllCheckbox.disabled = true;
+    return;
+  }
+  selectAllCheckbox.disabled = false;
+  let checkedCount = 0;
+  checkboxes.forEach((checkbox) => {
+    if (checkbox.checked) {
+      checkedCount += 1;
+    }
+  });
+  selectAllCheckbox.checked = checkedCount === totalCheckboxes;
+  selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < totalCheckboxes;
+}
+
+function handleSelectAllToggle(event) {
+  if (!isAdminUser) {
+    event.target.checked = false;
+    event.target.indeterminate = false;
+    return;
+  }
+  const shouldSelect = event.target.checked;
+  const checkboxes = document.querySelectorAll(".patient-select");
+  checkboxes.forEach((checkbox) => {
+    checkbox.checked = shouldSelect;
+    const patientId = Number(checkbox.dataset.patientId);
+    if (!Number.isFinite(patientId)) {
+      return;
+    }
+    if (shouldSelect) {
+      selectedPatientIds.add(patientId);
+    } else {
+      selectedPatientIds.delete(patientId);
+    }
+  });
+  updateSelectionControlsState();
+}
+
+async function handleDeleteSelected() {
+  if (!isAdminUser || !selectedPatientIds.size) {
+    return;
+  }
+  const count = selectedPatientIds.size;
+  const confirmation = window.confirm(
+    `Delete ${count} selected patient${count === 1 ? "" : "s"}? This action cannot be undone.`
+  );
+  if (!confirmation) {
+    return;
+  }
+  if (deleteSelectedBtn) {
+    deleteSelectedBtn.disabled = true;
+    deleteSelectedBtn.textContent = "Deleting...";
+  }
+  try {
+    for (const patientId of selectedPatientIds) {
+      const response = await fetch(buildApiUrl(`/patients/${patientId}`), {
+        method: "DELETE",
+      });
+      handleUnauthorized(response);
+      if (!response.ok && response.status !== 404) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.detail || "Failed to delete selected patients.");
+      }
+    }
+    selectedPatientIds.clear();
+    if (selectAllCheckbox) {
+      selectAllCheckbox.checked = false;
+      selectAllCheckbox.indeterminate = false;
+    }
+    await initializeSchedule();
+  } catch (error) {
+    console.error(error);
+    alert(error.message || "Unable to delete selected patients.");
+  } finally {
+    if (deleteSelectedBtn) {
+      deleteSelectedBtn.textContent = "Delete selected";
+      deleteSelectedBtn.disabled = false;
+    }
+    updateSelectionControlsState();
+  }
+}
+
+function renderWeek(week) {
   const clone = weekTemplate.content.cloneNode(true);
   clone.querySelector(".week__title").textContent = week.label;
   clone.querySelector(".week__range").textContent = week.range;
   const tbody = clone.querySelector("tbody");
+  const selectHeaderCell = clone.querySelector("[data-select-header]");
+  if (selectHeaderCell) {
+    selectHeaderCell.hidden = !isAdminUser;
+  }
 
-  week.days.forEach((day, dayIndex) => {
+  week.days.forEach((day) => {
     const row = document.createElement("tr");
     row.classList.add("patient-row");
     row.tabIndex = 0;
     row.dataset.patient = day.patientName;
+    row.dataset.patientId = String(day.id);
     row.setAttribute("aria-label", `Open patient record for ${day.patientName}`);
 
-    const indexCell = document.createElement("td");
-    indexCell.textContent = `${index + 1}.${dayIndex + 1}`;
-    indexCell.classList.add("col-index");
-    indexCell.dataset.label = "#";
+    const cells = [];
+    if (isAdminUser) {
+      const selectCell = document.createElement("td");
+      selectCell.classList.add("col-select");
+      selectCell.dataset.label = "Select";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.className = "patient-select";
+      checkbox.dataset.patientId = String(day.id);
+      checkbox.checked = selectedPatientIds.has(Number(day.id));
+      checkbox.setAttribute("aria-label", `Select ${day.patientName}`);
+      checkbox.addEventListener("click", (event) => event.stopPropagation());
+      checkbox.addEventListener("change", (event) => {
+        handleRowSelectionChange(Number(day.id), event.target.checked);
+      });
+      selectCell.appendChild(checkbox);
+      cells.push(selectCell);
+    }
 
     const dayCell = document.createElement("td");
     dayCell.textContent = day.day;
@@ -601,8 +752,7 @@ function renderWeek(week, index) {
       }
     });
 
-    row.append(
-      indexCell,
+    cells.push(
       dayCell,
       dateCell,
       patientCell,
@@ -614,6 +764,7 @@ function renderWeek(week, index) {
       paymentCell,
       photosCell
     );
+    row.append(...cells);
     tbody.appendChild(row);
   });
 
@@ -635,11 +786,20 @@ if (todayButton) {
 if (addPatientBtn) {
   addPatientBtn.addEventListener("click", handleAddPatientClick);
 }
+if (selectAllCheckbox) {
+  selectAllCheckbox.addEventListener("change", handleSelectAllToggle);
+}
+if (deleteSelectedBtn) {
+  deleteSelectedBtn.addEventListener("click", handleDeleteSelected);
+}
 
 async function initializeSchedule() {
   setScheduleStatus("Loading schedule...");
   try {
-    await fetchFieldOptions();
+    if (!fieldOptionsLoaded) {
+      await fetchFieldOptions();
+      fieldOptionsLoaded = true;
+    }
     const patients = await fetchPatients();
     monthlySchedules = buildMonthlySchedules(patients);
     updateYearOptions(selectedDate.getFullYear());
@@ -652,5 +812,3 @@ async function initializeSchedule() {
     updateControlState();
   }
 }
-
-initializeSchedule();

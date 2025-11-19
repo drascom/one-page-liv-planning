@@ -104,6 +104,27 @@ body {
   gap: 0.5rem;
 }
 
+.hero__admin-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-right: 0.5rem;
+}
+
+.select-all-control {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #f8fafc;
+  font-size: 0.95rem;
+}
+
+.select-all-control input {
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+}
+
 .month-button {
   border: 1px solid rgba(56, 189, 248, 0.5);
   background: rgba(56, 189, 248, 0.15);
@@ -318,10 +339,16 @@ body {
   outline-offset: -2px;
 }
 
-.col-index {
+.col-select {
   width: 3rem;
   text-align: center;
   color: #94a3b8;
+}
+
+.patient-select {
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
 }
 
 .col-day {
@@ -1323,6 +1350,11 @@ body {
     flex-direction: column;
     align-items: stretch;
     padding: 0 1.25rem;
+  }
+
+  .hero__admin-tools {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .hero__controls-center {
