@@ -128,11 +128,13 @@ def _normalize_import_record(record: SimplifiedPatientPayload, defaults: Dict[st
     extracted_phone = _extract_phone_from_text(record.name)
     number_value = (record.number or "").strip()
     phone_value = extracted_phone or ""
-    if not phone_value and number_value and _looks_like_phone(number_value):
-        phone_value = number_value
-    payment_value = (
-        number_value if number_value and not _looks_like_phone(number_value) else defaults["payment"]
-    )
+    grafts_value = ""
+    if number_value:
+        if not phone_value and _looks_like_phone(number_value):
+            phone_value = number_value
+        elif not _looks_like_phone(number_value):
+            grafts_value = number_value
+    payment_value = defaults["payment"]
     status_value = record.status or defaults["status"]
     procedure_type_value = record.surgery_type or defaults["procedure_type"]
     return PatientCreate(
@@ -150,6 +152,7 @@ def _normalize_import_record(record: SimplifiedPatientPayload, defaults: Dict[st
         procedure_date=scheduled_date.isoformat(),
         status=status_value,
         procedure_type=procedure_type_value,
+        grafts=grafts_value,
         payment=payment_value,
         consultation=[],
         forms=[],
@@ -187,6 +190,7 @@ UPDATE_OVERRIDABLE_FIELDS: set[str] = {
     "last_name",
     "status",
     "procedure_type",
+    "grafts",
     "payment",
     "phone",
 }

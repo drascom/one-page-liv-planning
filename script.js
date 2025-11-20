@@ -264,6 +264,7 @@ function buildWeeksForPatients(patients) {
       lastName: patient.last_name,
       status: patient.status,
       procedureType: patient.procedure_type,
+      grafts: patient.grafts,
       forms: patient.forms,
       consents: patient.consents,
       payment: patient.payment,
@@ -475,6 +476,7 @@ function buildDefaultPatientPayload() {
     city: "",
     status: defaultStatus,
     procedure_type: defaultProcedure,
+    grafts: "",
     payment: defaultPayment,
     consultation: [],
     forms: [],
@@ -724,6 +726,11 @@ function renderWeek(week) {
     procedureCell.classList.add("col-procedure");
     procedureCell.dataset.label = "Procedure Type";
 
+    const graftsCell = document.createElement("td");
+    graftsCell.textContent = day.grafts || "—";
+    graftsCell.classList.add("col-grafts");
+    graftsCell.dataset.label = "Grafts";
+
     const formsComplete = hasCompletedChecklist("forms", day.forms);
     const consentsComplete = hasCompletedChecklist("consents", day.consents);
     const formsCell = createCheckCell(formsComplete, "Forms");
@@ -758,6 +765,7 @@ function renderWeek(week) {
       patientCell,
       statusCell,
       procedureCell,
+      graftsCell,
       formsCell,
       consentsCell,
       consultationCell,

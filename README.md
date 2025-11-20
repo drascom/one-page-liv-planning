@@ -155,6 +155,7 @@ curl -X PUT "http://127.0.0.1:8000/patients/123" \
     "procedure_date": "2024-06-18",
     "status": "pre-op",
     "procedure_type": "Facelift",
+    "grafts": "2500",
     "payment": "Paid in full",
     "consultation": ["consultation1"],
     "forms": ["health_history"],
@@ -188,7 +189,7 @@ Behind the scenes the backend will:
 - Split `name` into `first_name`/`last_name` so the calendar displays the same wording.
 - Copy `surgery_type` into `procedure_type` (fallbacks to your first dropdown option).
 - Copy `status` (when provided) or use your default status.
-- Treat `number` as the payment string when it looks like an amount; if it looks like a phone number we store it as the phone instead.
+- Copy `number` into the grafts field when it looks like an amount; if it looks like a phone number we store it as the phone instead.
 - Extract embedded phone numbers from the `name` text so contacts stay searchable.
 - Fill the remaining required fields (`email`, `city`, `payment`, `consultation`, `forms`, `consents`, etc.) with sensible defaults so records remain editable in the UI.
 

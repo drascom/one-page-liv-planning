@@ -115,6 +115,7 @@ const phoneInput = document.getElementById("phone");
 const cityInput = document.getElementById("city");
 const statusSelect = document.getElementById("status");
 const procedureSelect = document.getElementById("procedure-type");
+const graftsInput = document.getElementById("grafts");
 const paymentSelect = document.getElementById("payment");
 const consultationSelect = document.getElementById("consultation");
 const photosInput = document.getElementById("photos");
@@ -185,6 +186,7 @@ function populateForm(record) {
   cityInput.value = record.city || "";
   statusSelect.value = record.status || "reserved";
   procedureSelect.value = record.procedure_type || "small";
+  graftsInput.value = record.grafts || "";
   paymentSelect.value = record.payment || "waiting";
   if (consultationSelect) {
     const selectedConsultations = Array.isArray(record.consultation)
@@ -389,6 +391,7 @@ function buildPayloadFromForm() {
     city: cityInput.value.trim(),
     status: statusSelect.value,
     procedure_type: procedureSelect.value,
+    grafts: graftsInput.value.trim(),
     payment: paymentSelect.value,
     consultation: consultationSelect ? collectMultiValue(consultationSelect) : [],
     forms: collectMultiValue(formsSelect),

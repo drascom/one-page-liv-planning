@@ -160,6 +160,7 @@ def init_db() -> None:
                 city TEXT NOT NULL,
                 status TEXT NOT NULL,
                 procedure_type TEXT NOT NULL,
+                grafts TEXT NOT NULL DEFAULT '',
                 payment TEXT NOT NULL,
                 consultation TEXT,
                 forms TEXT NOT NULL DEFAULT '[]',
@@ -173,6 +174,7 @@ def init_db() -> None:
         _ensure_procedure_type_column(conn)
         _ensure_photo_files_column(conn)
         _ensure_consultation_column(conn)
+        _ensure_grafts_column(conn)
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS api_tokens (
@@ -252,6 +254,16 @@ def _ensure_consultation_column(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE patients ADD COLUMN consultation TEXT")
         conn.commit()
     _normalize_consultation_column(conn)
+
+
+def _ensure_grafts_column(conn: sqlite3.Connection) -> None:
+    cursor = conn.execute("PRAGMA table_info(patients)")
+    columns = {row[1] for row in cursor.fetchall()}
+    if "grafts" in columns:
+        return
+    conn.execute("ALTER TABLE patients ADD COLUMN grafts TEXT NOT NULL DEFAULT ''")
+    conn.execute("UPDATE patients SET grafts = '' WHERE grafts IS NULL")
+    conn.commit()
 
 
 def _ensure_field_options(conn: sqlite3.Connection) -> None:
@@ -434,6 +446,7 @@ def _row_to_patient(row: sqlite3.Row) -> Dict[str, Any]:
         "city": row["city"],
         "status": row["status"],
         "procedure_type": row["procedure_type"],
+        "grafts": row["grafts"],
         "payment": row["payment"],
         "consultation": _deserialize_consultation(row["consultation"]),
         "forms": json.loads(row["forms"]) if row["forms"] else [],
@@ -592,6 +605,7 @@ def _serialize_patient_payload(data: Dict[str, Any]) -> Dict[str, Any]:
         "city": data["city"],
         "status": data["status"],
         "procedure_type": data["procedure_type"],
+        "grafts": data.get("grafts", ""),
         "payment": data["payment"],
         "consultation": json.dumps(consultation_list),
         "forms": json.dumps(data.get("forms") or []),
@@ -610,8 +624,8 @@ def create_patient(data: Dict[str, Any]) -> Dict[str, Any]:
                 month_label, week_label, week_range, week_order,
                 day_label, day_order, procedure_date,
                 first_name, last_name, email, phone, city,
-                status, procedure_type, payment, consultation, forms, consents, photos, photo_files
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                status, procedure_type, grafts, payment, consultation, forms, consents, photos, photo_files
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 payload["month_label"],
@@ -628,6 +642,7 @@ def create_patient(data: Dict[str, Any]) -> Dict[str, Any]:
                 payload["city"],
                 payload["status"],
                 payload["procedure_type"],
+                payload["grafts"],
                 payload["payment"],
                 payload["consultation"],
                 payload["forms"],
@@ -665,6 +680,7 @@ def update_patient(patient_id: int, data: Dict[str, Any]) -> Optional[Dict[str, 
                 status = ?,
                 procedure_type = ?,
                 procedure_date = ?,
+                grafts = ?,
                 payment = ?,
                 consultation = ?,
                 forms = ?,
@@ -688,6 +704,7 @@ def update_patient(patient_id: int, data: Dict[str, Any]) -> Optional[Dict[str, 
                 payload["status"],
                 payload["procedure_type"],
                 payload["procedure_date"],
+                payload["grafts"],
                 payload["payment"],
                 payload["consultation"],
                 payload["forms"],
@@ -838,8 +855,8 @@ def _seed_patients_if_empty(conn: sqlite3.Connection) -> bool:
                 month_label, week_label, week_range, week_order,
                 day_label, day_order, procedure_date,
                 first_name, last_name, email, phone, city,
-                status, procedure_type, payment, consultation, forms, consents, photos, photo_files
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                status, procedure_type, grafts, payment, consultation, forms, consents, photos, photo_files
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 payload["month_label"],
@@ -856,6 +873,7 @@ def _seed_patients_if_empty(conn: sqlite3.Connection) -> bool:
                 payload["city"],
                 payload["status"],
                 payload["procedure_type"],
+                payload["grafts"],
                 payload["payment"],
                 payload["consultation"],
                 payload["forms"],

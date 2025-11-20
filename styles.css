@@ -373,8 +373,14 @@ body {
 
 .col-procedure {
   text-align: center;
-  width: 12%;
+  width: 11%;
   font-weight: 500;
+}
+
+.col-grafts {
+  text-align: center;
+  width: 9%;
+  font-weight: 600;
 }
 
 .col-check {

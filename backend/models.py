@@ -41,6 +41,7 @@ class PatientBase(BaseModel):
     procedure_date: Optional[str] = Field(None, description="ISO date for the scheduled procedure")
     status: str = Field(..., description="Surgery workflow status")
     procedure_type: str = Field(..., description="Buckets used to filter surgeries")
+    grafts: str = Field("", description="Number of grafts or imported numeric detail")
     payment: str = Field(..., description="Payment collection status")
     consultation: List[str] = Field(default_factory=list, description="Consultations recorded for the patient")
     forms: List[str] = Field(default_factory=list, description="Completed form identifiers")
