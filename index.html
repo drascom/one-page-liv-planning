@@ -26,7 +26,6 @@
     </div>
   </header>
   <div class="hero__controls-row">
-    <button type="button" class="hero__add-btn" id="add-patient-btn">Add Patient</button>
     <div class="hero__controls-center">
       <div class="month-controls" aria-label="Month navigation">
         <button type="button" class="month-button" id="month-prev" aria-label="Previous month">←</button>
@@ -39,13 +38,6 @@
       </div>
     </div>
     <div class="hero__controls-right">
-      <div class="hero__admin-tools" data-admin-tools hidden>
-        <label class="select-all-control">
-          <input type="checkbox" id="select-all-patients" />
-          <span>Select all</span>
-        </label>
-        <button type="button" class="danger-btn" id="delete-selected-btn" hidden>Delete selected</button>
-      </div>
       <a
         class="hero__settings-link hero__settings-link--icon"
         href="settings.html"
@@ -60,7 +52,21 @@
     </div>
   </div>
 
-  <main class="schedule" id="schedule"></main>
+  <main class="schedule">
+    <header class="schedule__header">
+      <div class="schedule__header-actions">
+        <button type="button" class="hero__add-btn" id="add-patient-btn">Add Patient</button>
+        <div class="schedule__admin-tools" data-admin-tools hidden>
+          <label class="select-all-control">
+            <input type="checkbox" id="select-all-patients" />
+            <span>Select all</span>
+          </label>
+          <button type="button" class="danger-btn" id="delete-selected-btn" hidden>Delete selected</button>
+        </div>
+      </div>
+    </header>
+    <div class="schedule__board" id="schedule"></div>
+  </main>
 
   <template id="week-template">
     <section class="week">
