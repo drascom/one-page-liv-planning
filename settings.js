@@ -12,6 +12,9 @@ const tokenTestLink = document.getElementById("token-test-link");
 const createButton = document.getElementById("create-token-btn");
 const settingsTabs = Array.from(document.querySelectorAll("[data-settings-tab]"));
 const settingsSections = Array.from(document.querySelectorAll("[data-settings-section]"));
+const purgePatientsBtn = document.getElementById("purge-patients-btn");
+const purgePatientsStatus = document.getElementById("purge-patients-status");
+const purgePatientsDefaultText = purgePatientsBtn?.textContent?.trim() ?? "Delete selected";
 
 initSessionControls();
 
@@ -513,6 +516,63 @@ async function initializeFieldOptions() {
   fieldOptionsContainer.innerHTML = `<p class="option-card__loading">Loading options...</p>`;
   await fetchFieldOptionsData();
   renderFieldOptionForms();
+}
+
+purgePatientsBtn?.addEventListener("click", purgeAllPatients);
+
+function setPurgeStatus(message) {
+  if (!purgePatientsStatus) return;
+  purgePatientsStatus.textContent = message;
+  if (message) {
+    setTimeout(() => {
+      if (purgePatientsStatus.textContent === message) {
+        purgePatientsStatus.textContent = "";
+      }
+    }, 5000);
+  }
+}
+
+async function purgeAllPatients() {
+  if (!purgePatientsBtn) {
+    return;
+  }
+  const confirmed = window.confirm(
+    "Delete every patient record? This cannot be undone and should only be used for test data."
+  );
+  if (!confirmed) {
+    return;
+  }
+  purgePatientsBtn.disabled = true;
+  purgePatientsBtn.textContent = "Deleting patients...";
+  setPurgeStatus("Deleting all patient records...");
+  try {
+    const response = await fetch(buildApiUrl("/patients"));
+    handleUnauthorized(response);
+    if (!response.ok) {
+      throw new Error("Unable to load patient records.");
+    }
+    const patients = await response.json();
+    if (!patients.length) {
+      setPurgeStatus("No patient records found.");
+      return;
+    }
+    for (const patient of patients) {
+      const deleteResponse = await fetch(buildApiUrl(`/patients/${patient.id}`), {
+        method: "DELETE",
+      });
+      handleUnauthorized(deleteResponse);
+      if (!deleteResponse.ok) {
+        throw new Error("Unable to delete all patient records. Please try again.");
+      }
+    }
+    setPurgeStatus(`Deleted ${patients.length} patient record${patients.length === 1 ? "" : "s"}.`);
+  } catch (error) {
+    console.error(error);
+    setPurgeStatus(error.message || "Unable to delete patient records.");
+  } finally {
+    purgePatientsBtn.disabled = false;
+    purgePatientsBtn.textContent = purgePatientsDefaultText;
+  }
 }
 
 const userAdminContainer = document.getElementById("user-admin");

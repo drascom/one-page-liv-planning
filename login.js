@@ -5,6 +5,7 @@ const API_BASE_URL =
 const loginForm = document.getElementById("login-form");
 const usernameInput = document.getElementById("login-username");
 const passwordInput = document.getElementById("login-password");
+const passwordToggle = document.getElementById("password-toggle");
 const loginStatus = document.getElementById("login-status");
 const params = new URLSearchParams(window.location.search);
 const nextPath = params.get("next") || "/";
@@ -40,6 +41,15 @@ async function handleLogin(event) {
     loginStatus.textContent = error.message;
   } finally {
     passwordInput.value = "";
+    passwordInput.type = "password";
+    if (passwordToggle) {
+      passwordToggle.setAttribute("aria-pressed", "false");
+      passwordToggle.setAttribute("aria-label", "Show password");
+      const label = passwordToggle.querySelector(".visually-hidden");
+      if (label) {
+        label.textContent = "Show password";
+      }
+    }
   }
 }
 
@@ -55,4 +65,17 @@ async function checkExistingSession() {
 }
 
 loginForm.addEventListener("submit", handleLogin);
+if (passwordToggle) {
+  passwordToggle.addEventListener("click", () => {
+    const revealing = passwordInput.type === "password";
+    passwordInput.type = revealing ? "text" : "password";
+    passwordToggle.setAttribute("aria-pressed", String(revealing));
+    const nextLabel = revealing ? "Hide password" : "Show password";
+    passwordToggle.setAttribute("aria-label", nextLabel);
+    const labelEl = passwordToggle.querySelector(".visually-hidden");
+    if (labelEl) {
+      labelEl.textContent = nextLabel;
+    }
+  });
+}
 checkExistingSession();

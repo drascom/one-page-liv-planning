@@ -551,7 +551,7 @@ function handleRowNavigation(day, week) {
 }
 
 function handleRowSelectionChange(patientId, checked) {
-  if (!isAdminUser || !Number.isFinite(patientId)) {
+  if (!isAdminUser || !Number.isFinite(patientId) || !selectAllCheckbox) {
     return;
   }
   if (checked) {
@@ -563,7 +563,7 @@ function handleRowSelectionChange(patientId, checked) {
 }
 
 function updateSelectionControlsState() {
-  if (!isAdminUser) {
+  if (!isAdminUser || (!selectAllCheckbox && !deleteSelectedBtn)) {
     return;
   }
   const hasSelection = selectedPatientIds.size > 0;
@@ -666,8 +666,9 @@ function renderWeek(week) {
   clone.querySelector(".week__range").textContent = week.range;
   const tbody = clone.querySelector("tbody");
   const selectHeaderCell = clone.querySelector("[data-select-header]");
+  const canSelectRows = isAdminUser && Boolean(selectAllCheckbox);
   if (selectHeaderCell) {
-    selectHeaderCell.hidden = !isAdminUser;
+    selectHeaderCell.hidden = !canSelectRows;
   }
 
   week.days.forEach((day) => {
@@ -679,7 +680,7 @@ function renderWeek(week) {
     row.setAttribute("aria-label", `Open patient record for ${day.patientName}`);
 
     const cells = [];
-    if (isAdminUser) {
+    if (canSelectRows) {
       const selectCell = document.createElement("td");
       selectCell.classList.add("col-select");
       selectCell.dataset.label = "Select";

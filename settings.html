@@ -93,6 +93,18 @@
           <section class="patient-card">
             <div id="field-options-container" class="option-forms"></div>
           </section>
+          <section class="patient-card settings-danger-card">
+            <h3>Test Data Reset</h3>
+            <p>Need a clean slate? Use the control below to automatically select and delete every patient record.</p>
+            <div class="settings-danger-card__actions">
+              <label class="select-all-control" aria-live="polite">
+                <input type="checkbox" checked disabled />
+                <span>Select all patients</span>
+              </label>
+              <button type="button" class="danger-btn" id="purge-patients-btn">Delete selected</button>
+            </div>
+            <p class="form-status form-status--danger" id="purge-patients-status" aria-live="polite"></p>
+          </section>
         </section>
 
         <section class="settings-section" id="settings-panel-users" role="tabpanel" aria-labelledby="settings-tab-users"
