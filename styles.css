@@ -1032,6 +1032,76 @@ body {
   border: 1px solid #e2e8f0;
 }
 
+.patient-bookings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.patient-bookings__header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  justify-content: space-between;
+}
+
+.patient-bookings__hint {
+  margin: 0;
+  color: #475569;
+  font-size: 0.95rem;
+}
+
+.patient-bookings__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.patient-bookings__empty {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.95rem;
+}
+
+.patient-bookings__item {
+  width: 100%;
+  text-align: left;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #0f172a;
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.1s ease;
+}
+
+.patient-bookings__item:hover {
+  border-color: #94a3b8;
+  background: #eef2ff;
+  transform: translateY(-1px);
+}
+
+.patient-bookings__item.is-active {
+  border-color: #818cf8;
+  background: #ede9fe;
+  cursor: default;
+}
+
+.patient-bookings__pill {
+  display: inline-block;
+  margin-top: 0.35rem;
+  padding: 0.25rem 0.5rem;
+  background: #eef2ff;
+  color: #4338ca;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
 .settings-danger-card {
   border-color: #fecdd3;
   background: #fff1f2;

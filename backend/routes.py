@@ -342,11 +342,6 @@ def create_patient(payload: dict = Body(...)) -> JSONResponse:
     defaults = _resolve_import_defaults()
     patient_payload = _coerce_patient_payload(payload, defaults)
     record_data = patient_payload.model_dump()
-    existing = database.find_patient_by_name_and_date(
-        record_data["first_name"], record_data["last_name"], record_data.get("procedure_date")
-    )
-    if existing:
-        return JSONResponse({"detail": "Existing record", "id": existing["id"]}, status_code=status.HTTP_200_OK)
     record = database.create_patient(record_data)
     database.log_api_request("/patients", "POST", payload)
     return JSONResponse({"detail": "Created", "id": record["id"]}, status_code=status.HTTP_201_CREATED)
@@ -408,12 +403,6 @@ def import_patients(payload: List[dict] = Body(...)) -> JSONResponse:
     for record in payload:
         patient_payload = _coerce_patient_payload(record, defaults)
         record_data = patient_payload.model_dump()
-        existing = database.find_patient_by_name_and_date(
-            record_data["first_name"], record_data["last_name"], record_data.get("procedure_date")
-        )
-        if existing:
-            created.append(existing["id"])
-            continue
         created_record = database.create_patient(record_data)
         created.append(created_record["id"])
     database.log_api_request("/patients/multiple", "POST", payload)

@@ -48,6 +48,11 @@ const API_BASE_URL =
   window.APP_CONFIG?.backendUrl ??
   `${window.location.protocol}//${window.location.host}`;
 const UPLOADS_BASE_URL = new URL("/uploaded-files/", API_BASE_URL).toString();
+const BOOKING_DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
 
 function buildApiUrl(path) {
   return new URL(path, API_BASE_URL).toString();
@@ -59,6 +64,12 @@ function getFieldOptions(field) {
 
 function getFieldOptionValues(field) {
   return getFieldOptions(field).map((option) => option.value);
+}
+
+function getOptionLabel(field, value) {
+  if (!value) return "";
+  const match = getFieldOptions(field).find((option) => option.value === value);
+  return match?.label ?? value;
 }
 
 initSessionControls();
@@ -197,6 +208,10 @@ function buildConsentsChecklist() {
 const patientNameEl = document.getElementById("patient-name");
 const patientWeekEl = document.getElementById("patient-week");
 const patientCityEl = document.getElementById("patient-city");
+const bookingSection = document.getElementById("patient-bookings");
+const bookingListEl = document.getElementById("patient-bookings-list");
+const bookingEmptyState = document.getElementById("patient-bookings-empty");
+const bookingHintEl = document.getElementById("patient-bookings-hint");
 const formEl = document.getElementById("patient-form");
 const formStatusEl = document.getElementById("form-status");
 const deletePatientBtn = document.getElementById("delete-patient-btn");
@@ -346,6 +361,7 @@ async function fetchPatient() {
     disableForm(true);
     currentPatient = null;
     refreshDeleteButtonState();
+    renderRelatedBookings(null);
     return;
   }
   try {
@@ -363,12 +379,14 @@ async function fetchPatient() {
     formStatusEl.textContent = "";
     disableForm(false);
     refreshDeleteButtonState();
+    renderRelatedBookings(record);
   } catch (error) {
     console.error(error);
     formStatusEl.textContent = "Unable to load patient details.";
     disableForm(true);
     currentPatient = null;
     refreshDeleteButtonState();
+    renderRelatedBookings(null);
   }
 }
 
@@ -407,6 +425,17 @@ function dateOnly(value) {
   if (!text) return "";
   const datePart = text.includes("T") ? text.split("T")[0] : text.split(" ")[0] || text;
   return datePart;
+}
+
+function formatBookingDate(value) {
+  if (!value) {
+    return "No date";
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+  return BOOKING_DATE_FORMATTER.format(parsed);
 }
 
 async function loadAllPatients() {
@@ -463,6 +492,93 @@ async function confirmDuplicateIfNeeded(payload) {
     return false;
   }
   return true;
+}
+
+function buildBookingLabel(entry) {
+  const dateText = formatBookingDate(entry.procedure_date);
+  const statusLabel = getOptionLabel("status", entry.status) || entry.status || "Status not set";
+  const typeLabel =
+    getOptionLabel("procedure_type", entry.procedure_type) || entry.procedure_type || "Type not set";
+  return `${dateText} • ${statusLabel} • ${typeLabel}`;
+}
+
+function getBookingSortValue(entry) {
+  const parsed = Date.parse(entry.procedure_date ?? "");
+  if (Number.isNaN(parsed)) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+  return parsed;
+}
+
+async function renderRelatedBookings(record) {
+  if (!bookingSection || !bookingListEl || !bookingEmptyState) {
+    return;
+  }
+  if (!record) {
+    bookingSection.hidden = true;
+    return;
+  }
+  const normalizedFirst = normalizeName(record.first_name);
+  const normalizedLast = normalizeName(record.last_name);
+  bookingListEl.innerHTML = "";
+  try {
+    const patients = await loadAllPatients();
+    const matches = patients
+      .filter((patient) => {
+        return (
+          normalizeName(patient.first_name) === normalizedFirst &&
+          normalizeName(patient.last_name) === normalizedLast
+        );
+      })
+      .sort((a, b) => getBookingSortValue(a) - getBookingSortValue(b) || a.id - b.id);
+    if (!matches.length) {
+      bookingEmptyState.hidden = false;
+      bookingSection.hidden = false;
+      if (bookingHintEl) {
+        bookingHintEl.textContent = "No other bookings found.";
+      }
+      return;
+    }
+    bookingEmptyState.hidden = true;
+    matches.forEach((entry) => {
+      const item = document.createElement("li");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "patient-bookings__item";
+      if (entry.id === record.id) {
+        button.classList.add("is-active");
+      }
+      button.textContent = buildBookingLabel(entry);
+      button.addEventListener("click", () => {
+        if (entry.id === record.id) {
+          return;
+        }
+        const params = new URLSearchParams({
+          id: String(entry.id),
+          patient: `${entry.first_name} ${entry.last_name}`.trim(),
+        });
+        window.location.href = `patient.html?${params.toString()}`;
+      });
+      item.appendChild(button);
+      if (entry.id === record.id) {
+        const tag = document.createElement("span");
+        tag.className = "patient-bookings__pill";
+        tag.textContent = "Current booking";
+        item.appendChild(tag);
+      }
+      bookingListEl.appendChild(item);
+    });
+    bookingSection.hidden = false;
+    if (bookingHintEl) {
+      const extra =
+        matches.length > 1 ? "Select another consultation or surgery to edit." : "Only one booking exists.";
+      bookingHintEl.textContent = extra;
+    }
+  } catch (error) {
+    console.warn("Unable to render related bookings", error);
+    bookingEmptyState.hidden = false;
+    bookingSection.hidden = false;
+  }
 }
 
 function buildPhotoUrl(relativePath) {
