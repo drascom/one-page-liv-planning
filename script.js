@@ -1167,6 +1167,8 @@ if (searchForm) {
 }
 if (searchInput) {
   searchInput.addEventListener("input", handleSearchInput);
+  // Capture native search clear ("x") events to reset the list
+  searchInput.addEventListener("search", handleSearchInput);
 }
 if (searchClearBtn) {
   searchClearBtn.addEventListener("click", resetSearch);
