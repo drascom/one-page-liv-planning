@@ -240,6 +240,7 @@ const requestedName = params.get("patient");
 let currentPatient = null;
 let activePhotoIndex = 0;
 let isAdminUser = false;
+let cachedPatients = null;
 
 function loadActiveContext() {
   if (typeof window === "undefined" || !window.localStorage) {
@@ -387,6 +388,74 @@ function getPhotoFiles() {
   return currentPatient?.photo_files ?? [];
 }
 
+function normalizeName(value) {
+  return (value || "").trim().toLowerCase();
+}
+
+function dateOnly(value) {
+  if (!value) return "";
+  const text = String(value).trim();
+  if (!text) return "";
+  const datePart = text.includes("T") ? text.split("T")[0] : text.split(" ")[0] || text;
+  return datePart;
+}
+
+async function loadAllPatients() {
+  if (cachedPatients) {
+    return cachedPatients;
+  }
+  try {
+    const response = await fetch(buildApiUrl("/patients"));
+    handleUnauthorized(response);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch patients (${response.status})`);
+    }
+    cachedPatients = await response.json();
+  } catch (error) {
+    console.warn("Unable to load patients for duplicate check", error);
+    cachedPatients = [];
+  }
+  return cachedPatients;
+}
+
+async function findDuplicatePatient({ first_name, last_name, procedure_date, id: selfId }) {
+  const normalizedFirst = normalizeName(first_name);
+  const normalizedLast = normalizeName(last_name);
+  const normalizedDate = dateOnly(procedure_date);
+  if (!normalizedFirst || !normalizedLast || !normalizedDate) {
+    return null;
+  }
+  const patients = await loadAllPatients();
+  return (
+    patients.find((patient) => {
+      if (selfId && patient.id === selfId) return false;
+      return (
+        normalizeName(patient.first_name) === normalizedFirst &&
+        normalizeName(patient.last_name) === normalizedLast &&
+        dateOnly(patient.procedure_date) === normalizedDate
+      );
+    }) || null
+  );
+}
+
+async function confirmDuplicateIfNeeded(payload) {
+  const duplicate = await findDuplicatePatient(payload);
+  if (!duplicate) {
+    return true;
+  }
+  const name = `${duplicate.first_name} ${duplicate.last_name}`.trim();
+  const date = duplicate.procedure_date || "this date";
+  const proceed = window.confirm(
+    `A patient named "${name}" already has a procedure on ${date}.\n\nPress OK to add another patient with the same name, or Cancel to open the existing record instead.`
+  );
+  if (!proceed) {
+    const params = new URLSearchParams({ id: String(duplicate.id), patient: name });
+    window.location.href = `patient.html?${params.toString()}`;
+    return false;
+  }
+  return true;
+}
+
 function buildPhotoUrl(relativePath) {
   if (!relativePath) {
     return "";
@@ -530,6 +599,10 @@ async function savePatient(event) {
   }
   const payload = buildPayloadFromForm();
   if (!payload) {
+    return;
+  }
+  const shouldProceed = await confirmDuplicateIfNeeded({ ...payload, id: currentPatient.id });
+  if (!shouldProceed) {
     return;
   }
   formStatusEl.textContent = "Saving...";

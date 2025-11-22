@@ -110,17 +110,17 @@
           <header class="settings-section__header">
             <p class="settings-section__eyebrow">Workspace</p>
             <h2>Test Data Reset</h2>
-            <p>Need a clean slate? Move every patient record into Deleted Records.</p>
+            <p>Need a clean slate? Delete every patient record, including ones already in Deleted Records.</p>
           </header>
           <section class="patient-card settings-danger-card">
             <h3>Reset test data</h3>
-            <p>Use this control to select every patient record and send them to Deleted Records.</p>
+            <p>Use this control to permanently remove all patient records. This clears soft-deleted records too.</p>
             <div class="settings-danger-card__actions">
               <label class="select-all-control" aria-live="polite">
                 <input type="checkbox" checked disabled />
                 <span>Select all patients</span>
               </label>
-              <button type="button" class="danger-btn" id="purge-patients-btn">Delete selected</button>
+              <button type="button" class="danger-btn" id="purge-patients-btn">Delete all patients</button>
             </div>
             <p class="form-status form-status--danger" id="purge-patients-status" aria-live="polite"></p>
           </section>

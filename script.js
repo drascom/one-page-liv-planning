@@ -667,16 +667,20 @@ function formatLocalISODate(date) {
 
 function getWeekMetaForDate(date) {
   const day = date.getDate();
-  const weekIndex = Math.floor((day - 1) / 7) + 1;
-  const year = date.getFullYear();
-  const month = date.getMonth();
-  const lastDay = new Date(year, month + 1, 0).getDate();
-  const startDay = (weekIndex - 1) * 7 + 1;
-  const endDay = Math.min(weekIndex * 7, lastDay);
-  const monthShort = date.toLocaleString("en-US", { month: "short" });
+  const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1).getDay(); // 0=Sun
+  const mondayAlignedOffset = (firstDayOfMonth + 6) % 7; // shift so Monday is week start
+  const weekIndex = Math.floor((mondayAlignedOffset + day - 1) / 7) + 1;
+
+  const weekdayMondayFirst = (date.getDay() + 6) % 7;
+  const weekStart = new Date(date);
+  weekStart.setDate(date.getDate() - weekdayMondayFirst);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  const monthStartShort = weekStart.toLocaleString("en-US", { month: "short" });
+  const monthEndShort = weekEnd.toLocaleString("en-US", { month: "short" });
   return {
     label: `Week ${weekIndex}`,
-    range: `${monthShort} ${startDay} – ${monthShort} ${endDay}`,
+    range: `${monthStartShort} ${weekStart.getDate()} – ${monthEndShort} ${weekEnd.getDate()}`,
     order: weekIndex,
   };
 }

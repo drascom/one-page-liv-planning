@@ -70,7 +70,9 @@ PHONE_PATTERN = re.compile(r"(\+?\d[\d\s().-]{6,})")
 
 
 def _week_of_month(target: date) -> int:
-    return (target.day - 1) // 7 + 1
+    first_day = target.replace(day=1)
+    monday_aligned_offset = (first_day.weekday())  # Monday = 0
+    return (monday_aligned_offset + target.day - 1) // 7 + 1
 
 
 def _format_week_range(target: date) -> str:
@@ -339,6 +341,11 @@ def create_patient(payload: dict = Body(...)) -> Patient:
     defaults = _resolve_import_defaults()
     patient_payload = _coerce_patient_payload(payload, defaults)
     record_data = patient_payload.model_dump()
+    existing = database.find_patient_by_name_and_date(
+        record_data["first_name"], record_data["last_name"], record_data.get("procedure_date")
+    )
+    if existing:
+        return Patient(**existing)
     record = database.create_patient(record_data)
     return Patient(**record)
 
@@ -395,7 +402,14 @@ def import_patients(payload: List[dict] = Body(...)) -> List[Patient]:
     created: List[Patient] = []
     for record in payload:
         patient_payload = _coerce_patient_payload(record, defaults)
-        created_record = database.create_patient(patient_payload.model_dump())
+        record_data = patient_payload.model_dump()
+        existing = database.find_patient_by_name_and_date(
+            record_data["first_name"], record_data["last_name"], record_data.get("procedure_date")
+        )
+        if existing:
+            created.append(Patient(**existing))
+            continue
+        created_record = database.create_patient(record_data)
         created.append(Patient(**created_record))
     return created
 

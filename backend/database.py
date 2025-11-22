@@ -472,8 +472,8 @@ def _row_to_patient(row: sqlite3.Row) -> Dict[str, Any]:
         "day_order": row["day_order"],
         "procedure_date": _date_only(row["procedure_date"]),
         "deleted": bool(row["deleted"]),
-        "first_name": row["first_name"],
-        "last_name": row["last_name"],
+        "first_name": (row["first_name"] or "").strip(),
+        "last_name": (row["last_name"] or "").strip(),
         "email": row["email"],
         "phone": row["phone"],
         "city": row["city"],
@@ -621,11 +621,31 @@ def find_patient_by_full_name(full_name: str) -> Optional[Dict[str, Any]]:
         cursor = conn.execute(
             """
             SELECT * FROM patients
-            WHERE LOWER(first_name) = ? AND LOWER(last_name) = ? AND deleted = 0
+            WHERE LOWER(TRIM(first_name)) = ? AND LOWER(TRIM(last_name)) = ? AND deleted = 0
             ORDER BY week_order ASC, day_order ASC, last_name ASC
             LIMIT 1
             """,
             (first_name.lower(), last_name.lower()),
+        )
+        row = cursor.fetchone()
+        return _row_to_patient(row) if row else None
+
+
+def find_patient_by_name_and_date(first_name: str, last_name: str, procedure_date: Optional[str]) -> Optional[Dict[str, Any]]:
+    if not procedure_date:
+        return None
+    normalized_date = _date_only(procedure_date)
+    if not normalized_date:
+        return None
+    with closing(get_connection()) as conn:
+        cursor = conn.execute(
+            """
+            SELECT * FROM patients
+            WHERE LOWER(TRIM(first_name)) = ? AND LOWER(TRIM(last_name)) = ? AND procedure_date = ? AND deleted = 0
+            ORDER BY id ASC
+            LIMIT 1
+            """,
+            (first_name.lower().strip(), last_name.lower().strip(), normalized_date),
         )
         row = cursor.fetchone()
         return _row_to_patient(row) if row else None
@@ -637,6 +657,8 @@ def _serialize_patient_payload(data: Dict[str, Any]) -> Dict[str, Any]:
         consultation_list: List[str] = [consultation_value]
     else:
         consultation_list = list(consultation_value)
+    normalized_first = (data["first_name"] or "").strip()
+    normalized_last = (data["last_name"] or "").strip()
     return {
         "month_label": data["month_label"],
         "week_label": data["week_label"],
@@ -645,8 +667,8 @@ def _serialize_patient_payload(data: Dict[str, Any]) -> Dict[str, Any]:
         "day_label": data["day_label"],
         "day_order": data["day_order"],
         "procedure_date": _date_only(data.get("procedure_date")),
-        "first_name": data["first_name"],
-        "last_name": data["last_name"],
+        "first_name": normalized_first,
+        "last_name": normalized_last,
         "email": data["email"],
         "phone": data["phone"],
         "city": data["city"],

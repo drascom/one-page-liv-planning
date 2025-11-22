@@ -541,27 +541,33 @@ async function purgeAllPatients() {
     return;
   }
   const confirmed = window.confirm(
-    "Move every patient record to Deleted Records? You can recover them later from this page."
+    "Delete every patient record permanently (including previously deleted ones)? This cannot be undone."
   );
   if (!confirmed) {
     return;
   }
   purgePatientsBtn.disabled = true;
-  purgePatientsBtn.textContent = "Moving patients...";
-  setPurgeStatus("Moving all patient records...");
+  purgePatientsBtn.textContent = "Deleting patients...";
+  setPurgeStatus("Deleting all patient records...");
   try {
-    const response = await fetch(buildApiUrl("/patients"));
-    handleUnauthorized(response);
-    if (!response.ok) {
+    const [patientsResponse, deletedResponse] = await Promise.all([
+      fetch(buildApiUrl("/patients")),
+      fetch(buildApiUrl("/patients/deleted")),
+    ]);
+    handleUnauthorized(patientsResponse);
+    handleUnauthorized(deletedResponse);
+    if (!patientsResponse.ok || !deletedResponse.ok) {
       throw new Error("Unable to load patient records.");
     }
-    const patients = await response.json();
-    if (!patients.length) {
+    const patients = await patientsResponse.json();
+    const deletedPatients = await deletedResponse.json();
+    const allPatients = [...patients, ...deletedPatients];
+    if (!allPatients.length) {
       setPurgeStatus("No patient records found.");
       return;
     }
-    for (const patient of patients) {
-      const deleteResponse = await fetch(buildApiUrl(`/patients/${patient.id}`), {
+    for (const patient of allPatients) {
+      const deleteResponse = await fetch(buildApiUrl(`/patients/${patient.id}/purge`), {
         method: "DELETE",
       });
       handleUnauthorized(deleteResponse);
@@ -569,11 +575,11 @@ async function purgeAllPatients() {
         throw new Error("Unable to delete all patient records. Please try again.");
       }
     }
-    setPurgeStatus(`Moved ${patients.length} patient record${patients.length === 1 ? "" : "s"} to Deleted Records.`);
+    setPurgeStatus(`Deleted ${allPatients.length} patient record${allPatients.length === 1 ? "" : "s"}.`);
     await fetchDeletedPatients();
   } catch (error) {
     console.error(error);
-    setPurgeStatus(error.message || "Unable to move patient records.");
+    setPurgeStatus(error.message || "Unable to delete patient records.");
   } finally {
     purgePatientsBtn.disabled = false;
     purgePatientsBtn.textContent = purgePatientsDefaultText;
