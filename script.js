@@ -121,8 +121,8 @@ const API_BASE_URL =
   window.APP_CONFIG?.backendUrl ??
   `${window.location.protocol}//${window.location.host}`;
 const MONTH_FORMATTER = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" });
-const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" });
 const DAY_FORMATTER = new Intl.DateTimeFormat("en-US", { weekday: "short" });
+const DAY_NAME_FORMATTER = new Intl.DateTimeFormat("en-US", { weekday: "long" });
 
 const monthLabel = document.getElementById("selected-month");
 const weekCount = document.getElementById("week-count");
@@ -284,6 +284,26 @@ function buildWeeksForPatients(patients) {
     });
 }
 
+function groupWeekDays(days) {
+  if (!Array.isArray(days)) {
+    return [];
+  }
+  const dayMap = new Map();
+  days.forEach((day) => {
+    const key = day.procedureDate || `no-date-${day.day}-${day.sortKey}`;
+    if (!dayMap.has(key)) {
+      dayMap.set(key, {
+        dayLabel: day.day,
+        procedureDate: day.procedureDate,
+        sortKey: day.sortKey,
+        entries: [],
+      });
+    }
+    dayMap.get(key).entries.push(day);
+  });
+  return Array.from(dayMap.values()).sort((a, b) => a.sortKey - b.sortKey);
+}
+
 function buildMonthlySchedules(patients) {
   const normalized = patients.map(normalizePatientForSchedule);
   const monthGroups = new Map();
@@ -340,13 +360,15 @@ function formatMonthLabelFromDate(date) {
   return MONTH_FORMATTER.format(new Date(date.getFullYear(), date.getMonth(), 1));
 }
 
-function formatProcedureDate(value) {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
+function formatDayDateHeading(procedureDate, fallbackDayLabel) {
+  const date = procedureDate ? new Date(procedureDate) : null;
+  if (date && !Number.isNaN(date.getTime())) {
+    const dayName = DAY_NAME_FORMATTER.format(date);
+    const monthName = date.toLocaleString("en-US", { month: "short" });
+    const dayNumber = date.getDate();
+    return `${dayNumber} ${monthName}, ${dayName}`;
   }
-  return DATE_FORMATTER.format(date);
+  return fallbackDayLabel || "Day";
 }
 
 function parseISODate(value) {
@@ -664,117 +686,158 @@ function renderWeek(week) {
   const clone = weekTemplate.content.cloneNode(true);
   clone.querySelector(".week__title").textContent = week.label;
   clone.querySelector(".week__range").textContent = week.range;
-  const tbody = clone.querySelector("tbody");
+  const table = clone.querySelector(".week__table");
+  const existingTbody = table.querySelector("tbody");
+  if (existingTbody) {
+    existingTbody.remove();
+  }
   const selectHeaderCell = clone.querySelector("[data-select-header]");
   const canSelectRows = isAdminUser && Boolean(selectAllCheckbox);
   if (selectHeaderCell) {
     selectHeaderCell.hidden = !canSelectRows;
   }
 
-  week.days.forEach((day) => {
-    const row = document.createElement("tr");
-    row.classList.add("patient-row");
-    row.tabIndex = 0;
-    row.dataset.patient = day.patientName;
-    row.dataset.patientId = String(day.id);
-    row.setAttribute("aria-label", `Open patient record for ${day.patientName}`);
+  const dayGroups = groupWeekDays(week.days);
 
-    const cells = [];
-    if (canSelectRows) {
-      const selectCell = document.createElement("td");
-      selectCell.classList.add("col-select");
-      selectCell.dataset.label = "Select";
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.className = "patient-select";
-      checkbox.dataset.patientId = String(day.id);
-      checkbox.checked = selectedPatientIds.has(Number(day.id));
-      checkbox.setAttribute("aria-label", `Select ${day.patientName}`);
-      checkbox.addEventListener("click", (event) => event.stopPropagation());
-      checkbox.addEventListener("change", (event) => {
-        handleRowSelectionChange(Number(day.id), event.target.checked);
-      });
-      selectCell.appendChild(checkbox);
-      cells.push(selectCell);
-    }
+  dayGroups.forEach((group) => {
+    const groupBody = document.createElement("tbody");
+    groupBody.className = "day-group";
+    const isGroupedDay = group.entries.length > 1;
+    const headerRow = document.createElement("tr");
+    headerRow.className = "day-group__header";
+    const headerCell = document.createElement("td");
+    headerCell.colSpan = canSelectRows ? 12 : 11;
+    headerCell.textContent = formatDayDateHeading(group.procedureDate, group.dayLabel);
+    headerRow.appendChild(headerCell);
+    groupBody.appendChild(headerRow);
 
-    const dayCell = document.createElement("td");
-    dayCell.textContent = day.day;
-    dayCell.classList.add("col-day");
-    dayCell.dataset.label = "Day";
+    group.entries.forEach((day, index) => {
+      const row = document.createElement("tr");
+      row.classList.add("patient-row");
+      row.tabIndex = 0;
+      row.dataset.patient = day.patientName;
+      row.dataset.patientId = String(day.id);
+      row.setAttribute("aria-label", `Open patient record for ${day.patientName}`);
 
-    const dateCell = document.createElement("td");
-    dateCell.textContent = formatProcedureDate(day.procedureDate);
-    dateCell.classList.add("col-date");
-    dateCell.dataset.label = "Procedure Date";
-
-    const patientCell = document.createElement("td");
-    patientCell.textContent = day.patientName;
-    patientCell.classList.add("col-patient");
-    patientCell.dataset.label = "Patient";
-
-    const statusCell = document.createElement("td");
-    const badge = document.createElement("span");
-    badge.textContent = getOptionLabel("status", day.status) || day.status || "—";
-    badge.className = `status-badge ${getStatusClass(day.status)}`;
-    statusCell.appendChild(badge);
-    statusCell.classList.add("col-status");
-    statusCell.dataset.label = "Status";
-
-    const procedureCell = document.createElement("td");
-    procedureCell.textContent =
-      getOptionLabel("procedure_type", day.procedureType) || day.procedureType || "—";
-    procedureCell.classList.add("col-procedure");
-    procedureCell.dataset.label = "Procedure Type";
-
-    const graftsCell = document.createElement("td");
-    graftsCell.textContent = day.grafts || "—";
-    graftsCell.classList.add("col-grafts");
-    graftsCell.dataset.label = "Grafts";
-
-    const formsComplete = hasCompletedChecklist("forms", day.forms);
-    const consentsComplete = hasCompletedChecklist("consents", day.consents);
-    const formsCell = createCheckCell(formsComplete, "Forms");
-    const consentsCell = createCheckCell(consentsComplete, "Consents");
-    const consultationCell = document.createElement("td");
-    consultationCell.textContent = formatConsultation(day.consultation);
-    consultationCell.classList.add("col-consult");
-    consultationCell.dataset.label = "Consulted";
-
-    const paymentCell = document.createElement("td");
-    paymentCell.textContent = getOptionLabel("payment", day.payment) || day.payment;
-    paymentCell.classList.add("col-payment");
-    paymentCell.dataset.label = "Payment";
-
-    const photosCell = document.createElement("td");
-    photosCell.textContent = formatPhotos(day.photos);
-    photosCell.classList.add("col-photos");
-    photosCell.dataset.label = "Photos";
-
-    const navigate = () => handleRowNavigation(day, week);
-    row.addEventListener("click", navigate);
-    row.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        navigate();
+      const cells = [];
+      if (canSelectRows) {
+        const selectCell = document.createElement("td");
+        selectCell.classList.add("col-select");
+        selectCell.dataset.label = "Select";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.className = "patient-select";
+        checkbox.dataset.patientId = String(day.id);
+        checkbox.checked = selectedPatientIds.has(Number(day.id));
+        checkbox.setAttribute("aria-label", `Select ${day.patientName}`);
+        checkbox.addEventListener("click", (event) => event.stopPropagation());
+        checkbox.addEventListener("change", (event) => {
+          handleRowSelectionChange(Number(day.id), event.target.checked);
+        });
+        selectCell.appendChild(checkbox);
+        cells.push(selectCell);
       }
+
+      if (!isGroupedDay && index === 0) {
+        const dayCell = document.createElement("td");
+        dayCell.textContent = "";
+        dayCell.classList.add("col-day");
+        dayCell.classList.add("col-day--hidden");
+        dayCell.dataset.label = "";
+        dayCell.setAttribute("aria-hidden", "true");
+        dayCell.rowSpan = group.entries.length;
+        dayCell.colSpan = 2;
+
+        cells.push(dayCell);
+      }
+
+      const patientCell = document.createElement("td");
+      patientCell.classList.add("col-patient");
+      patientCell.dataset.label = "Patient";
+      if (isGroupedDay) {
+        patientCell.colSpan = 3;
+      }
+      const patientName = document.createElement("span");
+      patientName.textContent = day.patientName;
+      patientName.className = "patient-name";
+      const expandBtn = document.createElement("button");
+      expandBtn.type = "button";
+      expandBtn.className = "mobile-expand";
+      expandBtn.setAttribute("aria-label", `Show details for ${day.patientName}`);
+      expandBtn.setAttribute("aria-expanded", "false");
+      const expandIcon = document.createElement("span");
+      expandIcon.className = "mobile-expand__icon";
+      expandBtn.appendChild(expandIcon);
+      expandBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        const isExpanded = row.classList.toggle("is-expanded");
+        expandBtn.setAttribute("aria-expanded", isExpanded ? "true" : "false");
+      });
+      patientCell.append(patientName, expandBtn);
+
+      const statusCell = document.createElement("td");
+      const badge = document.createElement("span");
+      badge.textContent = getOptionLabel("status", day.status) || day.status || "—";
+      badge.className = `status-badge ${getStatusClass(day.status)}`;
+      statusCell.appendChild(badge);
+      statusCell.classList.add("col-status");
+      statusCell.dataset.label = "Status";
+
+      const procedureCell = document.createElement("td");
+      procedureCell.textContent =
+        getOptionLabel("procedure_type", day.procedureType) || day.procedureType || "—";
+      procedureCell.classList.add("col-procedure");
+      procedureCell.dataset.label = "Type";
+
+      const graftsCell = document.createElement("td");
+      graftsCell.textContent = day.grafts || "—";
+      graftsCell.classList.add("col-grafts");
+      graftsCell.dataset.label = "Grafts";
+
+      const formsComplete = hasCompletedChecklist("forms", day.forms);
+      const consentsComplete = hasCompletedChecklist("consents", day.consents);
+      const formsCell = createCheckCell(formsComplete, "Forms");
+      const consentsCell = createCheckCell(consentsComplete, "Consents");
+      const consultationCell = document.createElement("td");
+      consultationCell.textContent = formatConsultation(day.consultation);
+      consultationCell.classList.add("col-consult");
+      consultationCell.dataset.label = "Consulted";
+
+      const paymentCell = document.createElement("td");
+      paymentCell.textContent = getOptionLabel("payment", day.payment) || day.payment;
+      paymentCell.classList.add("col-payment");
+      paymentCell.dataset.label = "Payment";
+
+      const photosCell = document.createElement("td");
+      photosCell.textContent = formatPhotos(day.photos);
+      photosCell.classList.add("col-photos");
+      photosCell.dataset.label = "Photos";
+
+      const navigate = () => handleRowNavigation(day, week);
+      row.addEventListener("click", navigate);
+      row.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          navigate();
+        }
+      });
+
+      cells.push(
+        patientCell,
+        statusCell,
+        procedureCell,
+        graftsCell,
+        formsCell,
+        consentsCell,
+        consultationCell,
+        paymentCell,
+        photosCell
+      );
+      row.append(...cells);
+      groupBody.appendChild(row);
     });
 
-    cells.push(
-      dayCell,
-      dateCell,
-      patientCell,
-      statusCell,
-      procedureCell,
-      graftsCell,
-      formsCell,
-      consentsCell,
-      consultationCell,
-      paymentCell,
-      photosCell
-    );
-    row.append(...cells);
-    tbody.appendChild(row);
+    table.appendChild(groupBody);
   });
 
   scheduleEl.appendChild(clone);

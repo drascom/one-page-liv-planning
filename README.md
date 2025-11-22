@@ -102,7 +102,7 @@ If you are behind nginx proxy manager with ssl certificate than use
 | GET | `/auth/me` | Return the current user |
 | GET/POST/PUT/DELETE | `/auth/users` | Admin user management APIs |
 | GET/POST/DELETE | `/api-tokens` | Manage integration tokens scoped to the current admin user |
-| GET | `/api/v1/search?token=abc123xyz&full_name=Randhir%20Sandhu` | External-only endpoint that finds a patient by full name and returns `{ "success": true, "patient": { ... } }` (with `id`/`surgery_date` for backwards compatibility) or `{ "success": false, "message": "Patient record not found" }`. You can also continue sending `name`+`surname` pairs for backwards compatibility. |
+| GET | `/api/v1/search?token=abc123xyz&full_name=name%20Surname` | External-only endpoint that finds a patient by full name and returns `{ "success": true, "patient": { ... } }` (with `id`/`surgery_date` for backwards compatibility) or `{ "success": false, "message": "Patient record not found" }`. You can also continue sending `name`+`surname` pairs for backwards compatibility. |
 
 ### Sample patient requests
 
@@ -174,7 +174,7 @@ Some integrations (n8n, webhooks, etc.) only provide entries like the following:
   {
     "status": "Reserved",
     "surgery_type": "Hair Transplant",
-    "name": "Emin Colak",
+    "name": "name surname",
     "number": "2500",
     "date": "2025-11-05T00:00:00.000Z"
   }
@@ -207,5 +207,5 @@ This keeps the integration payload minimal—the server handles all of the calen
 
 All HTTP APIs include interactive docs at `http://127.0.0.1:8000/docs` once the server is running.
 
-**External integrations:** Every route above is mirrored under `/api/v1/*` and requires an API token created in the Settings → API Tokens UI. Send it in the `Authorization: Bearer <token>` header (recommended) or fall back to the legacy `token` query string parameter if your client cannot set headers. The `/api/v1/search` helper is specifically designed for lightweight patient lookups from outside systems—you can now pass `full_name=Randhir%20Sandhu` (preferred) or continue using the legacy `name` and optional `surname` parameters. The response includes the full patient payload when found (along with `id` and `surgery_date` for backwards compatibility), sets `success: false` with `message: "Patient record not found"` when no match exists, and returns `success: false` with `message: "Name is missing"` when no name parameters are supplied so you can spot empty requests.
+**External integrations:** Every route above is mirrored under `/api/v1/*` and requires an API token created in the Settings → API Tokens UI. Send it in the `Authorization: Bearer <token>` header (recommended) or fall back to the legacy `token` query string parameter if your client cannot set headers. The `/api/v1/search` helper is specifically designed for lightweight patient lookups from outside systems—you can now pass `full_name=name%20Surname` (preferred) or continue using the legacy `name` and optional `surname` parameters. The response includes the full patient payload when found (along with `id` and `surgery_date` for backwards compatibility), sets `success: false` with `message: "Patient record not found"` when no match exists, and returns `success: false` with `message: "Name is missing"` when no name parameters are supplied so you can spot empty requests.
 <!--  -->

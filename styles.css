@@ -288,7 +288,7 @@ body {
 .week {
   background: #ffffff;
   border-radius: 16px;
-  padding: 1.5rem;
+  padding: 0.5rem;
   box-shadow: 0 20px 35px rgba(15, 23, 42, 0.08);
   border: 1px solid #e2e8f0;
 }
@@ -316,7 +316,7 @@ body {
 }
 
 .week__table thead {
-  background: #f1f5f9;
+  background: #e2e8f0;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-size: 0.8rem;
@@ -326,6 +326,7 @@ body {
 .week__table td {
   padding: 0.75rem 0.5rem;
   border-bottom: 1px solid #e2e8f0;
+  font-weight: 400;
 }
 
 .week__table tbody tr:last-child td {
@@ -362,19 +363,31 @@ body {
   cursor: pointer;
 }
 
+.mobile-expand {
+  display: none;
+}
+
 .col-day {
   width: 6rem;
-  font-weight: 600;
+  pointer-events: none;
+}
+
+.col-day--hidden {
+  width: 0;
+  padding: 0;
+  font-size: 0;
+  line-height: 0;
 }
 
 .col-date {
   width: 9rem;
-  font-weight: 500;
+  pointer-events: none;
 }
 
 .col-patient {
   text-align: center;
   width: 26%;
+  font-weight: 600;
 }
 
 .col-status {
@@ -385,13 +398,11 @@ body {
 .col-procedure {
   text-align: center;
   width: 11%;
-  font-weight: 500;
 }
 
 .col-grafts {
   text-align: center;
   width: 9%;
-  font-weight: 600;
 }
 
 .col-check {
@@ -402,18 +413,15 @@ body {
 .col-consult {
   width: 10%;
   text-align: center;
-  font-weight: 600;
 }
 
 .col-payment {
   width: 10%;
-  font-weight: 600;
 }
 
 .col-photos {
   width: 7%;
   text-align: center;
-  font-weight: 600;
   color: #0f172a;
 }
 
@@ -443,7 +451,6 @@ body {
   padding: 0.35rem 0.75rem;
   border-radius: 999px;
   font-size: 0.85rem;
-  font-weight: 600;
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
@@ -1448,6 +1455,23 @@ body {
 
 @media (max-width: 640px) {
   .hero {
+    padding: 1.25rem 1.25rem 1rem;
+    gap: 1rem;
+  }
+
+  .hero h1 {
+    font-size: clamp(1.9rem, 6vw, 2.25rem);
+    line-height: 1.15;
+    margin: 0.15rem 0 0;
+  }
+
+  .hero__eyebrow {
+    font-size: 0.9rem;
+    letter-spacing: 0.14em;
+    margin-bottom: 0.35rem;
+  }
+
+  .hero {
     align-items: center;
   }
 
@@ -1461,20 +1485,39 @@ body {
     width: 100%;
   }
 
+  .hero__month {
+    font-size: clamp(1.6rem, 5.5vw, 2.1rem);
+  }
+
+  .hero__week-count {
+    margin-top: 0.2rem;
+  }
+
   .month-controls {
     width: 100%;
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.5rem;
+  }
+
+  .month-button {
+    padding: 0.55rem 0.95rem;
+    font-size: 1rem;
+  }
+
+  .year-select {
+    font-size: 1rem;
+    padding: 0.4rem 1rem 0.4rem 0.75rem;
   }
 
   .hero__controls-row {
     flex-direction: column;
     align-items: stretch;
-    padding: 1rem 1.25rem 1.25rem;
-    gap: 1rem;
+    padding: 0.9rem 1.1rem 1.05rem;
+    gap: 0.75rem;
     border-radius: 32px;
+    margin: 0.25rem 1rem;
   }
 
   .hero__controls-right {
@@ -1558,79 +1601,168 @@ body {
   .week__table thead {
     display: none;
   }
-
-  .week__table tr {
-    display: grid;
-    grid-template-columns: minmax(2rem, 3rem) 1fr;
-    grid-template-areas:
-      "index day"
-      "index date"
-      "index patient"
-      "index status"
-      "index procedure"
-      "index forms"
-      "index consents"
-      "index consultation"
-      "index payment"
-      "index photos";
-    padding: 0.75rem 0;
-    border-bottom: 1px solid #e2e8f0;
-    gap: 0.35rem 1rem;
+  .week__table {
+    display: block;
+    border-collapse: separate;
+    border-spacing: 0;
   }
 
-  .week__table td:nth-child(1) {
-    grid-area: index;
-    text-align: center;
-    font-weight: 600;
+  .week__table tbody {
+    display: block;
+    margin-bottom: 1rem;
   }
 
-  .week__table td:nth-child(2) {
-    grid-area: day;
-    font-weight: 600;
+  .day-group {
+    border: 1px solid #d8e0f0;
+    border-radius: 16px;
+    padding: 0.45rem 0.6rem 0.35rem;
+    background: #f8fafc;
+    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.08);
   }
 
-  .week__table td:nth-child(3) {
-    grid-area: date;
+  .day-group__header {
+    display: block;
+    margin: 0;
+    padding: 0.15rem 0.25rem 0.2rem;
   }
 
-  .week__table td:nth-child(4) {
-    grid-area: patient;
+  .day-group__header td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 700;
+    color: #0f172a;
+    text-transform: none;
+    letter-spacing: 0;
   }
 
-  .week__table td:nth-child(5) {
-    grid-area: status;
+  .patient-row {
+    display: block;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    background: #ffffff;
+    padding: 0.6rem 0.75rem;
+    margin-top: 0.7rem;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
   }
 
-  .week__table td:nth-child(6) {
-    grid-area: procedure;
+  .patient-row:hover {
+    background: #ffffff;
   }
 
-  .week__table td:nth-child(7) {
-    grid-area: forms;
+  .col-select,
+  .col-day,
+  .col-date {
+    display: none !important;
   }
 
-  .week__table td:nth-child(8) {
-    grid-area: consents;
+  .col-patient {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 700;
+    text-align: left;
+    width: 100%;
+    justify-content: space-between;
   }
 
-  .week__table td:nth-child(9) {
-    grid-area: consultation;
+  .patient-name {
+    flex: 1;
+    min-width: 0;
+    display: block;
   }
 
-  .week__table td:nth-child(10) {
-    grid-area: payment;
+  .mobile-expand {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 1px solid #cbd5f5;
+    border-radius: 50%;
+    background: #f8fafc;
+    cursor: pointer;
+    padding: 0.35rem;
+    flex-shrink: 0;
   }
 
-  .week__table td:nth-child(11) {
-    grid-area: photos;
+  .mobile-expand__icon {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-right: 2px solid #0f172a;
+    border-bottom: 2px solid #0f172a;
+    transform: rotate(45deg);
+    transition: transform 0.2s ease;
+  }
+
+  .patient-row.is-expanded .mobile-expand__icon {
+    transform: rotate(225deg);
+  }
+
+  .col-status {
+    margin-top: 0.5rem;
+    display: block;
+    width: 100%;
+  }
+
+  .col-procedure,
+  .col-grafts,
+  .col-check,
+  .col-consult,
+  .col-payment,
+  .col-photos {
+    display: none;
+    padding-top: 0.4rem;
+  }
+
+  .patient-row.is-expanded .col-procedure,
+  .patient-row.is-expanded .col-grafts,
+  .patient-row.is-expanded .col-check,
+  .patient-row.is-expanded .col-consult,
+  .patient-row.is-expanded .col-payment,
+  .patient-row.is-expanded .col-photos {
+    display: block;
   }
 
   .week__table td {
+    display: block;
     padding: 0.25rem 0;
+    border: 0;
+  }
+
+  .week__table .col-patient {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: 100%;
+  }
+
+  .patient-row .col-procedure,
+  .patient-row .col-grafts,
+  .patient-row .col-check,
+  .patient-row .col-consult,
+  .patient-row .col-payment,
+  .patient-row .col-photos {
+    display: none;
+  }
+
+  .patient-row.is-expanded .col-procedure,
+  .patient-row.is-expanded .col-grafts,
+  .patient-row.is-expanded .col-check,
+  .patient-row.is-expanded .col-consult,
+  .patient-row.is-expanded .col-payment,
+  .patient-row.is-expanded .col-photos {
+    display: block;
   }
 
   .week__table td[data-label]::before {
     display: block;
     margin-bottom: 0.15rem;
+    color: #94a3b8;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 0.75rem;
   }
 }
