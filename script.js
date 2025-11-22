@@ -2,6 +2,10 @@ import { fetchCurrentUser, handleUnauthorized, initSessionControls } from "./ses
 
 const scheduleEl = document.getElementById("schedule");
 const weekTemplate = document.getElementById("week-template");
+const searchForm = document.getElementById("patient-search-form");
+const searchInput = document.getElementById("patient-search");
+const searchClearBtn = document.getElementById("patient-search-clear");
+const searchResultsEl = document.getElementById("patient-search-results");
 
 const DEFAULT_FIELD_OPTIONS = {
   status: [
@@ -140,6 +144,13 @@ initSessionControls();
 let isAdminUser = false;
 const selectedPatientIds = new Set();
 let fieldOptionsLoaded = false;
+let normalizedPatients = [];
+let filteredMonthlySchedules = [];
+let searchQuery = "";
+
+if (searchClearBtn) {
+  searchClearBtn.hidden = true;
+}
 
 (async function bootstrap() {
   await initializeAdminControls();
@@ -304,8 +315,155 @@ function groupWeekDays(days) {
   return Array.from(dayMap.values()).sort((a, b) => a.sortKey - b.sortKey);
 }
 
-function buildMonthlySchedules(patients) {
-  const normalized = patients.map(normalizePatientForSchedule);
+function formatPatientName(patient) {
+  return `${patient.first_name ?? ""} ${patient.last_name ?? ""}`.trim() || "Unnamed patient";
+}
+
+function normalizeSearchText(value) {
+  return (value ?? "").toString().trim().toLowerCase();
+}
+
+function filterPatientsByName(patients, query) {
+  if (!Array.isArray(patients)) {
+    return [];
+  }
+  const term = normalizeSearchText(query);
+  if (!term) {
+    return patients;
+  }
+  return patients.filter((patient) => {
+    const first = normalizeSearchText(patient.first_name);
+    const last = normalizeSearchText(patient.last_name);
+    const combined = `${first} ${last}`.trim();
+    return first.includes(term) || last.includes(term) || combined.includes(term);
+  });
+}
+
+function clearSearchResults() {
+  if (searchResultsEl) {
+    searchResultsEl.innerHTML = "";
+  }
+}
+
+function focusSelectedMonthForPatients(patients) {
+  if (!patients?.length) {
+    return;
+  }
+  const [firstMatch] = patients;
+  const monthMeta = parseMonthMetadata(firstMatch.scheduleMonthLabel);
+  if (monthMeta?.date) {
+    selectedDate = new Date(monthMeta.date.getFullYear(), monthMeta.date.getMonth(), 1);
+    return;
+  }
+  const procedureDate = parseISODate(firstMatch.scheduleProcedureDate);
+  if (procedureDate) {
+    selectedDate = new Date(procedureDate.getFullYear(), procedureDate.getMonth(), 1);
+  }
+}
+
+function setSearchClearState(isActive) {
+  if (searchClearBtn) {
+    searchClearBtn.hidden = !isActive;
+  }
+}
+
+function renderSearchResults(matches) {
+  if (!searchResultsEl) {
+    return;
+  }
+  searchResultsEl.innerHTML = "";
+  matches.slice(0, 8).forEach((patient) => {
+    const item = document.createElement("li");
+    item.dataset.patientId = String(patient.id);
+    item.setAttribute("role", "option");
+    item.tabIndex = 0;
+    const name = document.createElement("span");
+    name.className = "patient-search__result-name";
+    name.textContent = formatPatientName(patient);
+    const meta = document.createElement("span");
+    meta.className = "patient-search__result-meta";
+    meta.textContent = patient.scheduleMonthLabel;
+    item.append(name, meta);
+    item.addEventListener("click", () => handleSearchSelection(Number(patient.id)));
+    item.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        handleSearchSelection(Number(patient.id));
+      }
+    });
+    searchResultsEl.appendChild(item);
+  });
+}
+
+function applySearchFilter(query) {
+  searchQuery = query.trim();
+  if (!searchQuery) {
+    filteredMonthlySchedules = monthlySchedules;
+    setSearchClearState(false);
+    renderSelectedMonth();
+    clearSearchResults();
+    return;
+  }
+  const filteredPatients = filterPatientsByName(normalizedPatients, searchQuery);
+  filteredMonthlySchedules = buildMonthlySchedules(filteredPatients, { skipNormalize: true });
+  if (filteredPatients.length) {
+    focusSelectedMonthForPatients(filteredPatients);
+  }
+  setSearchClearState(true);
+  renderSelectedMonth();
+}
+
+function resetSearch() {
+  searchQuery = "";
+  filteredMonthlySchedules = monthlySchedules;
+  if (searchInput) {
+    searchInput.value = "";
+  }
+  setSearchClearState(false);
+  clearSearchResults();
+  renderSelectedMonth();
+}
+
+function handleSearchInput(event) {
+  const value = event.target.value || "";
+  if (!value.trim()) {
+    resetSearch();
+    return;
+  }
+  setSearchClearState(true);
+  const matches = filterPatientsByName(normalizedPatients, value);
+  renderSearchResults(matches);
+}
+
+function handleSearchSubmit(event) {
+  event.preventDefault();
+  const query = searchInput?.value ?? "";
+  if (!query.trim()) {
+    resetSearch();
+    return;
+  }
+  applySearchFilter(query);
+  clearSearchResults();
+}
+
+function handleSearchSelection(patientId) {
+  if (!Number.isFinite(patientId)) {
+    return;
+  }
+  const match = normalizedPatients.find((patient) => patient.id === patientId);
+  if (!match) {
+    return;
+  }
+  const displayName = formatPatientName(match);
+  if (searchInput) {
+    searchInput.value = displayName;
+  }
+  applySearchFilter(displayName);
+  clearSearchResults();
+}
+
+function buildMonthlySchedules(patients, { skipNormalize = false } = {}) {
+  const normalized = skipNormalize ? patients : patients.map(normalizePatientForSchedule);
   const monthGroups = new Map();
   normalized.forEach((patient) => {
     if (!monthGroups.has(patient.scheduleMonthLabel)) {
@@ -418,9 +576,10 @@ function renderSelectedMonth() {
   if (isAdminUser) {
     selectedPatientIds.clear();
   }
+  const sourceSchedules = searchQuery ? filteredMonthlySchedules : monthlySchedules;
   const selectedLabel = formatMonthLabelFromDate(selectedDate);
   monthLabel.textContent = selectedLabel;
-  const currentMonth = monthlySchedules.find((month) => month.label === selectedLabel);
+  const currentMonth = sourceSchedules.find((month) => month.label === selectedLabel);
 
   if (yearSelect) {
     const selectedYear = selectedDate.getFullYear();
@@ -435,11 +594,28 @@ function renderSelectedMonth() {
 
   scheduleEl.innerHTML = "";
   if (!currentMonth?.weeks?.length) {
-    setScheduleStatus(`No patient records found for ${selectedLabel}.`);
-    weekCount.textContent = "0 weeks scheduled";
+    if (searchQuery) {
+      const hasAnyMatches = filteredMonthlySchedules.some((month) => month.weeks?.length);
+      const message = hasAnyMatches
+        ? `No patients matching "${searchQuery}" in ${selectedLabel}.`
+        : `No patients found matching "${searchQuery}".`;
+      setScheduleStatus(message);
+      const matchingWeeks = filteredMonthlySchedules.reduce(
+        (total, month) => total + (month.weeks?.length ?? 0),
+        0
+      );
+      weekCount.textContent = matchingWeeks
+        ? `${matchingWeeks} matching week${matchingWeeks === 1 ? "" : "s"}`
+        : "0 matches";
+    } else {
+      setScheduleStatus(`No patient records found for ${selectedLabel}.`);
+      weekCount.textContent = "0 weeks scheduled";
+    }
   } else {
     currentMonth.weeks.forEach(renderWeek);
-    weekCount.textContent = `${currentMonth.weeks.length} weeks scheduled`;
+    weekCount.textContent = `${currentMonth.weeks.length} ${searchQuery ? "matching week" : "week"}${
+      currentMonth.weeks.length === 1 ? "" : "s"
+    }`;
   }
   updateControlState();
   updateSelectionControlsState();
@@ -864,6 +1040,15 @@ if (selectAllCheckbox) {
 if (deleteSelectedBtn) {
   deleteSelectedBtn.addEventListener("click", handleDeleteSelected);
 }
+if (searchForm) {
+  searchForm.addEventListener("submit", handleSearchSubmit);
+}
+if (searchInput) {
+  searchInput.addEventListener("input", handleSearchInput);
+}
+if (searchClearBtn) {
+  searchClearBtn.addEventListener("click", resetSearch);
+}
 
 async function initializeSchedule() {
   setScheduleStatus("Loading schedule...");
@@ -873,7 +1058,15 @@ async function initializeSchedule() {
       fieldOptionsLoaded = true;
     }
     const patients = await fetchPatients();
-    monthlySchedules = buildMonthlySchedules(patients);
+    normalizedPatients = patients.map(normalizePatientForSchedule);
+    monthlySchedules = buildMonthlySchedules(normalizedPatients, { skipNormalize: true });
+    filteredMonthlySchedules = monthlySchedules;
+    searchQuery = "";
+    if (searchInput) {
+      searchInput.value = "";
+    }
+    setSearchClearState(false);
+    clearSearchResults();
     updateYearOptions(selectedDate.getFullYear());
     renderSelectedMonth();
   } catch (error) {
