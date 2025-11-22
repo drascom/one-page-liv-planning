@@ -50,6 +50,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 1.25rem;
+  flex-wrap: wrap;
 }
 
 .hero__left {
@@ -156,9 +157,21 @@ body {
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.35);
   min-width: 240px;
   flex: 0.9 1 0;
-  margin-left: 50%;
+  margin-left: auto;
   align-self: flex-end;
   font-size: 0.95rem;
+}
+
+@media (max-width: 640px) {
+  .hero__layout {
+    justify-content: center;
+  }
+
+  .hero__calendar {
+    width: 100%;
+    max-width: none;
+    margin-left: 0;
+  }
 }
 
 .hero__month-large {
@@ -641,6 +654,12 @@ body {
   padding: 0;
   font-size: 0;
   line-height: 0;
+}
+
+.col-day--spacer,
+.col-date--spacer {
+  background: transparent;
+  pointer-events: none;
 }
 
 .col-date {

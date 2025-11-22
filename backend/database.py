@@ -749,7 +749,25 @@ def update_patient(patient_id: int, data: Dict[str, Any]) -> Optional[Dict[str, 
 
 def delete_patient(patient_id: int) -> bool:
     with closing(get_connection()) as conn:
-        cursor = conn.execute("UPDATE patients SET deleted = 1 WHERE id = ? AND deleted = 0", (patient_id,))
+        cursor = conn.execute(
+            """
+            UPDATE patients
+            SET
+                deleted = 1,
+                status = 'deleted',
+                procedure_type = 'deleted',
+                grafts = '',
+                payment = '',
+                consultation = '[]',
+                forms = '[]',
+                consents = '[]',
+                photos = 0,
+                photo_files = '[]',
+                procedure_date = NULL
+            WHERE id = ? AND deleted = 0
+            """,
+            (patient_id,),
+        )
         conn.commit()
         return cursor.rowcount > 0
 

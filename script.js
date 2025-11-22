@@ -121,6 +121,7 @@ async function fetchFieldOptions() {
 }
 
 const ACTIVE_PATIENT_KEY = "activePatient";
+const MONTH_QUERY_PARAM = "month";
 const API_BASE_URL =
   window.APP_CONFIG?.backendUrl ??
   `${window.location.protocol}//${window.location.host}`;
@@ -160,9 +161,37 @@ if (searchClearBtn) {
   await initializeSchedule();
 })();
 
+function parseMonthParam(param) {
+  if (!param || typeof param !== "string") {
+    return null;
+  }
+  const [yearStr, monthStr] = param.split("-");
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+    return null;
+  }
+  const date = new Date(year, month - 1, 1);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function loadSelectedDateFromUrl() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const monthParam = params.get(MONTH_QUERY_PARAM);
+    return parseMonthParam(monthParam);
+  } catch (error) {
+    console.warn("Unable to read month from URL", error);
+    return null;
+  }
+}
+
 let monthlySchedules = [];
-let selectedDate = new Date();
-selectedDate.setDate(1);
+const initialSelectedDate = loadSelectedDateFromUrl() ?? new Date();
+let selectedDate = new Date(initialSelectedDate.getFullYear(), initialSelectedDate.getMonth(), 1);
 let isCreatingPatient = false;
 
 function setScheduleStatus(message) {
@@ -605,6 +634,10 @@ function formatMonthLabelFromDate(date) {
   return MONTH_FORMATTER.format(new Date(date.getFullYear(), date.getMonth(), 1));
 }
 
+function formatMonthQueryParam(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
 function formatDayDateHeading(procedureDate, fallbackDayLabel) {
   const date = procedureDate ? new Date(procedureDate) : null;
   if (date && !Number.isNaN(date.getTime())) {
@@ -726,6 +759,7 @@ function renderSelectedMonth() {
     );
     updateMonthPatientCount(monthPatientTotal);
   }
+  updateMonthQueryParam(selectedDate);
   updateControlState();
   updateSelectionControlsState();
 }
@@ -1019,6 +1053,21 @@ function renderWeek(week) {
       row.setAttribute("aria-label", `Open patient record for ${day.patientName}`);
 
       const cells = [];
+      if (isGroupedDay && index === 0) {
+        const spacerDayCell = document.createElement("td");
+        spacerDayCell.classList.add("col-day", "col-day--spacer");
+        spacerDayCell.dataset.label = "";
+        spacerDayCell.setAttribute("aria-hidden", "true");
+        spacerDayCell.rowSpan = group.entries.length;
+
+        const spacerDateCell = document.createElement("td");
+        spacerDateCell.classList.add("col-date", "col-date--spacer");
+        spacerDateCell.dataset.label = "";
+        spacerDateCell.setAttribute("aria-hidden", "true");
+        spacerDateCell.rowSpan = group.entries.length;
+
+        cells.push(spacerDayCell, spacerDateCell);
+      }
       if (canSelectRows) {
         const selectCell = document.createElement("td");
         selectCell.classList.add("col-select");
@@ -1172,6 +1221,20 @@ if (searchInput) {
 }
 if (searchClearBtn) {
   searchClearBtn.addEventListener("click", resetSearch);
+}
+
+function updateMonthQueryParam(date) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    const params = new URLSearchParams(window.location.search);
+    params.set(MONTH_QUERY_PARAM, formatMonthQueryParam(date));
+    const newUrl = `${window.location.pathname}?${params.toString()}${window.location.hash}`;
+    window.history.replaceState({}, "", newUrl);
+  } catch (error) {
+    console.warn("Unable to persist month in URL", error);
+  }
 }
 
 async function initializeSchedule() {

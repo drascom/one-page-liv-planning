@@ -254,6 +254,30 @@ function loadActiveContext() {
   }
 }
 
+function persistReturnToScheduleContext(record) {
+  if (!record || typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
+  try {
+    localStorage.setItem(
+      ACTIVE_PATIENT_KEY,
+      JSON.stringify({
+        patientId: record.id,
+        patient: `${record.first_name} ${record.last_name}`.trim(),
+        weekLabel: record.week_label,
+        weekRange: record.week_range,
+        day: record.day_label,
+        monthLabel: record.month_label,
+        procedureDate: record.procedure_date,
+        shouldReturnToSchedule: true,
+        capturedAt: new Date().toISOString(),
+      })
+    );
+  } catch (error) {
+    console.warn("Unable to persist active patient context", error);
+  }
+}
+
 function syncHeader(record) {
   const displayName = `${record.first_name} ${record.last_name}`.trim() || requestedName || "Patient";
   patientNameEl.textContent = displayName;
@@ -525,20 +549,7 @@ async function savePatient(event) {
     currentPatient = saved;
     populateForm(saved);
     updatePhotoCountInput();
-    localStorage.setItem(
-      ACTIVE_PATIENT_KEY,
-      JSON.stringify({
-        patientId: saved.id,
-        patient: `${saved.first_name} ${saved.last_name}`.trim(),
-        weekLabel: saved.week_label,
-        weekRange: saved.week_range,
-        day: saved.day_label,
-        monthLabel: saved.month_label,
-        procedureDate: saved.procedure_date,
-        shouldReturnToSchedule: true,
-        capturedAt: new Date().toISOString(),
-      })
-    );
+    persistReturnToScheduleContext(saved);
     formStatusEl.textContent = "Patient record saved. Returning to schedule...";
     window.location.href = "/";
   } catch (error) {
@@ -706,6 +717,7 @@ async function handleDeletePatient() {
     if (!response.ok) {
       throw new Error(`Failed to remove (status ${response.status})`);
     }
+    persistReturnToScheduleContext(currentPatient);
     window.location.href = "/";
   } catch (error) {
     console.error(error);
