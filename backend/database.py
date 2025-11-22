@@ -6,7 +6,7 @@ import secrets
 import sqlite3
 import string
 from contextlib import closing
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -20,6 +20,26 @@ FIELD_OPTION_FIELDS: List[str] = [
     "consultation",
     "payment",
 ]
+
+
+def _date_only(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.date().isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    text = str(value).strip()
+    if not text:
+        return None
+    date_part = text.split("T", 1)[0].split(" ", 1)[0]
+    try:
+        return datetime.fromisoformat(date_part).date().isoformat()
+    except ValueError:
+        try:
+            return datetime.strptime(date_part, "%Y-%m-%d").date().isoformat()
+        except ValueError:
+            return date_part
 
 
 def seed_default_admin_user(password_hash: str, username: str = "admin") -> None:
@@ -450,7 +470,7 @@ def _row_to_patient(row: sqlite3.Row) -> Dict[str, Any]:
         "week_order": row["week_order"],
         "day_label": row["day_label"],
         "day_order": row["day_order"],
-        "procedure_date": row["procedure_date"],
+        "procedure_date": _date_only(row["procedure_date"]),
         "deleted": bool(row["deleted"]),
         "first_name": row["first_name"],
         "last_name": row["last_name"],
@@ -624,7 +644,7 @@ def _serialize_patient_payload(data: Dict[str, Any]) -> Dict[str, Any]:
         "week_order": data["week_order"],
         "day_label": data["day_label"],
         "day_order": data["day_order"],
-        "procedure_date": data.get("procedure_date"),
+        "procedure_date": _date_only(data.get("procedure_date")),
         "first_name": data["first_name"],
         "last_name": data["last_name"],
         "email": data["email"],

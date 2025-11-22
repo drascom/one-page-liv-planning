@@ -309,7 +309,7 @@ function normalizePatientForSchedule(patient) {
   const scheduleWeekRange = weekMeta?.range ?? patient.week_range ?? scheduleMonthLabel;
   const scheduleWeekOrder = weekMeta?.order ?? patient.week_order ?? 1;
   const scheduleDayLabel = date ? DAY_FORMATTER.format(date) : patient.day_label;
-  const scheduleProcedureDate = date ? date.toISOString().slice(0, 10) : patient.procedure_date;
+  const scheduleProcedureDate = date ? formatLocalISODate(date) : patient.procedure_date;
   const searchFirst = normalizeSearchText(patient.first_name);
   const searchLast = normalizeSearchText(patient.last_name);
   const searchFull = `${searchFirst} ${searchLast}`.trim();
@@ -651,8 +651,18 @@ function formatDayDateHeading(procedureDate, fallbackDayLabel) {
 
 function parseISODate(value) {
   if (!value) return null;
-  const date = new Date(`${value}T00:00:00`);
+  const text = String(value);
+  const datePart = text.includes("T") ? text.split("T")[0] : text.split(" ")[0] || text;
+  const date = new Date(`${datePart}T00:00:00`);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatLocalISODate(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function getWeekMetaForDate(date) {
@@ -822,7 +832,7 @@ function buildDefaultPatientPayload() {
     week_order: newWeekOrder,
     day_label: "TBD",
     day_order: 1,
-    procedure_date: selectedDate.toISOString().slice(0, 10),
+    procedure_date: formatLocalISODate(selectedDate),
     first_name: "New",
     last_name: "Patient",
     email: "test@example.com",

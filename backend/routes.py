@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -120,6 +120,22 @@ def _resolve_import_defaults() -> Dict[str, str]:
     }
 
 
+def _date_only(value) -> Optional[str]:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    date_part = text.split("T", 1)[0].split(" ", 1)[0]
+    try:
+        return date.fromisoformat(date_part).isoformat()
+    except ValueError:
+        try:
+            return datetime.fromisoformat(date_part).date().isoformat()
+        except ValueError:
+            return date_part
+
+
 def _normalize_import_record(record: SimplifiedPatientPayload, defaults: Dict[str, str]) -> PatientCreate:
     scheduled_date = record.date.date()
     week_order = _week_of_month(scheduled_date)
@@ -163,11 +179,14 @@ def _normalize_import_record(record: SimplifiedPatientPayload, defaults: Dict[st
 
 
 def _coerce_patient_payload(data: dict, defaults: Dict[str, str]) -> PatientCreate:
+    normalized_data = dict(data)
+    if "procedure_date" in normalized_data:
+        normalized_data["procedure_date"] = _date_only(normalized_data.get("procedure_date"))
     try:
-        return PatientCreate.model_validate(data)
+        return PatientCreate.model_validate(normalized_data)
     except ValidationError as patient_error:
         try:
-            simplified_payload = SimplifiedPatientPayload.model_validate(data)
+            simplified_payload = SimplifiedPatientPayload.model_validate(normalized_data)
         except ValidationError as simplified_error:
             detail = json.loads(patient_error.json())
             detail.extend(json.loads(simplified_error.json()))
@@ -197,11 +216,14 @@ UPDATE_OVERRIDABLE_FIELDS: set[str] = {
 
 
 def _coerce_update_payload(existing: dict, data: dict, defaults: Dict[str, str]) -> PatientCreate:
+    normalized_data = dict(data)
+    if "procedure_date" in normalized_data:
+        normalized_data["procedure_date"] = _date_only(normalized_data.get("procedure_date"))
     try:
-        return PatientCreate.model_validate(data)
+        return PatientCreate.model_validate(normalized_data)
     except ValidationError as patient_error:
         try:
-            simplified_payload = SimplifiedPatientPayload.model_validate(data)
+            simplified_payload = SimplifiedPatientPayload.model_validate(normalized_data)
         except ValidationError as simplified_error:
             detail = json.loads(patient_error.json())
             detail.extend(json.loads(simplified_error.json()))
