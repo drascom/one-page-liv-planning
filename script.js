@@ -1130,7 +1130,7 @@ function renderWeek(week) {
       patientCell.classList.add("col-patient");
       patientCell.dataset.label = "Patient";
       if (isGroupedDay) {
-        patientCell.colSpan = 3;
+        patientCell.colSpan = 1;
       }
       const patientName = document.createElement("span");
       patientName.textContent = day.patientName;
