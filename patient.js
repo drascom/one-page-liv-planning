@@ -388,6 +388,15 @@ function getPhotoFiles() {
   return currentPatient?.photo_files ?? [];
 }
 
+async function fetchPatientById(patientId) {
+  const response = await fetch(buildApiUrl(`/patients/${patientId}`));
+  handleUnauthorized(response);
+  if (!response.ok) {
+    throw new Error(`Unable to load patient (${response.status})`);
+  }
+  return response.json();
+}
+
 function normalizeName(value) {
   return (value || "").trim().toLowerCase();
 }
@@ -618,11 +627,12 @@ async function savePatient(event) {
     if (!response.ok) {
       throw new Error(`Failed to save (status ${response.status})`);
     }
-    const saved = await response.json();
-    currentPatient = saved;
-    populateForm(saved);
+    const result = await response.json();
+    const refreshed = await fetchPatientById(result.id ?? currentPatient.id);
+    currentPatient = refreshed;
+    populateForm(refreshed);
     updatePhotoCountInput();
-    persistReturnToScheduleContext(saved);
+    persistReturnToScheduleContext(refreshed);
     formStatusEl.textContent = "Patient record saved. Returning to schedule...";
     window.location.href = "/";
   } catch (error) {

@@ -11,6 +11,7 @@ from . import database
 from .auth import get_current_user, hash_password, require_current_user
 from .routes import (
     api_tokens_router,
+    audit_router,
     auth_router,
     config_router,
     field_options_router,
@@ -115,6 +116,7 @@ def create_app() -> FastAPI:
     api.include_router(plans_router, dependencies=auth_dependency, include_in_schema=False)
     api.include_router(patients_router, dependencies=auth_dependency, include_in_schema=False)
     api.include_router(api_tokens_router, dependencies=auth_dependency)
+    api.include_router(audit_router, dependencies=auth_dependency)
     api.include_router(upload_router, dependencies=auth_dependency, include_in_schema=False)
     api.include_router(field_options_router, dependencies=auth_dependency, include_in_schema=False)
     for protected_router in (plans_router, patients_router, upload_router, field_options_router, status_router, search_router):
@@ -123,6 +125,12 @@ def create_app() -> FastAPI:
             prefix="/api/v1",
             dependencies=[Depends(require_api_token)],
         )
+    api.include_router(
+        audit_router,
+        prefix="/api/v1",
+        dependencies=[Depends(require_api_token)],
+        include_in_schema=False,
+    )
     cors_config = _build_cors_config()
     api.add_middleware(
         CORSMiddleware,
@@ -144,6 +152,7 @@ auth_dependency = [Depends(require_current_user)]
 app.include_router(plans_router, dependencies=auth_dependency, include_in_schema=False)
 app.include_router(patients_router, dependencies=auth_dependency, include_in_schema=False)
 app.include_router(api_tokens_router, dependencies=auth_dependency)
+app.include_router(audit_router, dependencies=auth_dependency)
 app.include_router(upload_router, dependencies=auth_dependency, include_in_schema=False)
 app.include_router(field_options_router, dependencies=auth_dependency, include_in_schema=False)
 for protected_router in (plans_router, patients_router, upload_router, field_options_router, status_router, search_router):
@@ -152,6 +161,12 @@ for protected_router in (plans_router, patients_router, upload_router, field_opt
         prefix="/api/v1",
         dependencies=[Depends(require_api_token)],
     )
+app.include_router(
+    audit_router,
+    prefix="/api/v1",
+    dependencies=[Depends(require_api_token)],
+    include_in_schema=False,
+)
 
 _register_frontend_security_middleware(app)
 

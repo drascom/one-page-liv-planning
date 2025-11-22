@@ -149,8 +149,8 @@ body {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  /* background: rgba(255, 255, 255, 0.06); */
+  /* border: 1px solid rgba(255, 255, 255, 0.12); */
   border-radius: 18px;
   padding: 0.75rem 0.9rem;
   text-align: right;
@@ -267,10 +267,11 @@ body {
 }
 
 .hero__total-note {
-  margin: 0;
-  font-size: 0.9rem;
-  color: rgba(248, 250, 252, 0.7);
-  font-weight: 600;
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: rgba(248, 250, 252, 0.65);
+  font-weight: 500;
+  text-align: center;
 }
 
 .patient-search:focus-within {
@@ -1446,6 +1447,18 @@ body {
   opacity: 1;
   transform: translateY(0);
   pointer-events: auto;
+}
+
+.api-request-payload {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 0.75rem;
+  border-radius: 8px;
+  overflow: auto;
+  max-height: 240px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  margin-top: 0.5rem;
 }
 
 .token-test {

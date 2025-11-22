@@ -12,6 +12,9 @@ const tokenTestLink = document.getElementById("token-test-link");
 const createButton = document.getElementById("create-token-btn");
 const settingsTabs = Array.from(document.querySelectorAll("[data-settings-tab]"));
 const settingsSections = Array.from(document.querySelectorAll("[data-settings-section]"));
+const apiRequestsList = document.getElementById("api-requests-list");
+const apiRequestsStatus = document.getElementById("api-requests-status");
+const refreshApiRequestsBtn = document.getElementById("refresh-api-requests-btn");
 const purgePatientsBtn = document.getElementById("purge-patients-btn");
 const purgePatientsStatus = document.getElementById("purge-patients-status");
 const purgePatientsDefaultText = purgePatientsBtn?.textContent?.trim() ?? "Delete selected";
@@ -45,6 +48,9 @@ function activateSettingsSection(targetSection, { updateHash = true } = {}) {
   });
   if (updateHash && window.location.hash !== `#${nextSection}`) {
     window.history.replaceState(null, "", `#${nextSection}`);
+  }
+  if (nextSection === "audit") {
+    fetchApiRequests();
   }
 }
 
@@ -203,6 +209,56 @@ tokenList?.addEventListener("click", async (event) => {
     }, 4000);
   }
 });
+
+refreshApiRequestsBtn?.addEventListener("click", fetchApiRequests);
+
+function renderApiRequests(requests) {
+  if (!apiRequestsList) return;
+  if (!requests.length) {
+    apiRequestsList.innerHTML = `<p class="photo-empty">No requests logged yet.</p>`;
+    return;
+  }
+  apiRequestsList.innerHTML = requests
+    .map((entry) => {
+      const payload = (() => {
+        try {
+          return JSON.stringify(JSON.parse(entry.payload), null, 2);
+        } catch {
+          return entry.payload;
+        }
+      })();
+      return `
+        <details class="token-card" data-request-id="${entry.id}">
+          <summary>
+            <div>
+              <p class="token-name">${entry.method} ${entry.path}</p>
+              <p class="token-created">${new Date(entry.created_at).toLocaleString()}</p>
+            </div>
+          </summary>
+          <pre class="api-request-payload"><code>${payload || "(empty)"}</code></pre>
+        </details>
+      `;
+    })
+    .join("");
+}
+
+async function fetchApiRequests() {
+  if (!apiRequestsList) return;
+  apiRequestsStatus.textContent = "Loading requests...";
+  try {
+    const response = await fetch(buildApiUrl("/api-requests"));
+    handleUnauthorized(response);
+    if (!response.ok) {
+      throw new Error("Unable to load API requests");
+    }
+    const payload = await response.json();
+    renderApiRequests(payload);
+    apiRequestsStatus.textContent = "";
+  } catch (error) {
+    console.error(error);
+    apiRequestsStatus.textContent = error.message || "Failed to load API requests.";
+  }
+}
 
 async function copyTokenValue(value) {
   if (!value) return;

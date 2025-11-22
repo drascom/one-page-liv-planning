@@ -61,6 +61,7 @@ field_options_router = APIRouter(prefix="/field-options", tags=["field options"]
 status_router = APIRouter(prefix="/status", tags=["status"])
 search_router = APIRouter(tags=["search"])
 config_router = APIRouter(tags=["config"])
+audit_router = APIRouter(prefix="/api-requests", tags=["api requests"])
 
 settings = get_settings()
 UPLOAD_ROOT = settings.uploads_root
@@ -335,8 +336,8 @@ def get_patient(patient_id: int) -> Patient:
     return Patient(**record)
 
 
-@patients_router.post("/", response_model=Patient, status_code=status.HTTP_201_CREATED)
-def create_patient(payload: dict = Body(...)) -> Patient:
+@patients_router.post("/", status_code=status.HTTP_201_CREATED)
+def create_patient(payload: dict = Body(...)) -> JSONResponse:
     """Create a new patient record (full payload or simplified integration payload)."""
     defaults = _resolve_import_defaults()
     patient_payload = _coerce_patient_payload(payload, defaults)
@@ -345,13 +346,14 @@ def create_patient(payload: dict = Body(...)) -> Patient:
         record_data["first_name"], record_data["last_name"], record_data.get("procedure_date")
     )
     if existing:
-        return Patient(**existing)
+        return JSONResponse({"detail": "Existing record", "id": existing["id"]}, status_code=status.HTTP_200_OK)
     record = database.create_patient(record_data)
-    return Patient(**record)
+    database.log_api_request("/patients", "POST", payload)
+    return JSONResponse({"detail": "Created", "id": record["id"]}, status_code=status.HTTP_201_CREATED)
 
 
-@patients_router.put("/{patient_id}", response_model=Patient)
-def update_patient(patient_id: int, payload: dict = Body(...)) -> Patient:
+@patients_router.put("/{patient_id}")
+def update_patient(patient_id: int, payload: dict = Body(...)) -> JSONResponse:
     """Update the patient record identified by ``patient_id``."""
     existing = database.fetch_patient(patient_id)
     if not existing:
@@ -361,15 +363,18 @@ def update_patient(patient_id: int, payload: dict = Body(...)) -> Patient:
     updated = database.update_patient(patient_id, patient_payload.model_dump())
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
-    return Patient(**updated)
+    database.log_api_request(f"/patients/{patient_id}", "PUT", payload)
+    return JSONResponse({"detail": "Updated", "id": patient_id})
 
 
-@patients_router.delete("/{patient_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_patient_route(patient_id: int, _: dict = Depends(require_admin_user)) -> None:
+@patients_router.delete("/{patient_id}", status_code=status.HTTP_200_OK)
+def delete_patient_route(patient_id: int, _: dict = Depends(require_admin_user)) -> JSONResponse:
     """Soft delete the patient record (admin only)."""
     deleted = database.delete_patient(patient_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    database.log_api_request(f"/patients/{patient_id}", "DELETE", {"id": patient_id})
+    return JSONResponse({"detail": "Deleted", "id": patient_id})
 
 
 @patients_router.post("/{patient_id}/recover", response_model=Patient)
@@ -393,13 +398,13 @@ def purge_patient_route(patient_id: int, _: dict = Depends(require_admin_user)) 
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to delete patient")
 
 
-@patients_router.post("/multiple", response_model=List[Patient], status_code=status.HTTP_201_CREATED)
-def import_patients(payload: List[dict] = Body(...)) -> List[Patient]:
+@patients_router.post("/multiple", status_code=status.HTTP_201_CREATED)
+def import_patients(payload: List[dict] = Body(...)) -> JSONResponse:
     """Convert simplified integration payloads into full-fledged patient records."""
     if not payload:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Provide at least one record")
     defaults = _resolve_import_defaults()
-    created: List[Patient] = []
+    created: List[int] = []
     for record in payload:
         patient_payload = _coerce_patient_payload(record, defaults)
         record_data = patient_payload.model_dump()
@@ -407,11 +412,18 @@ def import_patients(payload: List[dict] = Body(...)) -> List[Patient]:
             record_data["first_name"], record_data["last_name"], record_data.get("procedure_date")
         )
         if existing:
-            created.append(Patient(**existing))
+            created.append(existing["id"])
             continue
         created_record = database.create_patient(record_data)
-        created.append(Patient(**created_record))
-    return created
+        created.append(created_record["id"])
+    database.log_api_request("/patients/multiple", "POST", payload)
+    return JSONResponse({"detail": "Imported", "ids": created}, status_code=status.HTTP_201_CREATED)
+
+
+@audit_router.get("/", response_model=List[dict])
+def list_api_requests(limit: int = Query(100, ge=1, le=500), _: dict = Depends(require_admin_user)) -> List[dict]:
+    """Return recent API requests (admin only)."""
+    return database.fetch_api_requests(limit)
 
 
 def _request_origin(request: Request) -> str:

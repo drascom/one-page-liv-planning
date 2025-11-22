@@ -239,6 +239,15 @@ async function fetchPatients() {
   return response.json();
 }
 
+async function fetchPatientById(patientId) {
+  const response = await fetch(buildApiUrl(`/patients/${patientId}`));
+  handleUnauthorized(response);
+  if (!response.ok) {
+    throw new Error(`Unable to load patient (${response.status})`);
+  }
+  return response.json();
+}
+
 function parseMonthMetadata(label) {
   const match = label.match(/^([\p{L}]+)\s+(\d{4})$/u);
   if (!match) {
@@ -876,7 +885,12 @@ async function handleAddPatientClick() {
     if (!response.ok) {
       throw new Error(`Failed to create patient (${response.status})`);
     }
-    const patient = await response.json();
+    const result = await response.json();
+    const newPatientId = result.id;
+    if (!newPatientId) {
+      throw new Error("Missing patient id in response");
+    }
+    const patient = await fetchPatientById(newPatientId);
     persistActivePatientContext({
       patientId: patient.id,
       patient: `${patient.first_name} ${patient.last_name}`.trim(),

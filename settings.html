@@ -52,6 +52,11 @@
             <span class="settings-tab__title">API Tokens</span>
             <span class="settings-tab__subtitle">Connect external tools</span>
           </button>
+          <button type="button" class="settings-tab" id="settings-tab-audit" role="tab" aria-selected="false"
+            aria-controls="settings-panel-audit" data-settings-tab="audit">
+            <span class="settings-tab__title">API Requests</span>
+            <span class="settings-tab__subtitle">Inspect incoming payloads</span>
+          </button>
         </div>
       </aside>
 
@@ -102,6 +107,28 @@
           </header>
           <section class="patient-card">
             <div id="field-options-container" class="option-forms"></div>
+          </section>
+        </section>
+
+        <section class="settings-section" id="settings-panel-audit" role="tabpanel"
+          aria-labelledby="settings-tab-audit" data-settings-section="audit" hidden>
+          <header class="settings-section__header">
+            <p class="settings-section__eyebrow">Integration</p>
+            <h2>API Requests</h2>
+            <p>View recent incoming API calls and their payloads.</p>
+          </header>
+          <section class="patient-card">
+            <div class="settings-section__header" style="gap: 12px;">
+              <div>
+                <h3>Recent Requests</h3>
+                <p class="upload-status">Most recent 100 entries, newest first.</p>
+              </div>
+              <div class="settings-danger-card__actions">
+                <button type="button" class="secondary-btn" id="refresh-api-requests-btn">Refresh</button>
+              </div>
+            </div>
+            <div id="api-requests-status" class="form-status" aria-live="polite"></div>
+            <div id="api-requests-list" class="token-list"></div>
           </section>
         </section>
 
