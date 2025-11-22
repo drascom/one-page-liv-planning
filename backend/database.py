@@ -153,6 +153,7 @@ def init_db() -> None:
                 day_label TEXT NOT NULL,
                 day_order INTEGER NOT NULL,
                 procedure_date TEXT,
+                deleted INTEGER NOT NULL DEFAULT 0,
                 first_name TEXT NOT NULL,
                 last_name TEXT NOT NULL,
                 email TEXT NOT NULL,
@@ -175,6 +176,7 @@ def init_db() -> None:
         _ensure_photo_files_column(conn)
         _ensure_consultation_column(conn)
         _ensure_grafts_column(conn)
+        _ensure_deleted_column(conn)
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS api_tokens (
@@ -235,6 +237,16 @@ def _ensure_procedure_type_column(conn: sqlite3.Connection) -> None:
         return
     conn.execute("ALTER TABLE patients ADD COLUMN procedure_type TEXT")
     conn.execute("UPDATE patients SET procedure_type = 'small' WHERE procedure_type IS NULL OR procedure_type = ''")
+    conn.commit()
+
+
+def _ensure_deleted_column(conn: sqlite3.Connection) -> None:
+    cursor = conn.execute("PRAGMA table_info(patients)")
+    columns = {row[1] for row in cursor.fetchall()}
+    if "deleted" in columns:
+        return
+    conn.execute("ALTER TABLE patients ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0")
+    conn.execute("UPDATE patients SET deleted = 0 WHERE deleted IS NULL")
     conn.commit()
 
 
@@ -439,6 +451,7 @@ def _row_to_patient(row: sqlite3.Row) -> Dict[str, Any]:
         "day_label": row["day_label"],
         "day_order": row["day_order"],
         "procedure_date": row["procedure_date"],
+        "deleted": bool(row["deleted"]),
         "first_name": row["first_name"],
         "last_name": row["last_name"],
         "email": row["email"],
@@ -527,29 +540,43 @@ def delete_weekly_plan(plan_id: int) -> bool:
         return cursor.rowcount > 0
 
 
-def fetch_patients() -> List[Dict[str, Any]]:
-    records = _fetch_patient_rows()
-    if records:
+def fetch_patients(include_deleted: bool = False, only_deleted: bool = False) -> List[Dict[str, Any]]:
+    records = _fetch_patient_rows(include_deleted=include_deleted, only_deleted=only_deleted)
+    if records or include_deleted or only_deleted:
         return records
-    # Auto-seed demo data when the table is empty so the UI always has content.
+    if _has_any_patients():
+        return []
+    # Auto-seed demo data when the table has zero rows so the UI always has content.
     seed_patients_if_empty()
-    return _fetch_patient_rows()
+    return _fetch_patient_rows(include_deleted=include_deleted, only_deleted=only_deleted)
 
 
-def _fetch_patient_rows() -> List[Dict[str, Any]]:
+def _fetch_patient_rows(include_deleted: bool = False, only_deleted: bool = False) -> List[Dict[str, Any]]:
+    clauses: list[str] = []
+    if only_deleted:
+        clauses.append("deleted = 1")
+    elif not include_deleted:
+        clauses.append("deleted = 0")
+    where_clause = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+    order_clause = "ORDER BY id DESC" if only_deleted else "ORDER BY week_order ASC, day_order ASC, last_name ASC"
     with closing(get_connection()) as conn:
         cursor = conn.execute(
-            """
+            f"""
             SELECT * FROM patients
-            ORDER BY week_order ASC, day_order ASC, last_name ASC
+            {where_clause}
+            {order_clause}
             """
         )
         return [_row_to_patient(row) for row in cursor.fetchall()]
 
 
-def fetch_patient(patient_id: int) -> Optional[Dict[str, Any]]:
+def fetch_patient(patient_id: int, *, include_deleted: bool = False) -> Optional[Dict[str, Any]]:
     with closing(get_connection()) as conn:
-        cursor = conn.execute("SELECT * FROM patients WHERE id = ?", (patient_id,))
+        query = "SELECT * FROM patients WHERE id = ?"
+        params: Tuple[int, ...] = (patient_id,)
+        if not include_deleted:
+            query += " AND deleted = 0"
+        cursor = conn.execute(query, params)
         row = cursor.fetchone()
         return _row_to_patient(row) if row else None
 
@@ -574,7 +601,7 @@ def find_patient_by_full_name(full_name: str) -> Optional[Dict[str, Any]]:
         cursor = conn.execute(
             """
             SELECT * FROM patients
-            WHERE LOWER(first_name) = ? AND LOWER(last_name) = ?
+            WHERE LOWER(first_name) = ? AND LOWER(last_name) = ? AND deleted = 0
             ORDER BY week_order ASC, day_order ASC, last_name ASC
             LIMIT 1
             """,
@@ -722,6 +749,27 @@ def update_patient(patient_id: int, data: Dict[str, Any]) -> Optional[Dict[str, 
 
 def delete_patient(patient_id: int) -> bool:
     with closing(get_connection()) as conn:
+        cursor = conn.execute("UPDATE patients SET deleted = 1 WHERE id = ? AND deleted = 0", (patient_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+
+
+def restore_patient(patient_id: int) -> Optional[Dict[str, Any]]:
+    with closing(get_connection()) as conn:
+        cursor = conn.execute("UPDATE patients SET deleted = 0 WHERE id = ? AND deleted = 1", (patient_id,))
+        conn.commit()
+        if cursor.rowcount == 0:
+            return None
+    return fetch_patient(patient_id)
+
+
+def fetch_deleted_patients() -> List[Dict[str, Any]]:
+    return _fetch_patient_rows(include_deleted=True, only_deleted=True)
+
+
+def purge_patient(patient_id: int) -> bool:
+    """Hard delete a patient record."""
+    with closing(get_connection()) as conn:
         cursor = conn.execute("DELETE FROM patients WHERE id = ?", (patient_id,))
         conn.commit()
         return cursor.rowcount > 0
@@ -731,9 +779,11 @@ def append_patient_photos(patient_id: int, relative_paths: List[str]) -> Optiona
     if not relative_paths:
         return fetch_patient_photos(patient_id)
     with closing(get_connection()) as conn:
-        cursor = conn.execute("SELECT photo_files FROM patients WHERE id = ?", (patient_id,))
+        cursor = conn.execute("SELECT photo_files, deleted FROM patients WHERE id = ?", (patient_id,))
         row = cursor.fetchone()
         if not row:
+            return None
+        if row["deleted"]:
             return None
         current_files = json.loads(row["photo_files"]) if row["photo_files"] else []
         updated_files = current_files + relative_paths
@@ -747,9 +797,11 @@ def append_patient_photos(patient_id: int, relative_paths: List[str]) -> Optiona
 
 def remove_patient_photo(patient_id: int, relative_path: str) -> Optional[List[str]]:
     with closing(get_connection()) as conn:
-        cursor = conn.execute("SELECT photo_files FROM patients WHERE id = ?", (patient_id,))
+        cursor = conn.execute("SELECT photo_files, deleted FROM patients WHERE id = ?", (patient_id,))
         row = cursor.fetchone()
         if not row:
+            return None
+        if row["deleted"]:
             return None
         current_files: List[str] = json.loads(row["photo_files"]) if row["photo_files"] else []
         if relative_path not in current_files:
@@ -765,9 +817,11 @@ def remove_patient_photo(patient_id: int, relative_path: str) -> Optional[List[s
 
 def fetch_patient_photos(patient_id: int) -> Optional[List[str]]:
     with closing(get_connection()) as conn:
-        cursor = conn.execute("SELECT photo_files FROM patients WHERE id = ?", (patient_id,))
+        cursor = conn.execute("SELECT photo_files, deleted FROM patients WHERE id = ?", (patient_id,))
         row = cursor.fetchone()
         if not row:
+            return None
+        if row["deleted"]:
             return None
         return json.loads(row["photo_files"]) if row["photo_files"] else []
 
@@ -831,6 +885,12 @@ def get_api_token_by_value(token_value: str) -> Optional[Dict[str, Any]]:
         )
         row = cursor.fetchone()
         return dict(row) if row else None
+
+
+def _has_any_patients() -> bool:
+    with closing(get_connection()) as conn:
+        cursor = conn.execute("SELECT COUNT(*) FROM patients")
+        return cursor.fetchone()[0] > 0
 
 
 def seed_patients_if_empty() -> bool:

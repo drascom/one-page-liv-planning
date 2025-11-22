@@ -29,6 +29,16 @@
             <span class="settings-tab__title">Dropdown Options</span>
             <span class="settings-tab__subtitle">Forms, statuses &amp; more</span>
           </button>
+          <button type="button" class="settings-tab" id="settings-tab-reset" role="tab" aria-selected="false"
+            aria-controls="settings-panel-reset" data-settings-tab="reset">
+            <span class="settings-tab__title">Data Reset</span>
+            <span class="settings-tab__subtitle">Test data cleanup</span>
+          </button>
+          <button type="button" class="settings-tab" id="settings-tab-deleted" role="tab" aria-selected="false"
+            aria-controls="settings-panel-deleted" data-settings-tab="deleted">
+            <span class="settings-tab__title">Deleted Records</span>
+            <span class="settings-tab__subtitle">Restore patient data</span>
+          </button>
           <button type="button" class="settings-tab" id="settings-tab-users" role="tab" aria-selected="false"
             aria-controls="settings-panel-users" data-settings-tab="users">
             <span class="settings-tab__title">Team Access</span>
@@ -93,9 +103,18 @@
           <section class="patient-card">
             <div id="field-options-container" class="option-forms"></div>
           </section>
+        </section>
+
+        <section class="settings-section" id="settings-panel-reset" role="tabpanel"
+          aria-labelledby="settings-tab-reset" data-settings-section="reset" hidden>
+          <header class="settings-section__header">
+            <p class="settings-section__eyebrow">Workspace</p>
+            <h2>Test Data Reset</h2>
+            <p>Need a clean slate? Move every patient record into Deleted Records.</p>
+          </header>
           <section class="patient-card settings-danger-card">
-            <h3>Test Data Reset</h3>
-            <p>Need a clean slate? Use the control below to automatically select and delete every patient record.</p>
+            <h3>Reset test data</h3>
+            <p>Use this control to select every patient record and send them to Deleted Records.</p>
             <div class="settings-danger-card__actions">
               <label class="select-all-control" aria-live="polite">
                 <input type="checkbox" checked disabled />
@@ -104,6 +123,29 @@
               <button type="button" class="danger-btn" id="purge-patients-btn">Delete selected</button>
             </div>
             <p class="form-status form-status--danger" id="purge-patients-status" aria-live="polite"></p>
+          </section>
+        </section>
+
+        <section class="settings-section" id="settings-panel-deleted" role="tabpanel"
+          aria-labelledby="settings-tab-deleted" data-settings-section="deleted" hidden>
+          <header class="settings-section__header">
+            <p class="settings-section__eyebrow">Workspace</p>
+            <h2>Deleted Records</h2>
+            <p>Soft-deleted patients stay here until you recover them.</p>
+          </header>
+          <section class="patient-card">
+            <div class="settings-section__header" style="gap: 12px;">
+              <div>
+                <h3>Deleted Patients</h3>
+                <p>Recover any record you removed from the schedule.</p>
+              </div>
+              <div class="settings-danger-card__actions">
+                <button type="button" class="secondary-btn" id="refresh-deleted-btn">Refresh</button>
+                <button type="button" class="primary-btn" id="recover-all-btn">Recover all</button>
+              </div>
+            </div>
+            <div id="deleted-patients-status" class="form-status" aria-live="polite"></div>
+            <div id="deleted-patient-list" class="token-list"></div>
           </section>
         </section>
 

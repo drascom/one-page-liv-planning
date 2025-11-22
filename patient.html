@@ -23,27 +23,32 @@
           <div class="form-grid">
             <label class="form-field">
               <span>First Name</span>
-              <input id="first-name" name="firstName" type="text" required />
+              <input id="first-name" name="firstName" type="text" required placeholder="Enter first name" />
             </label>
             <label class="form-field">
               <span>Last Name</span>
-              <input id="last-name" name="lastName" type="text" required />
+              <input id="last-name" name="lastName" type="text" required placeholder="Enter last name" />
             </label>
             <label class="form-field">
               <span>Procedure Date</span>
-              <input id="procedure-date" name="procedureDate" type="date" />
+              <input
+                id="procedure-date"
+                name="procedureDate"
+                type="date"
+                placeholder="YYYY-MM-DD"
+              />
             </label>
             <label class="form-field">
               <span>Email</span>
-              <input id="email" name="email" type="email" required />
+              <input id="email" name="email" type="email" required placeholder="name@example.com" />
             </label>
             <label class="form-field">
               <span>Phone</span>
-              <input id="phone" name="phone" type="tel" required />
+              <input id="phone" name="phone" type="tel" required placeholder="+1 555 000 0000" />
             </label>
             <label class="form-field">
               <span>City</span>
-              <input id="city" name="city" type="text" required />
+              <input id="city" name="city" type="text" required placeholder="City" />
             </label>
           </div>
 
@@ -78,11 +83,13 @@
           <div class="form-grid form-grid--stacked">
             <label class="form-field">
               <span>Forms</span>
-              <select id="forms" name="forms" multiple size="5"></select>
+              <div id="forms-checklist" class="form-checklist" role="group" aria-label="Forms checklist"></div>
+              <select id="forms" name="forms" multiple size="5" hidden></select>
             </label>
             <label class="form-field">
               <span>Consents</span>
-              <select id="consents" name="consents" multiple size="3"></select>
+              <div id="consents-checklist" class="form-checklist" role="group" aria-label="Consents checklist"></div>
+              <select id="consents" name="consents" multiple size="3" hidden></select>
             </label>
           </div>
 

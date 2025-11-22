@@ -8,7 +8,10 @@ The frontend uses the base endpoints below directly and no token is required for
 - `POST /patients/multiple` – Send an array of simplified payloads (same shape as above) and let the backend derive calendar fields + insert patients.
 - `GET /patients/{id}` – Fetch a single patient.
 - `PUT /patients/{id}` – Update an existing patient.
-- `DELETE /patients/{id}` – (Admin only) Delete a patient record and return 204.
+- `DELETE /patients/{id}` – (Admin only) Soft delete a patient record (moves it to Deleted Records) and return 204.
+- `GET /patients/deleted` – (Admin only) List soft-deleted patients.
+- `POST /patients/{id}/recover` – (Admin only) Restore a soft-deleted patient.
+- `DELETE /patients/{id}/purge` – (Admin only) Permanently delete a patient (removes all stored details/files).
 - Patient payloads include a `consultation` array (values `consultation1`, `consultation2`) to track completed consultations.
 
 ## `/uploads`
@@ -49,6 +52,8 @@ The frontend uses the base endpoints below directly and no token is required for
 - connection check url is `GET api/v1/status/connection-check` with `Authorization: Bearer <token>` header
 - Every endpoint listed above is also exposed under the `/api/v1/` prefix (e.g. `GET /api/v1/patients`).
 - Importer endpoint: `POST /api/v1/patients/multiple` accepts the same simplified payload array for integrations, and `POST /api/v1/patients` accepts a single simplified payload as well.
-- `DELETE /api/v1/patients/{id}` – Listed for completeness; it still requires an authenticated admin session (intended for the internal UI).
+- `DELETE /api/v1/patients/{id}` – Listed for completeness; it still requires an authenticated admin session (intended for the internal UI) and performs a soft delete.
+- `GET /api/v1/patients/deleted` and `POST /api/v1/patients/{id}/recover` follow the same behavior as the base routes for managing soft-deleted records.
+- `DELETE /api/v1/patients/{id}/purge` – Permanently delete a patient (admin + token required).
 - All `/api/v1/...` requests require either an `Authorization: Bearer <token>` header (preferred) or the `token` query parameter (e.g. `/api/v1/patients?token=abc123xyz`) for backwards compatibility.
 - `GET /api/v1/search` – Provide the full name via `full_name=Randhir%20Sandhu` (preferred) or continue using the legacy `name`/`surname` parameters to look up a single patient. Returns `{ "success": true, "patient": { ... }, "id": 123, "surgery_date": "2024-03-11" }` when found, `{ "success": false, "message": "Patient record not found" }` when no record matches, or `{ "success": false, "message": "Name is missing" }` when no name parameter is supplied.

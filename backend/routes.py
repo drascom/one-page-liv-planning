@@ -282,6 +282,26 @@ def list_patients() -> List[Patient]:
     return [Patient(**record) for record in records]
 
 
+@patients_router.get("/deleted", response_model=List[Patient])
+def list_deleted_patients(_: dict = Depends(require_admin_user)) -> List[Patient]:
+    """Return patients that have been soft deleted (admin only)."""
+    records = database.fetch_patients(include_deleted=True, only_deleted=True)
+    return [Patient(**record) for record in records]
+
+
+def _remove_patient_files(file_names: list[str]) -> None:
+    for name in file_names or []:
+        try:
+            target = UPLOAD_ROOT / Path(name)
+            if target.exists():
+                target.unlink()
+            parent = target.parent
+            if parent.exists() and not any(parent.iterdir()):
+                parent.rmdir()
+        except OSError:
+            continue
+
+
 @patients_router.get("/{patient_id}", response_model=Patient)
 def get_patient(patient_id: int) -> Patient:
     """Return the patient identified by ``patient_id``."""
@@ -317,10 +337,31 @@ def update_patient(patient_id: int, payload: dict = Body(...)) -> Patient:
 
 @patients_router.delete("/{patient_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_patient_route(patient_id: int, _: dict = Depends(require_admin_user)) -> None:
-    """Delete the patient record (admin only)."""
+    """Soft delete the patient record (admin only)."""
     deleted = database.delete_patient(patient_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+
+
+@patients_router.post("/{patient_id}/recover", response_model=Patient)
+def recover_patient_route(patient_id: int, _: dict = Depends(require_admin_user)) -> Patient:
+    """Restore a soft-deleted patient record (admin only)."""
+    restored = database.restore_patient(patient_id)
+    if not restored:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    return Patient(**restored)
+
+
+@patients_router.delete("/{patient_id}/purge", status_code=status.HTTP_204_NO_CONTENT)
+def purge_patient_route(patient_id: int, _: dict = Depends(require_admin_user)) -> None:
+    """Permanently delete a patient record (admin only)."""
+    record = database.fetch_patient(patient_id, include_deleted=True)
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    _remove_patient_files(record.get("photo_files") or [])
+    deleted = database.purge_patient(patient_id)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to delete patient")
 
 
 @patients_router.post("/multiple", response_model=List[Patient], status_code=status.HTTP_201_CREATED)

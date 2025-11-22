@@ -46,8 +46,8 @@ const DEFAULT_FIELD_OPTIONS = {
 let fieldOptions = JSON.parse(JSON.stringify(DEFAULT_FIELD_OPTIONS));
 
 const CHECKED_ICON = {
-  true: "☑",
-  false: "☐",
+  true: "✓",
+  false: "✕",
 };
 
 function getFieldOptions(field) {
@@ -130,6 +130,8 @@ const DAY_NAME_FORMATTER = new Intl.DateTimeFormat("en-US", { weekday: "long" })
 
 const monthLabel = document.getElementById("selected-month");
 const weekCount = document.getElementById("week-count");
+const monthPatientCount = document.getElementById("month-patient-count");
+const totalPatientCount = document.getElementById("total-patient-count");
 const monthPrevBtn = document.getElementById("month-prev");
 const monthNextBtn = document.getElementById("month-next");
 const yearSelect = document.getElementById("year-select");
@@ -141,6 +143,7 @@ const selectAllCheckbox = document.getElementById("select-all-patients");
 const deleteSelectedBtn = document.getElementById("delete-selected-btn");
 
 initSessionControls();
+let activePatientContext = loadActivePatientContext();
 let isAdminUser = false;
 const selectedPatientIds = new Set();
 let fieldOptionsLoaded = false;
@@ -225,6 +228,50 @@ function parseMonthMetadata(label) {
   };
 }
 
+function getDateFromContext(context) {
+  const fromProcedureDate = parseISODate(context?.procedureDate);
+  if (fromProcedureDate) {
+    return fromProcedureDate;
+  }
+  if (!context?.monthLabel) {
+    return null;
+  }
+  const meta = parseMonthMetadata(context.monthLabel);
+  return meta?.date ?? null;
+}
+
+function setSelectedDateFromTarget(targetDate) {
+  if (!targetDate) {
+    return;
+  }
+  selectedDate = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
+}
+
+function loadActivePatientContext() {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return null;
+  }
+  try {
+    const raw = localStorage.getItem(ACTIVE_PATIENT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (error) {
+    console.warn("Unable to parse active patient context", error);
+    return null;
+  }
+}
+
+function persistActivePatientContext(context) {
+  activePatientContext = context;
+  if (typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
+  try {
+    localStorage.setItem(ACTIVE_PATIENT_KEY, JSON.stringify(context));
+  } catch (error) {
+    console.warn("Unable to persist active patient context", error);
+  }
+}
+
 function normalizePatientForSchedule(patient) {
   const date = parseISODate(patient.procedure_date);
   const scheduleMonthLabel = date ? formatMonthLabelFromDate(date) : patient.month_label;
@@ -234,6 +281,9 @@ function normalizePatientForSchedule(patient) {
   const scheduleWeekOrder = weekMeta?.order ?? patient.week_order ?? 1;
   const scheduleDayLabel = date ? DAY_FORMATTER.format(date) : patient.day_label;
   const scheduleProcedureDate = date ? date.toISOString().slice(0, 10) : patient.procedure_date;
+  const searchFirst = normalizeSearchText(patient.first_name);
+  const searchLast = normalizeSearchText(patient.last_name);
+  const searchFull = `${searchFirst} ${searchLast}`.trim();
 
   return {
     ...patient,
@@ -249,6 +299,9 @@ function normalizePatientForSchedule(patient) {
       : patient.consultation
         ? [patient.consultation]
         : [],
+    searchFirst,
+    searchLast,
+    searchFull,
   };
 }
 
@@ -261,6 +314,7 @@ function buildWeeksForPatients(patients) {
         label: patient.scheduleWeekLabel,
         range: patient.scheduleWeekRange,
         order: patient.scheduleWeekOrder,
+        monthLabel: patient.scheduleMonthLabel,
         days: [],
       });
     }
@@ -319,8 +373,13 @@ function formatPatientName(patient) {
   return `${patient.first_name ?? ""} ${patient.last_name ?? ""}`.trim() || "Unnamed patient";
 }
 
+function stripDiacritics(value) {
+  return value.normalize("NFD").replace(/\p{Diacritic}/gu, "");
+}
+
 function normalizeSearchText(value) {
-  return (value ?? "").toString().trim().toLowerCase();
+  const stringValue = (value ?? "").toString().trim().toLowerCase();
+  return stripDiacritics(stringValue);
 }
 
 function filterPatientsByName(patients, query) {
@@ -332,11 +391,18 @@ function filterPatientsByName(patients, query) {
     return patients;
   }
   return patients.filter((patient) => {
-    const first = normalizeSearchText(patient.first_name);
-    const last = normalizeSearchText(patient.last_name);
-    const combined = `${first} ${last}`.trim();
+    const first = patient.searchFirst ?? normalizeSearchText(patient.first_name);
+    const last = patient.searchLast ?? normalizeSearchText(patient.last_name);
+    const combined = patient.searchFull ?? `${first} ${last}`.trim();
     return first.includes(term) || last.includes(term) || combined.includes(term);
   });
+}
+
+function findActivePatientByContext() {
+  if (!activePatientContext?.patientId || !Array.isArray(normalizedPatients)) {
+    return null;
+  }
+  return normalizedPatients.find((patient) => patient.id === activePatientContext.patientId) ?? null;
 }
 
 function clearSearchResults() {
@@ -484,17 +550,38 @@ function buildMonthlySchedules(patients, { skipNormalize = false } = {}) {
     .sort((a, b) => (a.timestamp ?? Number.MAX_SAFE_INTEGER) - (b.timestamp ?? Number.MAX_SAFE_INTEGER));
 }
 
-function createCheckCell(value, label) {
+function summarizeChecklist(field, values) {
+  const optionValues = new Set(getFieldOptionValues(field));
+  const selectedValues = new Set(Array.isArray(values) ? values : []);
+  const selectedCount = Array.from(selectedValues).filter((value) => optionValues.has(value)).length;
+  return { selected: selectedCount, total: optionValues.size };
+}
+
+function formatChecklistCount(field, values) {
+  const { selected, total } = summarizeChecklist(field, values);
+  return `${selected}/${total || 0}`;
+}
+
+function createCheckCell(value, label, countText = "") {
   const cell = document.createElement("td");
   cell.classList.add("col-check");
   cell.dataset.label = label;
 
   const icon = document.createElement("span");
-  icon.className = `check-icon ${value ? "check-icon--checked" : ""}`;
+  icon.className = `check-icon ${value ? "check-icon--checked" : "check-icon--error"}`;
   icon.textContent = CHECKED_ICON[value];
-  icon.setAttribute("aria-label", `${label} ${value ? "complete" : "missing"}`);
+  icon.setAttribute(
+    "aria-label",
+    `${label} ${value ? "complete" : "missing"}${countText ? ` (${countText})` : ""}`
+  );
 
   cell.appendChild(icon);
+  if (countText) {
+    const count = document.createElement("span");
+    count.className = "check-count";
+    count.textContent = countText;
+    cell.appendChild(count);
+  }
   return cell;
 }
 
@@ -572,6 +659,22 @@ function updateControlState() {
   }
 }
 
+function updateTotalPatients(total) {
+  if (totalPatientCount) {
+    totalPatientCount.textContent = `${total} total patient${total === 1 ? "" : "s"}`;
+  }
+}
+
+function updateMonthPatientCount(total) {
+  if (monthPatientCount) {
+    monthPatientCount.textContent = `${total} patient${total === 1 ? "" : "s"} this month`;
+  }
+  const calendarMonthPatients = document.getElementById("calendar-month-patients");
+  if (calendarMonthPatients) {
+    calendarMonthPatients.textContent = `${total} patient${total === 1 ? "" : "s"}`;
+  }
+}
+
 function renderSelectedMonth() {
   if (isAdminUser) {
     selectedPatientIds.clear();
@@ -611,14 +714,33 @@ function renderSelectedMonth() {
       setScheduleStatus(`No patient records found for ${selectedLabel}.`);
       weekCount.textContent = "0 weeks scheduled";
     }
+    updateMonthPatientCount(0);
   } else {
     currentMonth.weeks.forEach(renderWeek);
     weekCount.textContent = `${currentMonth.weeks.length} ${searchQuery ? "matching week" : "week"}${
       currentMonth.weeks.length === 1 ? "" : "s"
     }`;
+    const monthPatientTotal = currentMonth.weeks.reduce(
+      (total, week) => total + (week.days?.length ?? 0),
+      0
+    );
+    updateMonthPatientCount(monthPatientTotal);
   }
   updateControlState();
   updateSelectionControlsState();
+}
+
+function highlightActivePatientRow() {
+  if (!activePatientContext?.patientId || !activePatientContext.shouldReturnToSchedule) {
+    return;
+  }
+  const row = document.querySelector(`.patient-row[data-patient-id="${activePatientContext.patientId}"]`);
+  if (!row) {
+    return;
+  }
+  row.classList.add("patient-row--active");
+  row.scrollIntoView({ behavior: "smooth", block: "center" });
+  persistActivePatientContext({ ...activePatientContext, shouldReturnToSchedule: false });
 }
 
 function handlePrevMonth() {
@@ -669,9 +791,9 @@ function buildDefaultPatientPayload() {
     procedure_date: selectedDate.toISOString().slice(0, 10),
     first_name: "New",
     last_name: "Patient",
-    email: "",
-    phone: "",
-    city: "",
+    email: "test@example.com",
+    phone: "+44 12345678",
+    city: "London",
     status: defaultStatus,
     procedure_type: defaultProcedure,
     grafts: "",
@@ -707,17 +829,16 @@ async function handleAddPatientClick() {
       throw new Error(`Failed to create patient (${response.status})`);
     }
     const patient = await response.json();
-    localStorage.setItem(
-      ACTIVE_PATIENT_KEY,
-      JSON.stringify({
-        patientId: patient.id,
-        patient: `${patient.first_name} ${patient.last_name}`.trim(),
-        weekLabel: patient.week_label,
-        weekRange: patient.week_range,
-        day: patient.day_label,
-        capturedAt: new Date().toISOString(),
-      })
-    );
+    persistActivePatientContext({
+      patientId: patient.id,
+      patient: `${patient.first_name} ${patient.last_name}`.trim(),
+      weekLabel: patient.week_label,
+      weekRange: patient.week_range,
+      day: patient.day_label,
+      monthLabel: patient.month_label,
+      procedureDate: patient.procedure_date,
+      capturedAt: new Date().toISOString(),
+    });
     const params = new URLSearchParams({
       id: String(patient.id),
       patient: `${patient.first_name} ${patient.last_name}`.trim(),
@@ -741,9 +862,11 @@ function handleRowNavigation(day, week) {
     weekLabel: week.label,
     weekRange: week.range,
     day: day.day,
+    monthLabel: day.monthLabel ?? week.monthLabel,
+    procedureDate: day.procedureDate,
     capturedAt: new Date().toISOString(),
   };
-  localStorage.setItem(ACTIVE_PATIENT_KEY, JSON.stringify(payload));
+  persistActivePatientContext(payload);
   const params = new URLSearchParams({ patient: day.patientName, id: String(day.id) });
   window.location.href = `patient.html?${params.toString()}`;
 }
@@ -820,14 +943,14 @@ async function handleDeleteSelected() {
   }
   const count = selectedPatientIds.size;
   const confirmation = window.confirm(
-    `Delete ${count} selected patient${count === 1 ? "" : "s"}? This action cannot be undone.`
+    `Move ${count} selected patient${count === 1 ? "" : "s"} to Deleted Records? You can recover them from Settings.`
   );
   if (!confirmation) {
     return;
   }
   if (deleteSelectedBtn) {
     deleteSelectedBtn.disabled = true;
-    deleteSelectedBtn.textContent = "Deleting...";
+    deleteSelectedBtn.textContent = "Removing...";
   }
   try {
     for (const patientId of selectedPatientIds) {
@@ -837,7 +960,7 @@ async function handleDeleteSelected() {
       handleUnauthorized(response);
       if (!response.ok && response.status !== 404) {
         const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.detail || "Failed to delete selected patients.");
+        throw new Error(payload.detail || "Failed to move selected patients.");
       }
     }
     selectedPatientIds.clear();
@@ -848,7 +971,7 @@ async function handleDeleteSelected() {
     await initializeSchedule();
   } catch (error) {
     console.error(error);
-    alert(error.message || "Unable to delete selected patients.");
+    alert(error.message || "Unable to move selected patients.");
   } finally {
     if (deleteSelectedBtn) {
       deleteSelectedBtn.textContent = "Delete selected";
@@ -917,8 +1040,7 @@ function renderWeek(week) {
       if (!isGroupedDay && index === 0) {
         const dayCell = document.createElement("td");
         dayCell.textContent = "";
-        dayCell.classList.add("col-day");
-        dayCell.classList.add("col-day--hidden");
+        dayCell.classList.add("col-day", "col-day--hidden");
         dayCell.dataset.label = "";
         dayCell.setAttribute("aria-hidden", "true");
         dayCell.rowSpan = group.entries.length;
@@ -972,8 +1094,8 @@ function renderWeek(week) {
 
       const formsComplete = hasCompletedChecklist("forms", day.forms);
       const consentsComplete = hasCompletedChecklist("consents", day.consents);
-      const formsCell = createCheckCell(formsComplete, "Forms");
-      const consentsCell = createCheckCell(consentsComplete, "Consents");
+      const formsCell = createCheckCell(formsComplete, "Forms", formatChecklistCount("forms", day.forms));
+      const consentsCell = createCheckCell(consentsComplete, "Consents", formatChecklistCount("consents", day.consents));
       const consultationCell = document.createElement("td");
       consultationCell.textContent = formatConsultation(day.consultation);
       consultationCell.classList.add("col-consult");
@@ -1052,6 +1174,11 @@ if (searchClearBtn) {
 
 async function initializeSchedule() {
   setScheduleStatus("Loading schedule...");
+  activePatientContext = loadActivePatientContext();
+  if (activePatientContext?.shouldReturnToSchedule) {
+    const targetDate = getDateFromContext(activePatientContext);
+    setSelectedDateFromTarget(targetDate);
+  }
   try {
     if (!fieldOptionsLoaded) {
       await fetchFieldOptions();
@@ -1059,7 +1186,30 @@ async function initializeSchedule() {
     }
     const patients = await fetchPatients();
     normalizedPatients = patients.map(normalizePatientForSchedule);
+    const activePatient = findActivePatientByContext();
+    if (activePatientContext?.shouldReturnToSchedule) {
+      if (activePatient) {
+        const scheduleTargetDate =
+          getDateFromContext(activePatientContext) ||
+          getDateFromContext({
+            monthLabel: activePatient.scheduleMonthLabel,
+            procedureDate: activePatient.scheduleProcedureDate,
+          });
+        setSelectedDateFromTarget(scheduleTargetDate);
+        focusSelectedMonthForPatients([activePatient]);
+      } else {
+        persistActivePatientContext({ ...activePatientContext, shouldReturnToSchedule: false });
+      }
+    }
     monthlySchedules = buildMonthlySchedules(normalizedPatients, { skipNormalize: true });
+    if (activePatientContext?.shouldReturnToSchedule) {
+      const matchingMonth = monthlySchedules.find(
+        (month) => month.label === activePatient?.scheduleMonthLabel
+      );
+      if (matchingMonth?.date) {
+        setSelectedDateFromTarget(matchingMonth.date);
+      }
+    }
     filteredMonthlySchedules = monthlySchedules;
     searchQuery = "";
     if (searchInput) {
@@ -1068,7 +1218,9 @@ async function initializeSchedule() {
     setSearchClearState(false);
     clearSearchResults();
     updateYearOptions(selectedDate.getFullYear());
+    updateTotalPatients(normalizedPatients.length);
     renderSelectedMonth();
+    highlightActivePatientRow();
   } catch (error) {
     console.error(error);
     setScheduleStatus("Unable to load the schedule. Please try again later.");

@@ -36,6 +36,12 @@ const DEFAULT_FIELD_OPTIONS = {
   ],
 };
 
+const DEFAULT_CONTACT = {
+  email: "test@example.com",
+  phone: "+44 12345678",
+  city: "London",
+};
+
 let fieldOptions = JSON.parse(JSON.stringify(DEFAULT_FIELD_OPTIONS));
 const ACTIVE_PATIENT_KEY = "activePatient";
 const API_BASE_URL =
@@ -97,7 +103,95 @@ function renderOptionControls() {
   populateSelectOptions(paymentSelect, "payment");
   populateSelectOptions(consultationSelect, "consultation", { multiple: true });
   populateSelectOptions(formsSelect, "forms", { multiple: true });
+  buildFormsChecklist();
   populateSelectOptions(consentsSelect, "consents", { multiple: true });
+  buildConsentsChecklist();
+}
+
+function refreshFormsChecklist() {
+  if (!formsChecklist || !formsSelect) return;
+  const selected = new Set(collectMultiValue(formsSelect));
+  formsChecklist.querySelectorAll(".form-checklist__item").forEach((item) => {
+    const value = item.dataset.value;
+    const isSelected = selected.has(value);
+    item.classList.toggle("is-selected", isSelected);
+    item.setAttribute("aria-pressed", isSelected ? "true" : "false");
+    const icon = item.querySelector(".form-checklist__icon");
+    if (icon) {
+      icon.textContent = isSelected ? "✓" : "✕";
+    }
+  });
+}
+
+function buildFormsChecklist() {
+  if (!formsChecklist || !formsSelect) return;
+  formsChecklist.innerHTML = "";
+  const options = getFieldOptions("forms");
+  options.forEach((option) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "form-checklist__item";
+    button.dataset.value = option.value;
+    button.innerHTML = `
+      <span class="form-checklist__label">${option.label}</span>
+      <span class="form-checklist__icon" aria-hidden="true">✕</span>
+    `;
+    button.addEventListener("click", () => {
+      const current = new Set(collectMultiValue(formsSelect));
+      if (current.has(option.value)) {
+        current.delete(option.value);
+      } else {
+        current.add(option.value);
+      }
+      setMultiValue(formsSelect, Array.from(current));
+      refreshFormsChecklist();
+    });
+    formsChecklist.appendChild(button);
+  });
+  refreshFormsChecklist();
+}
+
+function refreshConsentsChecklist() {
+  if (!consentsChecklist || !consentsSelect) return;
+  const selected = new Set(collectMultiValue(consentsSelect));
+  consentsChecklist.querySelectorAll(".form-checklist__item").forEach((item) => {
+    const value = item.dataset.value;
+    const isSelected = selected.has(value);
+    item.classList.toggle("is-selected", isSelected);
+    item.setAttribute("aria-pressed", isSelected ? "true" : "false");
+    const icon = item.querySelector(".form-checklist__icon");
+    if (icon) {
+      icon.textContent = isSelected ? "✓" : "✕";
+    }
+  });
+}
+
+function buildConsentsChecklist() {
+  if (!consentsChecklist || !consentsSelect) return;
+  consentsChecklist.innerHTML = "";
+  const options = getFieldOptions("consents");
+  options.forEach((option) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "form-checklist__item";
+    button.dataset.value = option.value;
+    button.innerHTML = `
+      <span class="form-checklist__label">${option.label}</span>
+      <span class="form-checklist__icon" aria-hidden="true">✕</span>
+    `;
+    button.addEventListener("click", () => {
+      const current = new Set(collectMultiValue(consentsSelect));
+      if (current.has(option.value)) {
+        current.delete(option.value);
+      } else {
+        current.add(option.value);
+      }
+      setMultiValue(consentsSelect, Array.from(current));
+      refreshConsentsChecklist();
+    });
+    consentsChecklist.appendChild(button);
+  });
+  refreshConsentsChecklist();
 }
 
 const patientNameEl = document.getElementById("patient-name");
@@ -120,6 +214,8 @@ const paymentSelect = document.getElementById("payment");
 const consultationSelect = document.getElementById("consultation");
 const photosInput = document.getElementById("photos");
 const formsSelect = document.getElementById("forms");
+const formsChecklist = document.getElementById("forms-checklist");
+const consentsChecklist = document.getElementById("consents-checklist");
 const consentsSelect = document.getElementById("consents");
 
 const dropZone = document.getElementById("drop-zone");
@@ -181,9 +277,9 @@ function populateForm(record) {
   firstNameInput.value = record.first_name || "";
   lastNameInput.value = record.last_name || "";
   procedureDateInput.value = record.procedure_date || "";
-  emailInput.value = record.email || "";
-  phoneInput.value = record.phone || "";
-  cityInput.value = record.city || "";
+  emailInput.value = record.email || DEFAULT_CONTACT.email;
+  phoneInput.value = record.phone || DEFAULT_CONTACT.phone;
+  cityInput.value = record.city || DEFAULT_CONTACT.city;
   statusSelect.value = record.status || "reserved";
   procedureSelect.value = record.procedure_type || "small";
   graftsInput.value = record.grafts || "";
@@ -201,7 +297,9 @@ function populateForm(record) {
       ? String(record.photo_files.length ?? record.photos)
       : "None";
   setMultiValue(formsSelect, record.forms || []);
+  refreshFormsChecklist();
   setMultiValue(consentsSelect, record.consents || []);
+  refreshConsentsChecklist();
   syncHeader(record);
   renderPhotoGallery();
   refreshDeleteButtonState();
@@ -435,13 +533,14 @@ async function savePatient(event) {
         weekLabel: saved.week_label,
         weekRange: saved.week_range,
         day: saved.day_label,
+        monthLabel: saved.month_label,
+        procedureDate: saved.procedure_date,
+        shouldReturnToSchedule: true,
         capturedAt: new Date().toISOString(),
       })
     );
-    formStatusEl.textContent = "Patient record saved.";
-    setTimeout(() => {
-      formStatusEl.textContent = "";
-    }, 3000);
+    formStatusEl.textContent = "Patient record saved. Returning to schedule...";
+    window.location.href = "/";
   } catch (error) {
     console.error(error);
     formStatusEl.textContent = error.message;
@@ -590,25 +689,27 @@ async function handleDeletePatient() {
   if (!currentPatient || !isAdminUser) {
     return;
   }
-  const confirmed = window.confirm("Delete this patient record? This action cannot be undone.");
+  const confirmed = window.confirm(
+    "Move this patient to Deleted Records? You can restore it later from Settings → Deleted Records."
+  );
   if (!confirmed) {
     return;
   }
   const originalLabel = deletePatientBtn.textContent;
   deletePatientBtn.disabled = true;
-  deletePatientBtn.textContent = "Deleting...";
+  deletePatientBtn.textContent = "Removing...";
   try {
     const response = await fetch(buildApiUrl(`/patients/${currentPatient.id}`), {
       method: "DELETE",
     });
     handleUnauthorized(response);
     if (!response.ok) {
-      throw new Error(`Failed to delete (status ${response.status})`);
+      throw new Error(`Failed to remove (status ${response.status})`);
     }
     window.location.href = "/";
   } catch (error) {
     console.error(error);
-    alert(`Unable to delete this patient: ${error.message}`);
+    alert(`Unable to remove this patient: ${error.message}`);
   } finally {
     deletePatientBtn.textContent = originalLabel;
     deletePatientBtn.disabled = false;

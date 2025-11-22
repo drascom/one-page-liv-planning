@@ -56,6 +56,7 @@ class PatientCreate(PatientBase):
 
 class Patient(PatientBase):
     id: int = Field(..., description="Database identifier for the patient")
+    deleted: bool = Field(False, description="Whether the record is hidden (soft deleted)")
 
     class Config:
         from_attributes = True

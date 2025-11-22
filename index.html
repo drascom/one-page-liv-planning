@@ -11,43 +11,50 @@
 <body>
   <header class="hero">
     <div class="hero__content">
-      <p class="hero__eyebrow">One-page schedule</p>
-      <h1>Monthly Surgery Planner</h1>
-    </div>
-    <div class="hero__meta">
-      <div class="hero__month-info">
-        <p class="hero__month" id="selected-month">Loading...</p>
-        <p class="hero__week-count" id="week-count"></p>
-      </div>
-
-      <div class="hero__meta-actions">
+      <div class="hero__layout">
+        <div class="hero__left">
+          <div class="hero__pill-row">
+            <span class="hero__pill">One-page schedule</span>
+            <span class="hero__pill hero__pill--outline">Live snapshot</span>
+          </div>
        
+        </div>
+        <div class="hero__calendar">
+          <p class="hero__month-large" id="selected-month">Loading...</p>
+          <div class="hero__calendar-meta">
+            <span class="hero__week-count" id="week-count"></span>
+            <span class="hero__month-patients" id="calendar-month-patients"></span>
+          </div>
+        </div>
+      </div>
+      <div class="hero__search-block">
+        <div class="hero__search-row">
+          <form class="patient-search" id="patient-search-form" role="search" autocomplete="off">
+            <label class="visually-hidden" for="patient-search">Search patients</label>
+            <input
+              id="patient-search"
+              type="search"
+              name="patientSearch"
+              placeholder="Search by name or surname"
+              enterkeyhint="search"
+            />
+            <button
+              type="button"
+              class="patient-search__clear"
+              id="patient-search-clear"
+              aria-label="Clear search"
+              title="Clear search"
+            >
+              ×
+            </button>
+            <ul class="patient-search__results" id="patient-search-results" role="listbox"></ul>
+          </form>
+        </div>
+        <p class="hero__total-note">Total patients: <span id="total-patient-count"></span></p>
       </div>
     </div>
   </header>
   <div class="hero__controls-row">
-    <div class="hero__controls-left">
-      <form class="patient-search" id="patient-search-form" role="search" autocomplete="off">
-        <label class="visually-hidden" for="patient-search">Search patients</label>
-        <input
-          id="patient-search"
-          type="search"
-          name="patientSearch"
-          placeholder="Search by name or surname"
-          enterkeyhint="search"
-        />
-        <button
-          type="button"
-          class="patient-search__clear"
-          id="patient-search-clear"
-          aria-label="Clear search"
-          title="Clear search"
-        >
-          ×
-        </button>
-        <ul class="patient-search__results" id="patient-search-results" role="listbox"></ul>
-      </form>
-    </div>
     <div class="hero__controls-center">
       <div class="month-controls" aria-label="Month navigation">
         <button type="button" class="month-button" id="month-prev" aria-label="Previous month">←</button>
@@ -60,13 +67,8 @@
       </div>
     </div>
     <div class="hero__controls-right">
-      <a
-        class="hero__settings-link hero__settings-link--icon"
-        href="settings.html"
-        aria-label="Open settings"
-        data-admin-link
-        hidden
-      >
+      <a class="hero__settings-link hero__settings-link--icon" href="settings.html" aria-label="Open settings"
+        data-admin-link hidden>
         <span aria-hidden="true">&#9881;</span>
         <span class="visually-hidden">Settings</span>
       </a>
@@ -93,18 +95,18 @@
         <thead>
           <tr>
             <th class="col-select" data-select-header hidden>Select</th>
-            <th class="col-day">Day</th>
+            <th class="col-day" aria-hidden="true"></th>
             <th class="col-date">Date</th>
             <th class="col-patient">Patient</th>
             <th class="col-status">Status</th>
             <th class="col-procedure">Type</th>
             <th class="col-grafts">Grafts</th>
-              <th class="col-check">Forms</th>
-              <th class="col-check">Consents</th>
-              <th class="col-consult">Consulted</th>
-              <th class="col-payment">Payment</th>
-              <th class="col-photos">Photos</th>
-            </tr>
+            <th class="col-check">Forms</th>
+            <th class="col-check">Consents</th>
+            <th class="col-consult">Consulted</th>
+            <th class="col-payment">Payment</th>
+            <th class="col-photos">Photos</th>
+          </tr>
         </thead>
         <tbody></tbody>
       </table>
