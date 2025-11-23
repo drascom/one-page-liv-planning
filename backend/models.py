@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from enum import Enum
 from typing import List, Optional
 
 from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field
@@ -199,3 +200,39 @@ class UserPasswordUpdate(BaseModel):
 
 class UserRoleUpdate(BaseModel):
     is_admin: bool
+
+
+class ProcedureType(str, Enum):
+    SMALL = "small"
+    BIG = "big"
+    BEARD = "beard"
+    WOMAN = "woman"
+
+
+class ProcedureStatus(str, Enum):
+    RESERVED = "reserved"
+    CONFIRMED = "confirmed"
+    IN_SURGERY = "insurgery"
+    DONE = "done"
+
+
+class ProcedureBase(BaseModel):
+    patient_id: int = Field(..., description="Foreign key to the patient record")
+    type: ProcedureType = Field(..., description="Type of procedure being booked")
+    status: ProcedureStatus = Field(..., description="Current workflow status for the booking")
+    scheduled_at: Optional[datetime] = Field(None, description="Scheduled start time for the procedure")
+    provider: Optional[str] = Field(None, description="Assigned provider or surgeon")
+    notes: Optional[str] = Field(None, description="Free-form scheduling notes")
+
+
+class ProcedureCreate(ProcedureBase):
+    pass
+
+
+class Procedure(ProcedureBase):
+    id: int = Field(..., description="Database identifier for the procedure booking")
+    created_at: datetime = Field(..., description="Timestamp when the booking was created")
+    updated_at: datetime = Field(..., description="Timestamp when the booking was last updated")
+
+    class Config:
+        from_attributes = True
