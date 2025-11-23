@@ -55,7 +55,40 @@ class PatientCreate(PatientBase):
 
 
 class Patient(PatientBase):
-    id: int = Field(..., description="Database identifier for the patient")
+    id: int = Field(..., description="Database identifier for the procedure/patient row")
+    patient_id: Optional[int] = Field(None, description="Identifier for the patient profile owner")
+    deleted: bool = Field(False, description="Whether the record is hidden (soft deleted)")
+
+    class Config:
+        from_attributes = True
+
+
+class ProcedureBase(BaseModel):
+    month_label: str = Field(..., description="Name of the month to display (e.g. June 2024)")
+    week_label: str = Field(..., description="Readable label for the week (Week 1)")
+    week_range: str = Field(..., description="Date range for the week (Jun 3 – Jun 9)")
+    week_order: int = Field(..., description="Sort order for the week block")
+    day_label: str = Field(..., description="Day label shown in the schedule (Mon, Tue)")
+    day_order: int = Field(..., description="Sort order inside the week")
+    procedure_date: Optional[str] = Field(None, description="ISO date for the scheduled procedure")
+    status: str = Field(..., description="Surgery workflow status")
+    procedure_type: str = Field(..., description="Buckets used to filter surgeries")
+    grafts: str = Field("", description="Number of grafts or imported numeric detail")
+    payment: str = Field(..., description="Payment collection status")
+    consultation: List[str] = Field(default_factory=list, description="Consultations recorded for the procedure")
+    forms: List[str] = Field(default_factory=list, description="Completed form identifiers")
+    consents: List[str] = Field(default_factory=list, description="Completed consent identifiers")
+    photos: int = Field(0, description="Number of uploaded photos", ge=0)
+    photo_files: List[str] = Field(default_factory=list, description="Relative file paths for uploaded photos")
+
+
+class ProcedureCreate(ProcedureBase):
+    pass
+
+
+class Procedure(ProcedureBase):
+    id: int = Field(..., description="Database identifier for the procedure")
+    patient_id: int = Field(..., description="Identifier for the patient profile owner")
     deleted: bool = Field(False, description="Whether the record is hidden (soft deleted)")
 
     class Config:

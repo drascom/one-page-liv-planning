@@ -299,6 +299,7 @@ let currentPatient = null;
 let activePhotoIndex = 0;
 let isAdminUser = false;
 let cachedPatients = null;
+let cachedProcedures = new Map();
 
 function loadActiveContext() {
   if (typeof window === "undefined" || !window.localStorage) {
@@ -558,18 +559,20 @@ async function renderRelatedBookings(record) {
   if (!record) {
     return;
   }
-  const normalizedFirst = normalizeName(record.first_name);
-  const normalizedLast = normalizeName(record.last_name);
   try {
-    const patients = await loadAllPatients();
-    const matches = patients
-      .filter((patient) => {
-        return (
-          normalizeName(patient.first_name) === normalizedFirst &&
-          normalizeName(patient.last_name) === normalizedLast
-        );
-      })
-      .sort((a, b) => getBookingSortValue(a) - getBookingSortValue(b) || a.id - b.id);
+    const patientId = record.patient_id || record.id;
+    if (!cachedProcedures.has(patientId)) {
+      const response = await fetch(buildApiUrl(`/patients/${patientId}/procedures`));
+      handleUnauthorized(response);
+      if (!response.ok) {
+        throw new Error(`Unable to load procedures (${response.status})`);
+      }
+      cachedProcedures.set(patientId, await response.json());
+    }
+
+    const matches = (cachedProcedures.get(patientId) || []).sort(
+      (a, b) => getBookingSortValue(a) - getBookingSortValue(b) || a.id - b.id
+    );
 
     matches.forEach((entry) => {
       const button = document.createElement("button");
@@ -596,10 +599,7 @@ async function renderRelatedBookings(record) {
         if (entry.id === record.id) {
           return;
         }
-        const params = new URLSearchParams({
-          id: String(entry.id),
-          patient: `${entry.first_name} ${entry.last_name}`.trim(),
-        });
+        const params = new URLSearchParams({ id: String(entry.id), patient: `${record.first_name} ${record.last_name}`.trim() });
         window.location.href = `patient.html?${params.toString()}`;
       });
       bookingListEl.appendChild(button);
