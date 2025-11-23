@@ -13,4 +13,6 @@ dependencies = [
     "itsdangerous",
     "bcrypt<4.0",
     "python-multipart",
+    "httpx",
+    "pytest",
 ]

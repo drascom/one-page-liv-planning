@@ -191,6 +191,22 @@ def init_db() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS procedures (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                patient_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                procedure_type TEXT NOT NULL,
+                status TEXT NOT NULL,
+                procedure_date TEXT,
+                payment TEXT,
+                notes TEXT,
+                FOREIGN KEY(patient_id) REFERENCES patients(id) ON DELETE CASCADE
+            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_procedures_patient_id ON procedures(patient_id)")
         _ensure_procedure_date_column(conn)
         _ensure_procedure_type_column(conn)
         _ensure_photo_files_column(conn)
@@ -444,6 +460,7 @@ def get_connection() -> sqlite3.Connection:
     """Return a connection with row results as dictionaries."""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
 
@@ -497,6 +514,19 @@ def _row_to_patient(row: sqlite3.Row) -> Dict[str, Any]:
         "consents": json.loads(row["consents"]) if row["consents"] else [],
         "photos": row["photos"],
         "photo_files": json.loads(row["photo_files"]) if row["photo_files"] else [],
+    }
+
+
+def _row_to_procedure(row: sqlite3.Row) -> Dict[str, Any]:
+    return {
+        "id": row["id"],
+        "patient_id": row["patient_id"],
+        "name": row["name"],
+        "procedure_type": row["procedure_type"],
+        "status": row["status"],
+        "procedure_date": _date_only(row["procedure_date"]),
+        "payment": row["payment"],
+        "notes": row["notes"],
     }
 
 
@@ -660,6 +690,82 @@ def find_patient_by_name_and_date(first_name: str, last_name: str, procedure_dat
         )
         row = cursor.fetchone()
         return _row_to_patient(row) if row else None
+
+
+def list_procedures(patient_id: Optional[int] = None) -> List[Dict[str, Any]]:
+    query = "SELECT * FROM procedures"
+    params: Tuple[int, ...] = tuple()
+    if patient_id is not None:
+        query += " WHERE patient_id = ?"
+        params = (patient_id,)
+    query += " ORDER BY procedure_date IS NULL, procedure_date ASC, id ASC"
+    with closing(get_connection()) as conn:
+        cursor = conn.execute(query, params)
+        return [_row_to_procedure(row) for row in cursor.fetchall()]
+
+
+def fetch_procedure(procedure_id: int) -> Optional[Dict[str, Any]]:
+    with closing(get_connection()) as conn:
+        cursor = conn.execute("SELECT * FROM procedures WHERE id = ?", (procedure_id,))
+        row = cursor.fetchone()
+        return _row_to_procedure(row) if row else None
+
+
+def create_procedure(data: Dict[str, Any]) -> Dict[str, Any]:
+    with closing(get_connection()) as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO procedures (patient_id, name, procedure_type, status, procedure_date, payment, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                data["patient_id"],
+                data["name"],
+                data["procedure_type"],
+                data["status"],
+                _date_only(data.get("procedure_date")),
+                data.get("payment"),
+                data.get("notes"),
+            ),
+        )
+        conn.commit()
+        new_id = cursor.lastrowid
+    created = fetch_procedure(new_id)
+    if not created:
+        raise RuntimeError("Failed to fetch procedure after creation")
+    return created
+
+
+def update_procedure(procedure_id: int, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    with closing(get_connection()) as conn:
+        cursor = conn.execute(
+            """
+            UPDATE procedures
+            SET patient_id = ?, name = ?, procedure_type = ?, status = ?, procedure_date = ?, payment = ?, notes = ?
+            WHERE id = ?
+            """,
+            (
+                data["patient_id"],
+                data["name"],
+                data["procedure_type"],
+                data["status"],
+                _date_only(data.get("procedure_date")),
+                data.get("payment"),
+                data.get("notes"),
+                procedure_id,
+            ),
+        )
+        conn.commit()
+        if cursor.rowcount == 0:
+            return None
+    return fetch_procedure(procedure_id)
+
+
+def delete_procedure(procedure_id: int) -> bool:
+    with closing(get_connection()) as conn:
+        cursor = conn.execute("DELETE FROM procedures WHERE id = ?", (procedure_id,))
+        conn.commit()
+        return cursor.rowcount > 0
 
 
 def log_api_request(path: str, method: str, payload: Any) -> None:

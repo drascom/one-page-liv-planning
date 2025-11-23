@@ -42,6 +42,8 @@ from .models import (
     Patient,
     PatientCreate,
     PatientSearchResult,
+    Procedure,
+    ProcedureCreate,
     SimplifiedPatientPayload,
     User,
     UserCreate,
@@ -54,6 +56,7 @@ from .settings import get_settings
 
 router = APIRouter(prefix="/plans", tags=["plans"])
 patients_router = APIRouter(prefix="/patients", tags=["patients"])
+procedures_router = APIRouter(prefix="/procedures", tags=["procedures"])
 upload_router = APIRouter(prefix="/uploads", tags=["uploads"])
 api_tokens_router = APIRouter(prefix="/api-tokens", tags=["api tokens"])
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
@@ -407,6 +410,48 @@ def import_patients(payload: List[dict] = Body(...)) -> JSONResponse:
         created.append(created_record["id"])
     database.log_api_request("/patients/multiple", "POST", payload)
     return JSONResponse({"detail": "Imported", "ids": created}, status_code=status.HTTP_201_CREATED)
+
+
+@procedures_router.get("/", response_model=List[Procedure])
+def list_procedures_route(patient_id: Optional[int] = Query(None)) -> List[Procedure]:
+    """Return every stored procedure, optionally filtered by patient."""
+    records = database.list_procedures(patient_id=patient_id)
+    return [Procedure(**record) for record in records]
+
+
+@procedures_router.post("/", response_model=Procedure, status_code=status.HTTP_201_CREATED)
+def create_procedure_route(payload: ProcedureCreate) -> Procedure:
+    """Create a procedure and link it to a patient."""
+    patient = database.fetch_patient(payload.patient_id)
+    if not patient:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    created = database.create_procedure(payload.model_dump())
+    return Procedure(**created)
+
+
+@procedures_router.get("/{procedure_id}", response_model=Procedure)
+def fetch_procedure_route(procedure_id: int) -> Procedure:
+    record = database.fetch_procedure(procedure_id)
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
+    return Procedure(**record)
+
+
+@procedures_router.put("/{procedure_id}", response_model=Procedure)
+def update_procedure_route(procedure_id: int, payload: ProcedureCreate) -> Procedure:
+    if not database.fetch_patient(payload.patient_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    updated = database.update_procedure(procedure_id, payload.model_dump())
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
+    return Procedure(**updated)
+
+
+@procedures_router.delete("/{procedure_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_procedure_route(procedure_id: int) -> None:
+    deleted = database.delete_procedure(procedure_id)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
 
 
 @audit_router.get("/", response_model=List[dict])

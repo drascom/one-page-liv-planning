@@ -53,6 +53,7 @@ built from consistent data.
    * `APP_SECRET_KEY` – random string used to sign session cookies.
    * `DEFAULT_ADMIN_PASSWORD` – temporary password for the auto-seeded admin user (`admin`).
    * `BACKEND_URL`/`FRONTEND_URL` – optional; if omitted the app auto-detects the current origin so you only need to set these when a specific host/port must be enforced (e.g. behind a reverse proxy).
+   * `PROCEDURES_TABLE` – the table name for procedure records (keeps database migrations and infra-as-code config in sync).
 
 6. Start the API server with uv (which automatically uses the synced virtualenv) and bind it to `0.0.0.0` so other machines can reach it:
 
@@ -93,6 +94,10 @@ If you are behind nginx proxy manager with ssl certificate than use
 | POST | `/patients/` | Create a placeholder patient |
 | GET/PUT | `/patients/{id}` | Fetch or update a patient record |
 | DELETE | `/patients/{id}` | Delete a patient (admin session only) |
+| GET | `/procedures/` | List procedures (filter by `patient_id` when needed) |
+| POST | `/procedures/` | Create a procedure linked to a patient |
+| GET/PUT | `/procedures/{id}` | Fetch or update a procedure |
+| DELETE | `/procedures/{id}` | Delete a procedure |
 | POST | `/uploads/{last_name}` | Upload photos for a patient |
 | DELETE | `/uploads/{patient_id}?file=path` | Remove a photo |
 | GET | `/field-options` | Fetch the dropdown metadata (status, forms, etc.) |
@@ -164,6 +169,27 @@ curl -X PUT "http://127.0.0.1:8000/patients/123" \
     "photo_files": []
   }'
 ```
+
+### Sample procedure requests
+
+Create a procedure for an existing patient:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/procedures" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "patient_id": 123,
+    "name": "Follow-up",
+    "procedure_type": "small",
+    "status": "scheduled",
+    "procedure_date": "2025-01-02",
+    "payment": "deposit",
+    "notes": "Add any free-form notes here"
+  }'
+```
+
+Purging a patient via `DELETE /patients/{id}/purge` cascades and removes all linked procedures so downstream integrations do not
+have to manually clean them up.
 
 ### Simplified payloads (`POST /patients` or `POST /patients/multiple`)
 
