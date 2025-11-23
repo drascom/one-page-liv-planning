@@ -211,6 +211,23 @@ def init_db() -> None:
         )
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS procedure_bookings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                patient_id INTEGER NOT NULL,
+                type TEXT NOT NULL,
+                status TEXT NOT NULL,
+                scheduled_at TEXT,
+                provider TEXT,
+                notes TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(patient_id) REFERENCES patients(id)
+            )
+            """
+        )
+        _ensure_procedure_booking_updated_at_trigger(conn)
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS field_options (
                 field TEXT PRIMARY KEY,
                 options TEXT NOT NULL
@@ -345,6 +362,25 @@ def _ensure_api_token_user_column(conn: sqlite3.Connection) -> None:
             """
         )
         conn.commit()
+
+
+def _ensure_procedure_booking_updated_at_trigger(conn: sqlite3.Connection) -> None:
+    cursor = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type = 'trigger' AND name = 'procedure_bookings_updated_at'"
+    )
+    if cursor.fetchone():
+        return
+    conn.execute(
+        """
+        CREATE TRIGGER procedure_bookings_updated_at
+        AFTER UPDATE ON procedure_bookings
+        FOR EACH ROW
+        BEGIN
+            UPDATE procedure_bookings SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
+        END;
+        """
+    )
+    conn.commit()
 
 
 def _normalize_consultation_column(conn: sqlite3.Connection) -> None:
