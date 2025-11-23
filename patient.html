@@ -7,146 +7,225 @@
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body class="patient-page">
-        <header class="patient-header">
-          <a href="/" class="back-link">← Back to schedule</a>
-          <button type="button" class="logout-link" data-logout-btn>Logout</button>
-          <div class="patient-heading">
-            <p class="patient-week" id="patient-week"></p>
-            <h1 id="patient-name">Patient Record</h1>
-            <p class="patient-city" id="patient-city"></p>
-          </div>
-        </header>
+          <header class="new-patient-header">
+            <div class="header-left">
+              <a href="/" class="back-link">← Back to schedule</a>
+              <h1 id="patient-name">Patient Record</h1>
+              <p class="patient-week" id="patient-week"></p>
+              <p class="patient-city" id="patient-city"></p>
+            </div>
+              <button type="button" class="logout-link" data-logout-btn>Logout</button>
+            </div>
+          </header>
 
-        <main class="patient-content settings-content">
-          <div class="settings-shell settings-shell--patient">
-            <aside class="settings-menu" role="tablist" aria-label="Patient sections">
-              <div class="settings-menu__group">
-                <div class="settings-menu__label-row">
-                  <p class="settings-menu__label">Procedures</p>
-                  <button type="button" class="secondary-btn" id="add-procedure-btn">Add</button>
+          <main class="patient-content new-patient-layout">
+            <section class="patient-form-section">
+              <header class="patient-panel__header">
+                <div class="patient-panel__title">
+                  <h2>Patient Details</h2>
                 </div>
-                <p id="procedures-status" class="form-status" role="status"></p>
-                <div id="patient-bookings-list" class="patient-bookings-sidebar">
-                  <!-- Procedures will be injected here -->
+                <div class="patient-panel__actions">
+                  <button type="submit" class="primary-btn" form="patient-form">Save Changes</button>
+                  <button type="button" class="danger-btn" id="delete-patient-btn">Delete Patient</button>
                 </div>
-              </div>
-            </aside>
-
-            <div class="settings-panels">
-              <section class="settings-section" id="patient-panel-details">
-                <header class="settings-section__header">
-                  <div>
-                    <p class="settings-section__eyebrow">Patient</p>
-                    <h2>Patient Details</h2>
-                  </div>
-                  <div class="form-actions settings-section__header-actions">
-                    <button type="submit" class="primary-btn" form="patient-form">Save Changes</button>
-                    <button type="button" class="danger-btn" id="cancel-procedure-btn" hidden>Cancel Procedure</button>
-                    <button type="button" class="danger-btn" id="delete-patient-btn" hidden>Delete Patient</button>
-                  </div>
-                </header>
-
-                <section class="patient-card">
-                  <form id="patient-form" class="patient-form">
-                    <div class="form-grid">
-                      <label class="form-field">
-                        <span>First Name</span>
-                        <input id="first-name" name="firstName" type="text" required placeholder="Enter first name" />
-                      </label>
-                      <label class="form-field">
-                        <span>Last Name</span>
-                        <input id="last-name" name="lastName" type="text" required placeholder="Enter last name" />
-                      </label>
-                      <label class="form-field">
-                        <span>Email</span>
-                        <input id="email" name="email" type="email" required placeholder="name@example.com" />
-                      </label>
-                      <label class="form-field">
-                        <span>Phone</span>
-                        <input id="phone" name="phone" type="tel" required placeholder="+1 555 000 0000" />
-                      </label>
-                      <label class="form-field">
-                        <span>City</span>
-                        <input id="city" name="city" type="text" required placeholder="City" />
-                      </label>
-                    </div>
-
-                    <div class="form-grid">
-                      <label class="form-field">
-                        <span>Procedure Date</span>
-                        <input
-                          id="procedure-date"
-                          name="procedureDate"
-                          type="date"
-                          placeholder="YYYY-MM-DD"
-                        />
-                      </label>
-                      <label class="form-field">
-                        <span>Status</span>
-                        <select id="status" name="status"></select>
-                      </label>
-                      <label class="form-field">
-                        <span>Procedure Type</span>
-                        <select id="procedure-type" name="procedureType"></select>
-                      </label>
-                      <label class="form-field">
-                        <span>Grafts</span>
-                        <input id="grafts" name="grafts" type="text" inputmode="numeric" placeholder="e.g. 2500" />
-                      </label>
-                      <label class="form-field">
-                        <span>Payment</span>
-                        <select id="payment" name="payment"></select>
-                      </label>
-                    </div>
-
-                    <div class="form-grid">
-                      <label class="form-field">
-                        <span>Forms</span>
-                        <div id="forms-checklist" class="form-checklist" role="group" aria-label="Forms checklist"></div>
-                        <select id="forms" name="forms" multiple size="5" hidden></select>
-                      </label>
-                      <label class="form-field">
-                        <span>Consents</span>
-                        <div id="consents-checklist" class="form-checklist" role="group" aria-label="Consents checklist"></div>
-                        <select id="consents" name="consents" multiple size="3" hidden></select>
-                      </label>
-                      <label class="form-field">
-                        <span>Consultations</span>
-                        <div id="consultations-checklist" class="form-checklist" role="group" aria-label="Consultations checklist"></div>
-                        <select id="consultation" name="consultation" multiple size="2" hidden></select>
-                      </label>
-                    </div>
-
-                    <p id="patient-status" class="form-status" role="status"></p>
-                    <p id="procedure-form-status" class="form-status" role="status"></p>
-                    <span id="form-status" class="form-status" role="status"></span>
-                  </form>
-                </section>
-
-            <section class="patient-card">
-              <h2>Upload Photos</h2>
-              <p class="upload-hint">Drag & drop or browse to upload multiple photos.</p>
-              <div class="drop-zone" id="drop-zone">
-                <input id="photo-input" type="file" multiple accept="image/*" hidden />
-                <button type="button" class="secondary-btn" id="browse-button">Browse files</button>
-                <p class="drop-zone__text">Drop up to 10 images. Files will be saved under uploads/<last-name></p>
-              </div>
-              <ul class="upload-list" id="upload-list"></ul>
-              <p class="upload-status" id="upload-status"></p>
+              </header>
+              <form id="patient-form" class="patient-form new-patient-form">
+                <div class="form-grid form-grid--two-col">
+                  <label class="form-field">
+                    <span>First Name</span>
+                    <input id="first-name" name="firstName" type="text" required value="New" placeholder="Enter first name" />
+                  </label>
+                  <label class="form-field">
+                    <span>Last Name</span>
+                    <input id="last-name" name="lastName" type="text" required value="Patient" placeholder="Enter last name" />
+                  </label>
+                  <label class="form-field">
+                    <span>Email</span>
+                    <input id="email" name="email" type="email" required value="test@example.com" placeholder="name@example.com" />
+                  </label>
+                  <label class="form-field">
+                    <span>Phone</span>
+                    <input id="phone" name="phone" type="tel" required value="+44 12345678" placeholder="+1 555 000 0000" />
+                  </label>
+                  <label class="form-field">
+                    <span>City</span>
+                    <input id="city" name="city" type="text" required value="fields" placeholder="City" />
+                  </label>
+                </div>
+                <p id="patient-status" class="form-status" role="status"></p>
+              </form>
             </section>
 
-            <section class="patient-card photo-section">
-              <div class="photo-section__header">
-                <h2>Patient Photos</h2>
-                <p class="photo-empty" id="photo-empty">No photos uploaded yet.</p>
+            <section class="two-column-section">
+              <div class="one-third-column">
+                <div class="patient-photo-card patient-card">
+                  <div class="patient-photo-card__header">
+                    <div>
+                      <p class="patient-panel__eyebrow">Photos</p>
+                      <h2>Upload & Gallery</h2>
+                    </div>
+                    <p class="upload-hint">Drag & drop or browse to upload multiple photos.</p>
+                  </div>
+                  <div class="drop-zone" id="drop-zone">
+                    <input id="photo-input" type="file" multiple accept="image/*" hidden />
+                    <button type="button" class="secondary-btn" id="browse-button">Browse files</button>
+                    <p class="drop-zone__text">Drop up to 10 images. Files will be saved under uploads/<last-name></p>
+                  </div>
+                  <ul class="upload-list" id="upload-list"></ul>
+                  <p class="upload-status" id="upload-status"></p>
+                  <div class="photo-section">
+                    <div class="photo-section__header">
+                      <h3>Patient Photos</h3>
+                      <p class="photo-empty" id="photo-empty">No photos uploaded yet.</p>
+                    </div>
+                    <div class="photo-gallery" id="photo-gallery"></div>
+                  </div>
+                </div>
               </div>
-              <div class="photo-gallery" id="photo-gallery"></div>
-            </section>
-          </section>
 
-        </div>
-      </div>
-    </main>
+              <div class="two-thirds-column">
+                <div class="patient-records">
+                  <section class="patient-tabs" data-patient-tabs>
+                    <aside class="patient-procedures settings-menu" role="tablist" aria-label="Procedures list">
+                      <div class="settings-menu__group">
+                        <div class="settings-menu__label-row">
+                          <p class="settings-menu__label">Procedures</p>
+                          <button type="button" class="secondary-btn" id="add-procedure-btn">Add</button>
+                          <button type="button" class="danger-btn" id="cancel-procedure-btn" hidden>Cancel Procedure</button>
+                        </div>
+                        <p id="procedures-status" class="form-status" role="status"></p>
+                        <div id="patient-bookings-list" class="patient-bookings-sidebar">
+                          <!-- Procedures will be injected here -->
+                        </div>
+                      </div>
+                      <div class="settings-menu__group" role="tablist" aria-label="Patient record sections">
+                        <button
+                          type="button"
+                          class="settings-tab is-active"
+                          aria-selected="true"
+                          role="tab"
+                          id="tab-surgery-btn"
+                          aria-controls="tab-surgery"
+                          data-tab-target="surgery"
+                        >
+                          <span class="settings-tab__title">Surgery</span>
+                          <span class="settings-tab__subtitle">Date, Status, Type</span>
+                        </button>
+                       
+                      </div>
+                    </aside>
+
+                    <div class="patient-tabs__panels">
+                      <section
+                        class="patient-tabs__panel is-active"
+                        id="tab-surgery"
+                        role="tabpanel"
+                        aria-labelledby="tab-surgery-btn"
+                        data-tab-panel="surgery"
+                      >
+                        <div class="form-grid">
+                          <label class="form-field">
+                            <span>Procedure Date</span>
+                            <input
+                              id="procedure-date"
+                              name="procedureDate"
+                              type="date"
+                              value="2025-11-01"
+                              placeholder="YYYY-MM-DD"
+                            />
+                          </label>
+                          <label class="form-field">
+                            <span>Status</span>
+                            <select id="status" name="status">
+                              <option value="reserved" selected>Reserved</option>
+                            </select>
+                          </label>
+                          <label class="form-field">
+                            <span>Procedure Type</span>
+                            <select id="procedure-type" name="procedureType">
+                              <option value="small" selected>Small</option>
+                            </select>
+                          </label>
+                          <label class="form-field">
+                            <span>Grafts</span>
+                            <input id="grafts" name="grafts" type="text" inputmode="numeric" value="2500" placeholder="e.g. 2500" />
+                          </label>
+                          <label class="form-field">
+                            <span>Payment</span>
+                            <select id="payment" name="payment">
+                              <option value="waiting" selected>Waiting</option>
+                            </select>
+                          </label>
+                        </div>
+                        <p id="procedure-form-status" class="form-status" role="status"></p>
+                      </section>
+
+                      <section
+                        class="patient-tabs__panel"
+                        id="tab-documents"
+                        role="tabpanel"
+                        aria-labelledby="tab-documents-btn"
+                        data-tab-panel="documents"
+                      >
+                        <div class="form-grid">
+                          <label class="form-field">
+                            <span>Forms</span>
+                            <div id="forms-checklist" class="form-checklist" role="group" aria-label="Forms checklist">
+                              <div class="form-checklist__item">Form 1 <button type="button">✕</button></div>
+                              <div class="form-checklist__item">Form 2 <button type="button">✕</button></div>
+                              <div class="form-checklist__item">Form 3 <button type="button">✕</button></div>
+                              <div class="form-checklist__item">Form 4 <button type="button">✕</button></div>
+                              <div class="form-checklist__item">Form 5 <button type="button">✕</button></div>
+                            </div>
+                            <select id="forms" name="forms" multiple size="5" hidden></select>
+                          </label>
+                          <label class="form-field">
+                            <span>Consents</span>
+                            <div
+                              id="consents-checklist"
+                              class="form-checklist"
+                              role="group"
+                              aria-label="Consents checklist"
+                            >
+                              <div class="form-checklist__item">Consent 1 <button type="button">✕</button></div>
+                              <div class="form-checklist__item">Consent 2 <button type="button">✕</button></div>
+                              <div class="form-checklist__item">Consent 3 <button type="button">✕</button></div>
+                            </div>
+                            <select id="consents" name="consents" multiple size="3" hidden></select>
+                          </label>
+                        </div>
+                      </section>
+
+                      <section
+                        class="patient-tabs__panel"
+                        id="tab-consults"
+                        role="tabpanel"
+                        aria-labelledby="tab-consults-btn"
+                        data-tab-panel="consults"
+                      >
+                        <div class="form-grid">
+                          <label class="form-field">
+                            <span>Consultations</span>
+                            <div
+                              id="consultations-checklist"
+                              class="form-checklist"
+                              role="group"
+                              aria-label="Consultations checklist"
+                            >
+                              <div class="form-checklist__item">Consultation 1 <button type="button">✕</button></div>
+                              <div class="form-checklist__item">Consultation 2 <button type="button">✕</button></div>
+                            </div>
+                            <select id="consultation" name="consultation" multiple size="2" hidden></select>
+                          </label>
+                        </div>
+                      </section>
+                    </div>
+                  </section>
+                </div>
+              </div>
+            </section>
+            <p id="form-status" class="form-status" role="status"></p>
+          </main>
 
     <div class="photo-viewer" id="photo-viewer" hidden>
       <button type="button" class="photo-viewer__close" id="photo-viewer-close" aria-label="Close viewer">

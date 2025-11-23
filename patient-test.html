@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Record (New)</title>
+    <link rel="stylesheet" href="/static/test.css">
+</head>
+<body class="new-patient-page">
+    <header class="dashboard-header">
+        <div class="dashboard-header__left">
+            <a href="/" class="back-link">← Back to schedule</a>
+            <h1 class="patient-name">Patient Record</h1>
+            <p class="patient-meta" id="patient-week"></p>
+            <p class="patient-meta" id="patient-city"></p>
+        </div>
+        <div class="dashboard-header__right">
+            <button type="button" class="btn btn-secondary">Settings</button>
+            <button type="button" class="btn btn-primary">Logout</button>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="patient-grid">
+            <section class="patient-details-card card">
+                <header class="card-header">
+                    <h2>Patient Details</h2>
+                    <div class="card-actions">
+                        <button type="submit" class="btn btn-primary" form="patient-form">Save Changes</button>
+                        <button type="button" class="btn btn-danger" id="delete-patient-btn">Delete Patient</button>
+                    </div>
+                </header>
+                <form id="patient-form" class="form-layout">
+                    <div class="form-group">
+                        <label for="first-name">First Name</label>
+                        <input id="first-name" name="firstName" type="text" value="New" placeholder="Enter first name" />
+                    </div>
+                    <div class="form-group">
+                        <label for="last-name">Last Name</label>
+                        <input id="last-name" name="lastName" type="text" value="Patient" placeholder="Enter last name" />
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input id="email" name="email" type="email" value="test@example.com" placeholder="name@example.com" />
+                    </div>
+                    <div class="form-group">
+                        <label for="phone">Phone</label>
+                        <input id="phone" name="phone" type="tel" value="+44 12345678" placeholder="+1 555 000 0000" />
+                    </div>
+                    <div class="form-group">
+                        <label for="city">City</label>
+                        <input id="city" name="city" type="text" value="fields" placeholder="City" />
+                    </div>
+                    <p id="patient-status" class="form-status" role="status"></p>
+                </form>
+            </section>
+
+            <section class="patient-media-section">
+                <div class="photo-upload-card card">
+                    <header class="card-header">
+                        <h2>Upload & Gallery</h2>
+                        <p class="upload-hint">Drag & drop or browse to upload multiple photos.</p>
+                    </header>
+                    <div class="drop-zone" id="drop-zone">
+                        <input id="photo-input" type="file" multiple accept="image/*" hidden />
+                        <button type="button" class="btn btn-secondary" id="browse-button">Browse files</button>
+                        <p class="drop-zone__text">Drop up to 10 images. Files will be saved under uploads/<last-name></p>
+                    </div>
+                    <ul class="upload-list" id="upload-list"></ul>
+                    <p class="upload-status" id="upload-status"></p>
+                    <div class="photo-gallery-section">
+                        <h3>Patient Photos</h3>
+                        <p class="photo-empty" id="photo-empty">No photos uploaded yet.</p>
+                        <div class="photo-gallery" id="photo-gallery"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="patient-surgery-section">
+                <div class="card">
+                    <header class="card-header">
+                        <h2>Procedures</h2>
+                        <div class="card-actions">
+                            <button type="button" class="btn btn-add" id="add-procedure-btn">Add</button>
+                            <button type="button" class="btn btn-danger" id="cancel-procedure-btn" hidden>Cancel Procedure</button>
+                        </div>
+                    </header>
+                    <div class="tab-menu" role="tablist" aria-label="Procedures list">
+                        <!-- Procedures will be injected here (dynamic tabs) -->
+                        <button
+                            type="button"
+                            class="tab-button is-active"
+                            aria-selected="true"
+                            role="tab"
+                            id="tab-surgery-btn"
+                            aria-controls="tab-surgery-panel"
+                            data-tab-target="surgery-panel"
+                        >
+                            Surgery
+                        </button>
+                        <button
+                            type="button"
+                            class="tab-button"
+                            aria-selected="false"
+                            role="tab"
+                            id="tab-documents-btn"
+                            aria-controls="tab-documents-panel"
+                            data-tab-target="documents-panel"
+                        >
+                            Forms & Consents
+                        </button>
+                        <button
+                            type="button"
+                            class="tab-button"
+                            aria-selected="false"
+                            role="tab"
+                            id="tab-consults-btn"
+                            aria-controls="tab-consults-panel"
+                            data-tab-target="consults-panel"
+                        >
+                            Consultations
+                        </button>
+                    </div>
+
+                    <div class="tab-panels">
+                        <section
+                            class="tab-panel is-active"
+                            id="tab-surgery-panel"
+                            role="tabpanel"
+                            aria-labelledby="tab-surgery-btn"
+                            data-tab-panel="surgery-panel"
+                        >
+                            <div class="form-layout">
+                                <div class="form-group">
+                                    <label for="procedure-date">Procedure Date</label>
+                                    <input id="procedure-date" name="procedureDate" type="date" value="2025-11-01" placeholder="YYYY-MM-DD" />
+                                </div>
+                                <div class="form-group">
+                                    <label for="status">Status</label>
+                                    <select id="status" name="status">
+                                        <option value="reserved" selected>Reserved</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="procedure-type">Procedure Type</label>
+                                    <select id="procedure-type" name="procedureType">
+                                        <option value="small" selected>Small</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="grafts">Grafts</label>
+                                    <input id="grafts" name="grafts" type="text" inputmode="numeric" value="2500" placeholder="e.g. 2500" />
+                                </div>
+                                <div class="form-group">
+                                    <label for="payment">Payment</label>
+                                    <select id="payment" name="payment">
+                                        <option value="waiting" selected>Waiting</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <p id="procedure-form-status" class="form-status" role="status"></p>
+                        </section>
+
+                        <section
+                            class="tab-panel"
+                            id="tab-documents-panel"
+                            role="tabpanel"
+                            aria-labelledby="tab-documents-btn"
+                            data-tab-panel="documents-panel"
+                        >
+                            <div class="form-layout">
+                                <div class="form-group">
+                                    <span>Forms</span>
+                                    <div id="forms-checklist" class="checklist" role="group" aria-label="Forms checklist">
+                                        <div class="checklist-item">Form 1 <button type="button" class="checklist-remove">✕</button></div>
+                                        <div class="checklist-item">Form 2 <button type="button" class="checklist-remove">✕</button></div>
+                                        <div class="checklist-item">Form 3 <button type="button" class="checklist-remove">✕</button></div>
+                                        <div class="checklist-item">Form 4 <button type="button" class="checklist-remove">✕</button></div>
+                                        <div class="checklist-item">Form 5 <button type="button" class="checklist-remove">✕</button></div>
+                                    </div>
+                                    <select id="forms" name="forms" multiple size="5" hidden></select>
+                                </div>
+                                <div class="form-group">
+                                    <span>Consents</span>
+                                    <div
+                                        id="consents-checklist"
+                                        class="checklist"
+                                        role="group"
+                                        aria-label="Consents checklist"
+                                    >
+                                        <div class="checklist-item">Consent 1 <button type="button" class="checklist-remove">✕</button></div>
+                                        <div class="checklist-item">Consent 2 <button type="button" class="checklist-remove">✕</button></div>
+                                        <div class="checklist-item">Consent 3 <button type="button" class="checklist-remove">✕</button></div>
+                                    </div>
+                                    <select id="consents" name="consents" multiple size="3" hidden></select>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section
+                            class="tab-panel"
+                            id="tab-consults-panel"
+                            role="tabpanel"
+                            aria-labelledby="tab-consults-btn"
+                            data-tab-panel="consults-panel"
+                        >
+                            <div class="form-layout">
+                                <div class="form-group">
+                                    <span>Consultations</span>
+                                    <div
+                                        id="consultations-checklist"
+                                        class="checklist"
+                                        role="group"
+                                        aria-label="Consultations checklist"
+                                    >
+                                        <div class="checklist-item">Consultation 1 <button type="button" class="checklist-remove">✕</button></div>
+                                        <div class="checklist-item">Consultation 2 <button type="button" class="checklist-remove">✕</button></div>
+                                    </div>
+                                    <select id="consultation" name="consultation" multiple size="2" hidden></select>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <div class="photo-viewer" id="photo-viewer" hidden>
+        <button type="button" class="photo-viewer__close" id="photo-viewer-close" aria-label="Close viewer">
+            ×
+        </button>
+        <button
+            type="button"
+            class="photo-viewer__nav photo-viewer__nav--prev"
+            id="photo-viewer-prev"
+            aria-label="Previous photo"
+        >
+            ←
+        </button>
+        <img id="photo-viewer-image" alt="Patient photo" />
+        <p id="photo-viewer-caption"></p>
+        <button
+            type="button"
+            class="photo-viewer__nav photo-viewer__nav--next"
+            id="photo-viewer-next"
+            aria-label="Next photo"
+        >
+            →
+        </button>
+        <button type="button" class="photo-viewer__delete" id="photo-viewer-delete">Delete photo</button>
+    </div>
+
+    <script src="/app-config.js"></script>
+    <!-- Linked to patient-test.js for new interactive features -->
+    <script src="patient-test.js" type="module"></script>
+</body>
+</html>

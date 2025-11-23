@@ -1,0 +1,459 @@
+/* Base Styles */
+:root {
+    font-family: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    color: #333;
+    background-color: #f4f7f6;
+    line-height: 1.6;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.dashboard-header {
+    background-color: #2c3e50;
+    color: #fff;
+    padding: 1.5rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-header__left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.dashboard-header__left .back-link {
+    color: #87ceeb; /* Light blue */
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.dashboard-header__left .patient-name {
+    margin: 0;
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+.dashboard-header__left .patient-meta {
+    margin: 0;
+    color: #bbb;
+    font-size: 0.9rem;
+}
+
+.dashboard-header__right {
+    display: flex;
+    gap: 0.8rem;
+}
+
+/* Buttons */
+.btn {
+    padding: 0.7rem 1.2rem;
+    border-radius: 20px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.btn-primary {
+    background-color: #87ceeb; /* Light blue */
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background-color: #64b5dc;
+}
+
+.btn-secondary {
+    background-color: #e0e0e0;
+    color: #333;
+}
+
+.btn-secondary:hover {
+    background-color: #ccc;
+}
+
+.btn-danger {
+    background-color: #ff6b6b;
+    color: #fff;
+}
+
+.btn-danger:hover {
+    background-color: #e65c5c;
+}
+
+.btn-add {
+    background-color: #87ceeb; /* Light blue */
+    color: #fff;
+}
+
+.btn-add:hover {
+    background-color: #64b5dc;
+}
+
+/* Main Content Layout */
+.main-content {
+    flex-grow: 1;
+    padding: 2rem;
+    max-width: 1300px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.patient-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr; /* Details 1.2fr, Media 1fr, Surgery 2fr */
+    grid-template-areas:
+        "details media"
+        "details surgery";
+    gap: 2rem;
+}
+
+.patient-details-card {
+    grid-area: details;
+}
+
+.patient-media-section {
+    grid-area: media;
+}
+
+.patient-surgery-section {
+    grid-area: surgery;
+}
+
+/* Card Styles */
+.card {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    border: 1px solid #eee;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #eee;
+}
+
+.card-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #2c3e50;
+}
+
+.card-actions {
+    display: flex;
+    gap: 0.8rem;
+}
+
+/* Form Styles */
+.form-layout {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.2rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    font-weight: 600;
+    margin-bottom: 0.4rem;
+    color: #555;
+}
+
+.form-group input[type="text"],
+.form-group input[type="email"],
+.form-group input[type="tel"],
+.form-group input[type="date"],
+.form-group select {
+    padding: 0.8rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 1rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.form-group select[multiple] {
+    min-height: 120px;
+}
+
+.form-status {
+    margin-top: 1rem;
+    font-size: 0.9rem;
+    color: green;
+}
+
+/* Photo Upload and Gallery */
+.upload-hint {
+    color: #777;
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+}
+
+.drop-zone {
+    border: 2px dashed #ccc;
+    border-radius: 10px;
+    padding: 2rem;
+    text-align: center;
+    background-color: #f9f9f9;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.drop-zone:hover {
+    border-color: #87ceeb;
+    background-color: #eaf6fc;
+}
+
+.drop-zone__text {
+    color: #777;
+    margin-top: 1rem;
+}
+
+.upload-list {
+    list-style: none;
+    padding: 0;
+    margin-top: 1rem;
+}
+
+.upload-list li {
+    background-color: #f0f0f0;
+    padding: 0.5rem 0.8rem;
+    border-radius: 5px;
+    margin-bottom: 0.5rem;
+}
+
+.photo-gallery-section h3 {
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+    color: #2c3e50;
+    border-top: 1px solid #eee;
+    padding-top: 1rem;
+}
+
+.photo-empty {
+    color: #999;
+    font-style: italic;
+}
+
+.photo-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.photo-thumb {
+    width: 100px;
+    height: 100px;
+    background-color: #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    cursor: pointer;
+    background-size: cover;
+    background-position: center;
+}
+
+/* Tabs Menu */
+.tab-menu {
+    display: flex;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 1.5rem;
+}
+
+.tab-button {
+    padding: 0.8rem 1.5rem;
+    border: none;
+    background-color: transparent;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #777;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-bottom: 3px solid transparent;
+}
+
+.tab-button:hover {
+    color: #87ceeb;
+}
+
+.tab-button.is-active {
+    color: #87ceeb;
+    border-bottom-color: #87ceeb;
+}
+
+.tab-panels {
+    padding-top: 1rem;
+}
+
+.tab-panel {
+    display: none;
+}
+
+.tab-panel.is-active {
+    display: block;
+}
+
+/* Checklist */
+.checklist {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 1rem;
+    background-color: #f9f9f9;
+}
+
+.checklist-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem 0;
+    border-bottom: 1px dashed #eee;
+}
+
+.checklist-item:last-child {
+    border-bottom: none;
+}
+
+.checklist-remove {
+    background-color: #eee;
+    border: none;
+    border-radius: 50%;
+    width: 25px;
+    height: 25px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.9rem;
+    cursor: pointer;
+    color: #555;
+}
+
+.checklist-remove:hover {
+    background-color: #ff6b6b;
+    color: #fff;
+}
+
+/* Photo Viewer (retained from original patient.html, can be adjusted) */
+.photo-viewer {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    padding: 2rem;
+    z-index: 1000;
+    gap: 1rem;
+}
+
+.photo-viewer[hidden] {
+    display: none;
+}
+
+.photo-viewer img {
+    max-width: 90vw;
+    max-height: 70vh;
+    border-radius: 16px;
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45);
+}
+
+.photo-viewer__close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    border: none;
+    background: transparent;
+    color: #ffffff;
+    font-size: 2rem;
+    cursor: pointer;
+}
+
+.photo-viewer__nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: rgba(15, 23, 42, 0.6);
+    color: #ffffff;
+    font-size: 1.5rem;
+    border-radius: 999px;
+    padding: 0.5rem 0.85rem;
+    cursor: pointer;
+}
+
+.photo-viewer__nav--prev {
+    left: 1rem;
+}
+
+.photo-viewer__nav--next {
+    right: 1rem;
+}
+
+.photo-viewer__delete {
+    border: none;
+    background: #dc2626;
+    color: #fff;
+    font-weight: 600;
+    padding: 0.5rem 1.5rem;
+    border-radius: 999px;
+    cursor: pointer;
+}
+
+/* Responsive adjustments */
+@media (max-width: 960px) {
+    .patient-grid {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "details"
+            "media"
+            "surgery";
+    }
+
+    .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .dashboard-header__right {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .tab-menu {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 600px) {
+    .form-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .card-actions {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .card-actions .btn {
+        width: 100%;
+    }
+}
