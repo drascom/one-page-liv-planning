@@ -12,6 +12,13 @@ from typing import Any, Dict, List, Optional, Tuple
 
 DB_PATH = Path(__file__).resolve().parent / "liv_planning.db"
 
+
+def _table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
+    cursor = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name = ?", (table_name,)
+    )
+    return cursor.fetchone() is not None
+
 FIELD_OPTION_FIELDS: List[str] = [
     "status",
     "procedure_type",
@@ -242,6 +249,7 @@ def init_db() -> None:
         _ensure_field_options(conn)
         conn.commit()
         _seed_patients_if_empty(conn)
+        _seed_procedures_from_patients_if_empty(conn)
 
 
 def _ensure_procedure_date_column(conn: sqlite3.Connection) -> None:
@@ -1049,6 +1057,64 @@ def _seed_patients_if_empty(conn: sqlite3.Connection) -> bool:
         )
     conn.commit()
     return True
+
+
+def _seed_procedures_from_patients_if_empty(conn: sqlite3.Connection) -> bool:
+    if not _table_exists(conn, "procedures"):
+        return False
+    cursor = conn.execute("SELECT COUNT(*) FROM procedures")
+    if cursor.fetchone()[0]:
+        return False
+
+    schema_cursor = conn.execute("PRAGMA table_info(procedures)")
+    available_columns = {row[1] for row in schema_cursor.fetchall()}
+    required_columns = {"patient_id", "procedure_date"}
+    if not required_columns.issubset(available_columns):
+        return False
+
+    original_row_factory = conn.row_factory
+    conn.row_factory = sqlite3.Row
+    try:
+        cursor = conn.execute(
+            """
+            SELECT
+                id, procedure_date, procedure_type, status, grafts, payment,
+                consultation, forms, consents, photos, photo_files
+            FROM patients
+            WHERE deleted IS NULL OR deleted = 0
+            """
+        )
+        rows = cursor.fetchall()
+    finally:
+        conn.row_factory = original_row_factory
+
+    inserted = 0
+    for row in rows:
+        payload = {
+            "patient_id": row["id"],
+            "procedure_date": _date_only(row["procedure_date"]),
+            "procedure_type": row["procedure_type"],
+            "status": row["status"],
+            "grafts": row["grafts"],
+            "payment": row["payment"],
+            "consultation": json.dumps(_deserialize_consultation(row["consultation"])),
+            "forms": row["forms"] or "[]",
+            "consents": row["consents"] or "[]",
+            "photos": row["photos"],
+            "photo_files": row["photo_files"] or "[]",
+        }
+        insertable_columns = [col for col in payload.keys() if col in available_columns]
+        if not insertable_columns:
+            continue
+        placeholders = ", ".join(["?"] * len(insertable_columns))
+        conn.execute(
+            f"INSERT OR IGNORE INTO procedures ({', '.join(insertable_columns)}) VALUES ({placeholders})",
+            [payload[col] for col in insertable_columns],
+        )
+        inserted += 1
+    if inserted:
+        conn.commit()
+    return bool(inserted)
 
 
 DEFAULT_PATIENTS: List[Dict[str, Any]] = []
