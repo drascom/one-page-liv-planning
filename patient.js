@@ -548,8 +548,15 @@ async function fetchProceduresForPatient(patientId) {
     const response = await fetch(buildApiUrl(`/patients/${patientId}/procedures`));
     handleUnauthorized(response);
     let payload = [];
+    let emptyMessage = "";
     if (response.ok) {
-      payload = await response.json();
+      const body = await response.json();
+      if (Array.isArray(body)) {
+        payload = body;
+      } else if (body && Array.isArray(body.procedures)) {
+        payload = body.procedures;
+        emptyMessage = typeof body.message === "string" ? body.message : "";
+      }
     } else {
       const fallback = await fetch(buildApiUrl("/procedures"));
       handleUnauthorized(fallback);
@@ -573,7 +580,7 @@ async function fetchProceduresForPatient(patientId) {
     if (proceduresStatusEl) {
       proceduresStatusEl.textContent = patientProcedures.length
         ? ""
-        : "No procedures found. Use Add to create one.";
+        : emptyMessage || "No procedures found. Use Add to create one.";
     }
     return patientProcedures;
   } catch (error) {

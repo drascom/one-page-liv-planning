@@ -44,6 +44,7 @@ from .models import (
     Procedure,
     ProcedureCreate,
     ProcedureCreatePayload,
+    ProcedureListResponse,
     ProcedureSearchResult,
     DeletedProcedureRecord,
     Photo,
@@ -179,13 +180,16 @@ def get_patient(patient_id: int) -> Patient:
     return Patient(**record)
 
 
-@patients_router.get("/{patient_id}/procedures", response_model=list[Procedure])
-def list_procedures(patient_id: int, include_deleted: bool = False) -> list[Procedure]:
+@patients_router.get("/{patient_id}/procedures", response_model=ProcedureListResponse)
+def list_procedures(patient_id: int, include_deleted: bool = False) -> ProcedureListResponse:
     patient = database.fetch_patient(patient_id, include_deleted=True)
     if not patient:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     records = database.list_procedures_for_patient(patient_id, include_deleted=include_deleted)
-    return [Procedure(**record) for record in records]
+    procedures = [Procedure(**record) for record in records]
+    if not procedures:
+        return ProcedureListResponse(success=False, message="No procedures found for this patient.", procedures=[])
+    return ProcedureListResponse(success=True, procedures=procedures)
 
 
 @patients_router.post("/{patient_id}/procedures", response_model=OperationResult, status_code=status.HTTP_201_CREATED)

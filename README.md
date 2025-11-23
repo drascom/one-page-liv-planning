@@ -99,6 +99,7 @@ If you are behind nginx proxy manager with ssl certificate than use
 | GET/PUT | `/procedures/{id}` | Fetch or update a procedure |
 | DELETE | `/procedures/{id}` | Delete a procedure |
 | GET | `/procedures/search?patient_id=123&procedure_date=2025-02-12` | Return `{ "success": true, "procedure": { ... } }` when a patient has a procedure on the supplied date, or `{ "success": false, "message": "Procedure not found" }` otherwise. |
+| GET | `/patients/{id}/procedures` | Return `{ "success": true, "procedures": [ ... ] }` when the patient has linked procedures or `{ "success": false, "message": "No procedures found for this patient.", "procedures": [] }` |
 | GET/POST/DELETE | `/patients/{id}/photos` | List/create/delete photo metadata (files land in `/uploads`) |
 | GET/POST/DELETE | `/patients/{id}/payments` | Manage patient payments |
 | POST | `/uploads/{last_name}` | Upload photos for a patient |
@@ -215,6 +216,19 @@ curl -X POST "http://127.0.0.1:8000/api/v1/procedures" \
     "consents": [],
     "photo_files": []
   }'
+```
+
+List all procedures for a patient (the API now includes a friendly message when none exist):
+
+```bash
+curl -X GET "http://127.0.0.1:8000/api/v1/patients/123/procedures" \
+  -H "Authorization: Bearer f1iUbTg7yfh1cdncn2SWcq3t1eiQZZQUHmVZS3jPIrOiquyx"
+```
+
+Sample empty response:
+
+```json
+{ "success": false, "message": "No procedures found for this patient.", "procedures": [] }
 ```
 
 Check whether a patient already has a procedure scheduled on a specific date:

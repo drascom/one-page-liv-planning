@@ -90,6 +90,12 @@ class ProcedureSearchResult(BaseModel):
     procedure: Optional[Procedure] = Field(None, description="Matched procedure when success is true")
 
 
+class ProcedureListResponse(BaseModel):
+    success: bool = Field(..., description="Whether any procedures were returned")
+    message: Optional[str] = Field(None, description="Helper text when the list is empty")
+    procedures: List[Procedure] = Field(default_factory=list, description="Procedures linked to the patient")
+
+
 class PhotoBase(BaseModel):
     """Photo model for patient photos."""
     name: str = Field(..., description="Photo name/description")

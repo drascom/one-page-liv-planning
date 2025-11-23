@@ -43,6 +43,24 @@ def _create_patient(client: TestClient) -> int:
     return data["id"]
 
 
+def _create_procedure(client: TestClient, patient_id: int, *, date: str = "2025-01-02") -> int:
+    payload = {
+        "patient_id": patient_id,
+        "procedure_date": date,
+        "status": "reserved",
+        "procedure_type": "small",
+        "grafts": "",
+        "payment": "waiting",
+        "consultation": [],
+        "forms": [],
+        "consents": [],
+        "photo_files": [],
+    }
+    created = client.post("/procedures", json=payload)
+    assert created.status_code == 201
+    return created.json()["id"]
+
+
 def test_procedure_crud_and_filtering(client: TestClient):
     patient_id = _create_patient(client)
 
@@ -243,3 +261,24 @@ def test_procedure_search_returns_success_and_message(client: TestClient):
     missing_patient_body = missing_patient.json()
     assert missing_patient_body["success"] is False
     assert missing_patient_body["message"] == "Patient record not found"
+
+
+def test_patient_procedure_list_returns_message_when_empty(client: TestClient):
+    patient_id = _create_patient(client)
+
+    empty = client.get(f"/patients/{patient_id}/procedures")
+    assert empty.status_code == 200
+    empty_body = empty.json()
+    assert empty_body["success"] is False
+    assert empty_body["procedures"] == []
+    assert empty_body["message"] == "No procedures found for this patient."
+
+    procedure_id = _create_procedure(client, patient_id, date="2025-05-06")
+
+    populated = client.get(f"/patients/{patient_id}/procedures")
+    assert populated.status_code == 200
+    populated_body = populated.json()
+    assert populated_body["success"] is True
+    assert populated_body["message"] in (None, "")
+    assert len(populated_body["procedures"]) == 1
+    assert populated_body["procedures"][0]["id"] == procedure_id
