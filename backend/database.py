@@ -12,6 +12,13 @@ from typing import Any, Dict, List, Optional, Tuple
 
 DB_PATH = Path(__file__).resolve().parent / "liv_planning.db"
 
+
+def _table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
+    cursor = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name = ?", (table_name,)
+    )
+    return cursor.fetchone() is not None
+
 FIELD_OPTION_FIELDS: List[str] = [
     "status",
     "procedure_type",
@@ -227,6 +234,23 @@ def init_db() -> None:
         )
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS procedure_bookings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                patient_id INTEGER NOT NULL,
+                type TEXT NOT NULL,
+                status TEXT NOT NULL,
+                scheduled_at TEXT,
+                provider TEXT,
+                notes TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(patient_id) REFERENCES patients(id)
+            )
+            """
+        )
+        _ensure_procedure_booking_updated_at_trigger(conn)
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS field_options (
                 field TEXT PRIMARY KEY,
                 options TEXT NOT NULL
@@ -257,7 +281,9 @@ def init_db() -> None:
         _ensure_api_token_user_column(conn)
         _ensure_field_options(conn)
         conn.commit()
+        _seed_procedures_from_patients(conn)
         _seed_patients_if_empty(conn)
+        _seed_procedures_from_patients_if_empty(conn)
 
 
 def _ensure_procedure_date_column(conn: sqlite3.Connection) -> None:
@@ -294,6 +320,47 @@ def _ensure_deleted_column(conn: sqlite3.Connection) -> None:
         return
     conn.execute("ALTER TABLE patients ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0")
     conn.execute("UPDATE patients SET deleted = 0 WHERE deleted IS NULL")
+    conn.commit()
+
+
+def _seed_procedures_from_patients(conn: sqlite3.Connection) -> None:
+    cursor = conn.execute("SELECT COUNT(*) FROM procedures")
+    if cursor.fetchone()[0]:
+        return
+    cursor = conn.execute("SELECT * FROM patients")
+    rows = cursor.fetchall()
+    for row in rows:
+        payload = _serialize_patient_payload(dict(row))
+        conn.execute(
+            """
+            INSERT INTO procedures (
+                patient_id, legacy_patient_id, month_label, week_label, week_range, week_order,
+                day_label, day_order, procedure_date, status, procedure_type, grafts, payment,
+                consultation, forms, consents, photos, photo_files, deleted
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                row["id"],
+                row["id"],
+                payload["month_label"],
+                payload["week_label"],
+                payload["week_range"],
+                payload["week_order"],
+                payload["day_label"],
+                payload["day_order"],
+                payload["procedure_date"],
+                payload["status"],
+                payload["procedure_type"],
+                payload["grafts"],
+                payload["payment"],
+                payload["consultation"],
+                payload["forms"],
+                payload["consents"],
+                payload["photos"],
+                payload["photo_files"],
+                row["deleted"],
+            ),
+        )
     conn.commit()
 
 
@@ -361,6 +428,25 @@ def _ensure_api_token_user_column(conn: sqlite3.Connection) -> None:
             """
         )
         conn.commit()
+
+
+def _ensure_procedure_booking_updated_at_trigger(conn: sqlite3.Connection) -> None:
+    cursor = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type = 'trigger' AND name = 'procedure_bookings_updated_at'"
+    )
+    if cursor.fetchone():
+        return
+    conn.execute(
+        """
+        CREATE TRIGGER procedure_bookings_updated_at
+        AFTER UPDATE ON procedure_bookings
+        FOR EACH ROW
+        BEGIN
+            UPDATE procedure_bookings SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
+        END;
+        """
+    )
+    conn.commit()
 
 
 def _normalize_consultation_column(conn: sqlite3.Connection) -> None:
@@ -492,6 +578,7 @@ def _deserialize_consultation(value: Optional[str]) -> List[str]:
 def _row_to_patient(row: sqlite3.Row) -> Dict[str, Any]:
     return {
         "id": row["id"],
+        "patient_id": row["id"],
         "month_label": row["month_label"],
         "week_label": row["week_label"],
         "week_range": row["week_range"],
@@ -835,6 +922,33 @@ def _serialize_patient_payload(data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _serialize_procedure_payload(data: Dict[str, Any]) -> Dict[str, Any]:
+    base_payload = _serialize_patient_payload(data)
+    return {
+        key: value
+        for key, value in base_payload.items()
+        if key
+        in {
+            "month_label",
+            "week_label",
+            "week_range",
+            "week_order",
+            "day_label",
+            "day_order",
+            "procedure_date",
+            "status",
+            "procedure_type",
+            "grafts",
+            "payment",
+            "consultation",
+            "forms",
+            "consents",
+            "photos",
+            "photo_files",
+        }
+    }
+
+
 def create_patient(data: Dict[str, Any]) -> Dict[str, Any]:
     payload = _serialize_patient_payload(data)
     with closing(get_connection()) as conn:
@@ -960,6 +1074,146 @@ def delete_patient(patient_id: int) -> bool:
             WHERE id = ? AND deleted = 0
             """,
             (patient_id,),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+
+
+def list_procedures_for_patient(patient_id: int, *, include_deleted: bool = False) -> List[Dict[str, Any]]:
+    clauses = ["patient_id = ?"]
+    params: List[Any] = [patient_id]
+    if not include_deleted:
+        clauses.append("deleted = 0")
+    where = " AND ".join(clauses)
+    with closing(get_connection()) as conn:
+        cursor = conn.execute(
+            f"SELECT * FROM procedures WHERE {where} ORDER BY procedure_date ASC, id ASC",
+            params,
+        )
+        return [_row_to_procedure(row) for row in cursor.fetchall()]
+
+
+def fetch_procedure(procedure_id: int, *, include_deleted: bool = False) -> Optional[Dict[str, Any]]:
+    with closing(get_connection()) as conn:
+        query = "SELECT * FROM procedures WHERE id = ?"
+        params: Tuple[int, ...] = (procedure_id,)
+        if not include_deleted:
+            query += " AND deleted = 0"
+        cursor = conn.execute(query, params)
+        row = cursor.fetchone()
+        return _row_to_procedure(row) if row else None
+
+
+def create_procedure(patient_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
+    payload = _serialize_procedure_payload(data)
+    with closing(get_connection()) as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO procedures (
+                patient_id, month_label, week_label, week_range, week_order,
+                day_label, day_order, procedure_date, status, procedure_type, grafts, payment,
+                consultation, forms, consents, photos, photo_files, deleted
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+            """,
+            (
+                patient_id,
+                payload["month_label"],
+                payload["week_label"],
+                payload["week_range"],
+                payload["week_order"],
+                payload["day_label"],
+                payload["day_order"],
+                payload["procedure_date"],
+                payload["status"],
+                payload["procedure_type"],
+                payload["grafts"],
+                payload["payment"],
+                payload["consultation"],
+                payload["forms"],
+                payload["consents"],
+                payload["photos"],
+                payload["photo_files"],
+            ),
+        )
+        conn.commit()
+        new_id = cursor.lastrowid
+    created = fetch_procedure(new_id)
+    if not created:
+        raise RuntimeError("Failed to fetch procedure after creation")
+    return created
+
+
+def update_procedure(procedure_id: int, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    payload = _serialize_procedure_payload(data)
+    with closing(get_connection()) as conn:
+        cursor = conn.execute(
+            """
+            UPDATE procedures
+            SET
+                month_label = ?,
+                week_label = ?,
+                week_range = ?,
+                week_order = ?,
+                day_label = ?,
+                day_order = ?,
+                procedure_date = ?,
+                status = ?,
+                procedure_type = ?,
+                grafts = ?,
+                payment = ?,
+                consultation = ?,
+                forms = ?,
+                consents = ?,
+                photos = ?,
+                photo_files = ?
+            WHERE id = ?
+            """,
+            (
+                payload["month_label"],
+                payload["week_label"],
+                payload["week_range"],
+                payload["week_order"],
+                payload["day_label"],
+                payload["day_order"],
+                payload["procedure_date"],
+                payload["status"],
+                payload["procedure_type"],
+                payload["grafts"],
+                payload["payment"],
+                payload["consultation"],
+                payload["forms"],
+                payload["consents"],
+                payload["photos"],
+                payload["photo_files"],
+                procedure_id,
+            ),
+        )
+        conn.commit()
+        if cursor.rowcount == 0:
+            return None
+    return fetch_procedure(procedure_id)
+
+
+def delete_procedure(procedure_id: int) -> bool:
+    with closing(get_connection()) as conn:
+        cursor = conn.execute(
+            """
+            UPDATE procedures
+            SET
+                deleted = 1,
+                status = 'deleted',
+                procedure_type = 'deleted',
+                grafts = '',
+                payment = '',
+                consultation = '[]',
+                forms = '[]',
+                consents = '[]',
+                photos = 0,
+                photo_files = '[]',
+                procedure_date = NULL
+            WHERE id = ? AND deleted = 0
+            """,
+            (procedure_id,),
         )
         conn.commit()
         return cursor.rowcount > 0
@@ -1155,6 +1409,64 @@ def _seed_patients_if_empty(conn: sqlite3.Connection) -> bool:
         )
     conn.commit()
     return True
+
+
+def _seed_procedures_from_patients_if_empty(conn: sqlite3.Connection) -> bool:
+    if not _table_exists(conn, "procedures"):
+        return False
+    cursor = conn.execute("SELECT COUNT(*) FROM procedures")
+    if cursor.fetchone()[0]:
+        return False
+
+    schema_cursor = conn.execute("PRAGMA table_info(procedures)")
+    available_columns = {row[1] for row in schema_cursor.fetchall()}
+    required_columns = {"patient_id", "procedure_date"}
+    if not required_columns.issubset(available_columns):
+        return False
+
+    original_row_factory = conn.row_factory
+    conn.row_factory = sqlite3.Row
+    try:
+        cursor = conn.execute(
+            """
+            SELECT
+                id, procedure_date, procedure_type, status, grafts, payment,
+                consultation, forms, consents, photos, photo_files
+            FROM patients
+            WHERE deleted IS NULL OR deleted = 0
+            """
+        )
+        rows = cursor.fetchall()
+    finally:
+        conn.row_factory = original_row_factory
+
+    inserted = 0
+    for row in rows:
+        payload = {
+            "patient_id": row["id"],
+            "procedure_date": _date_only(row["procedure_date"]),
+            "procedure_type": row["procedure_type"],
+            "status": row["status"],
+            "grafts": row["grafts"],
+            "payment": row["payment"],
+            "consultation": json.dumps(_deserialize_consultation(row["consultation"])),
+            "forms": row["forms"] or "[]",
+            "consents": row["consents"] or "[]",
+            "photos": row["photos"],
+            "photo_files": row["photo_files"] or "[]",
+        }
+        insertable_columns = [col for col in payload.keys() if col in available_columns]
+        if not insertable_columns:
+            continue
+        placeholders = ", ".join(["?"] * len(insertable_columns))
+        conn.execute(
+            f"INSERT OR IGNORE INTO procedures ({', '.join(insertable_columns)}) VALUES ({placeholders})",
+            [payload[col] for col in insertable_columns],
+        )
+        inserted += 1
+    if inserted:
+        conn.commit()
+    return bool(inserted)
 
 
 DEFAULT_PATIENTS: List[Dict[str, Any]] = []
