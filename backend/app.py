@@ -16,6 +16,7 @@ from .routes import (
     config_router,
     field_options_router,
     patients_router,
+    procedures_router,
     require_api_token,
     router as plans_router,
     search_router,
@@ -54,7 +55,14 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory=str(settings.static_root)), name="static")
 app.mount("/uploaded-files", StaticFiles(directory=str(settings.uploads_root)), name="uploaded-files")
 
-PROTECTED_FRONTEND_PREFIXES: tuple[str, ...] = ("/plans", "/patients", "/uploads", "/field-options", "/api-tokens")
+PROTECTED_FRONTEND_PREFIXES: tuple[str, ...] = (
+    "/plans",
+    "/patients",
+    "/procedures",
+    "/uploads",
+    "/field-options",
+    "/api-tokens",
+)
 
 
 def _redirect_to_login(request: Request) -> RedirectResponse:
@@ -115,11 +123,20 @@ def create_app() -> FastAPI:
     auth_dependency = [Depends(require_current_user)]
     api.include_router(plans_router, dependencies=auth_dependency, include_in_schema=False)
     api.include_router(patients_router, dependencies=auth_dependency, include_in_schema=False)
+    api.include_router(procedures_router, dependencies=auth_dependency, include_in_schema=False)
     api.include_router(api_tokens_router, dependencies=auth_dependency)
     api.include_router(audit_router, dependencies=auth_dependency)
     api.include_router(upload_router, dependencies=auth_dependency, include_in_schema=False)
     api.include_router(field_options_router, dependencies=auth_dependency, include_in_schema=False)
-    for protected_router in (plans_router, patients_router, upload_router, field_options_router, status_router, search_router):
+    for protected_router in (
+        plans_router,
+        patients_router,
+        procedures_router,
+        upload_router,
+        field_options_router,
+        status_router,
+        search_router,
+    ):
         api.include_router(
             protected_router,
             prefix="/api/v1",
@@ -151,11 +168,20 @@ app.include_router(auth_router)
 auth_dependency = [Depends(require_current_user)]
 app.include_router(plans_router, dependencies=auth_dependency, include_in_schema=False)
 app.include_router(patients_router, dependencies=auth_dependency, include_in_schema=False)
+app.include_router(procedures_router, dependencies=auth_dependency, include_in_schema=False)
 app.include_router(api_tokens_router, dependencies=auth_dependency)
 app.include_router(audit_router, dependencies=auth_dependency)
 app.include_router(upload_router, dependencies=auth_dependency, include_in_schema=False)
 app.include_router(field_options_router, dependencies=auth_dependency, include_in_schema=False)
-for protected_router in (plans_router, patients_router, upload_router, field_options_router, status_router, search_router):
+for protected_router in (
+    plans_router,
+    patients_router,
+    procedures_router,
+    upload_router,
+    field_options_router,
+    status_router,
+    search_router,
+):
     app.include_router(
         protected_router,
         prefix="/api/v1",

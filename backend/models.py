@@ -104,6 +104,27 @@ class PatientSearchResult(BaseModel):
     message: Optional[str] = Field(None, description="Human readable message (e.g. when the patient is missing)")
 
 
+class ProcedureBase(BaseModel):
+    patient_id: int = Field(..., description="Identifier for the related patient")
+    name: str = Field(..., description="Short label for the procedure (e.g. Consultation, Surgery)")
+    procedure_type: str = Field(..., description="Type/category of the procedure")
+    status: str = Field(..., description="Workflow status for this procedure")
+    procedure_date: Optional[str] = Field(None, description="ISO date when the procedure occurs")
+    payment: Optional[str] = Field(None, description="Payment status or note for this procedure")
+    notes: Optional[str] = Field(None, description="Free-form notes about the procedure")
+
+
+class ProcedureCreate(ProcedureBase):
+    pass
+
+
+class Procedure(ProcedureBase):
+    id: int = Field(..., description="Database identifier for the procedure")
+
+    class Config:
+        from_attributes = True
+
+
 class SimplifiedPatientPayload(BaseModel):
     name: str = Field(
         ...,
