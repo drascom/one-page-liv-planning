@@ -53,11 +53,11 @@ class Patient(PatientBase):
 
 class ProcedureBase(BaseModel):
     """Procedure model - contains scheduling and booking metadata."""
-    procedure_date: Optional[str] = Field(None, description="ISO date for the scheduled procedure")
+    procedure_date: str = Field(..., description="ISO date for the scheduled procedure")
     status: str = Field(..., description="Procedure workflow status")
     procedure_type: str = Field(..., description="Buckets used to filter procedures")
-    grafts: str = Field("", description="Number of grafts or imported numeric detail")
-    payment: str = Field(..., description="Payment collection status")
+    grafts: str = Field(..., description="Number of grafts or imported numeric detail")
+    payment: Optional[str] = Field(None, description="Payment collection status")
     consultation: List[str] = Field(default_factory=list, description="Consultations recorded for the procedure")
     forms: List[str] = Field(default_factory=list, description="Completed form identifiers")
     consents: List[str] = Field(default_factory=list, description="Completed consent identifiers")

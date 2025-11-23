@@ -1349,6 +1349,12 @@ body {
   background: #0ea5e9;
 }
 
+.procedures-card__actions {
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
 .secondary-btn {
   background: transparent;
   color: #0f172a;

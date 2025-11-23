@@ -153,7 +153,7 @@ Patient updates return `200 OK` with `{ "success": true, "id": 123, "message": "
 
 ### Sample procedure requests
 
-Create a procedure for an existing patient:
+Create a procedure for an existing patient (only `patient_id`, `procedure_date`, `procedure_type`, `status`, and `grafts` are required; the other fields are optional and default to empty values):
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/api/v1/procedures" \
@@ -179,13 +179,13 @@ Purging a patient via `DELETE /api/v1/patients/{id}/purge` cascades and removes 
 
 ### Sample curl commands with API token
 
-The snippets below show how to call the `/api/v1` endpoints directly using the API token `SfTcDiRknE4NcRnlm50TEeH9zR6SkgQvjYA6kV0RRj32PnsF`.
+The snippets below show how to call the `/api/v1` endpoints directly using the API token `f1iUbTg7yfh1cdncn2SWcq3t1eiQZZQUHmVZS3jPIrOiquyx`.
 
 Create a patient via the token-protected API:
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/api/v1/patients" \
-  -H "Authorization: Bearer SfTcDiRknE4NcRnlm50TEeH9zR6SkgQvjYA6kV0RRj32PnsF" \
+  -H "Authorization: Bearer f1iUbTg7yfh1cdncn2SWcq3t1eiQZZQUHmVZS3jPIrOiquyx" \
   -H "Content-Type: application/json" \
   -d '{
     "first_name": "Token",
@@ -196,11 +196,11 @@ curl -X POST "http://127.0.0.1:8000/api/v1/patients" \
   }'
 ```
 
-Create a procedure linked to the new patient (replace `123` with the patient id returned above):
+Create a procedure linked to the new patient (replace `123` with the patient id returned above). Just like the admin example above, only `patient_id`, `procedure_date`, `procedure_type`, `status`, and `grafts` are required:
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/api/v1/procedures" \
-  -H "Authorization: Bearer SfTcDiRknE4NcRnlm50TEeH9zR6SkgQvjYA6kV0RRj32PnsF" \
+  -H "Authorization: Bearer f1iUbTg7yfh1cdncn2SWcq3t1eiQZZQUHmVZS3jPIrOiquyx" \
   -H "Content-Type: application/json" \
   -d '{
     "patient_id": 123,
@@ -233,7 +233,7 @@ Update the patient’s contact info (the response again includes the `id` so you
 
 ```bash
 curl -X PUT "http://127.0.0.1:8000/api/v1/patients/123" \
-  -H "Authorization: Bearer SfTcDiRknE4NcRnlm50TEeH9zR6SkgQvjYA6kV0RRj32PnsF" \
+  -H "Authorization: Bearer f1iUbTg7yfh1cdncn2SWcq3t1eiQZZQUHmVZS3jPIrOiquyx" \
   -H "Content-Type: application/json" \
   -d '{
     "first_name": "Token",
@@ -248,7 +248,7 @@ Update the related procedure (replace `456` with the procedure id you created ea
 
 ```bash
 curl -X PUT "http://127.0.0.1:8000/api/v1/procedures/456" \
-  -H "Authorization: Bearer SfTcDiRknE4NcRnlm50TEeH9zR6SkgQvjYA6kV0RRj32PnsF" \
+  -H "Authorization: Bearer f1iUbTg7yfh1cdncn2SWcq3t1eiQZZQUHmVZS3jPIrOiquyx" \
   -H "Content-Type: application/json" \
   -d '{
     "patient_id": 123,

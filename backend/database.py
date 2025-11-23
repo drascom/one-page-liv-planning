@@ -907,7 +907,7 @@ def _serialize_procedure_payload(data: Dict[str, Any]) -> Dict[str, Any]:
         "status": data.get("status", ""),
         "procedure_type": data.get("procedure_type", ""),
         "grafts": data.get("grafts", ""),
-        "payment": data.get("payment", ""),
+        "payment": (data.get("payment") or ""),
         "consultation": json.dumps(consultation_list),
         "forms": json.dumps(data.get("forms") or []),
         "consents": json.dumps(data.get("consents") or []),
