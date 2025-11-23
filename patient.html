@@ -21,27 +21,24 @@
       <div class="settings-shell settings-shell--patient">
         <aside class="settings-menu" role="tablist" aria-label="Patient sections">
           <div class="settings-menu__group">
-            <p class="settings-menu__label">Record</p>
-            <button type="button" class="settings-tab is-active" id="patient-tab-details" role="tab"
-              aria-selected="true" aria-controls="patient-panel-details" data-patient-tab="details">
-              <span class="settings-tab__title">Details</span>
-              <span class="settings-tab__subtitle">Consultation &amp; surgery info</span>
-            </button>
-            <button type="button" class="settings-tab" id="patient-tab-bookings" role="tab" aria-selected="false"
-              aria-controls="patient-panel-bookings" data-patient-tab="bookings">
-              <span class="settings-tab__title">Bookings</span>
-              <span class="settings-tab__subtitle">Switch consultations or surgeries</span>
-            </button>
+            <p class="settings-menu__label">Bookings</p>
+            <div id="patient-bookings-list" class="patient-bookings-sidebar">
+              <!-- Bookings will be injected here -->
+            </div>
           </div>
         </aside>
 
         <div class="settings-panels">
-          <section class="settings-section" id="patient-panel-details" role="tabpanel"
-            aria-labelledby="patient-tab-details" data-patient-section="details">
+          <section class="settings-section" id="patient-panel-details">
             <header class="settings-section__header">
-              <p class="settings-section__eyebrow">Patient</p>
-              <h2>Patient Details</h2>
-              <p>Edit this consultation or surgery, forms, consents, and photos.</p>
+              <div>
+                <p class="settings-section__eyebrow">Patient</p>
+                <h2>Patient Details</h2>
+              </div>
+              <div class="form-actions settings-section__header-actions">
+                <button type="submit" class="primary-btn" form="patient-form">Save Patient</button>
+                <button type="button" class="danger-btn" id="delete-patient-btn" hidden>Delete Patient</button>
+              </div>
             </header>
 
             <section class="patient-card">
@@ -95,15 +92,6 @@
                     <span>Payment</span>
                     <select id="payment" name="payment"></select>
                   </label>
-                  <label class="form-field">
-                    <span>Consultations</span>
-                    <select id="consultation" name="consultation" multiple size="2">
-                    </select>
-                  </label>
-                  <label class="form-field">
-                    <span>Photos</span>
-                    <input id="photos" name="photos" type="text" placeholder="None" />
-                  </label>
                 </div>
 
                 <div class="form-grid form-grid--stacked">
@@ -117,13 +105,13 @@
                     <div id="consents-checklist" class="form-checklist" role="group" aria-label="Consents checklist"></div>
                     <select id="consents" name="consents" multiple size="3" hidden></select>
                   </label>
+                  <label class="form-field">
+                    <span>Consultations</span>
+                    <div id="consultations-checklist" class="form-checklist" role="group" aria-label="Consultations checklist"></div>
+                    <select id="consultation" name="consultation" multiple size="2" hidden></select>
+                  </label>
                 </div>
-
-                <div class="form-actions">
-                  <button type="submit" class="primary-btn">Save Patient</button>
-                  <button type="button" class="danger-btn" id="delete-patient-btn" hidden>Delete Patient</button>
-                  <span id="form-status" class="form-status" role="status"></span>
-                </div>
+                <span id="form-status" class="form-status" role="status"></span>
               </form>
             </section>
 
@@ -133,7 +121,7 @@
               <div class="drop-zone" id="drop-zone">
                 <input id="photo-input" type="file" multiple accept="image/*" hidden />
                 <button type="button" class="secondary-btn" id="browse-button">Browse files</button>
-                <p class="drop-zone__text">Drop up to 10 images. Files will be saved under uploads/&lt;last-name&gt;</p>
+                <p class="drop-zone__text">Drop up to 10 images. Files will be saved under uploads/<last-name></p>
               </div>
               <ul class="upload-list" id="upload-list"></ul>
               <p class="upload-status" id="upload-status"></p>
@@ -148,22 +136,6 @@
             </section>
           </section>
 
-          <section class="settings-section" id="patient-panel-bookings" role="tabpanel"
-            aria-labelledby="patient-tab-bookings" data-patient-section="bookings" hidden>
-            <header class="settings-section__header">
-              <p class="settings-section__eyebrow">Record</p>
-              <h2>Bookings for this patient</h2>
-              <p>Open any consultation or surgery for the same patient.</p>
-            </header>
-            <section class="patient-card patient-bookings" id="patient-bookings">
-              <div class="patient-bookings__header">
-                <h3>Bookings</h3>
-                <p class="patient-bookings__hint" id="patient-bookings-hint">Select another consultation or surgery to edit.</p>
-              </div>
-              <ul class="patient-bookings__list" id="patient-bookings-list"></ul>
-              <p class="patient-bookings__empty" id="patient-bookings-empty">No other bookings found for this patient.</p>
-            </section>
-          </section>
         </div>
       </div>
     </main>

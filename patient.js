@@ -4,12 +4,14 @@ const DEFAULT_FIELD_OPTIONS = {
   status: [
     { value: "reserved", label: "Reserved" },
     { value: "confirmed", label: "Confirmed" },
+    { value: "cancelled", label: "Cancelled" },
     { value: "insurgery", label: "In Surgery" },
     { value: "done", label: "Done" },
   ],
   procedure_type: [
     { value: "small", label: "Small" },
     { value: "big", label: "Big" },
+    { value: "consultation", label: "Consultation" },
     { value: "beard", label: "Beard" },
     { value: "woman", label: "Woman" },
   ],
@@ -113,6 +115,7 @@ function renderOptionControls() {
   populateSelectOptions(procedureSelect, "procedure_type");
   populateSelectOptions(paymentSelect, "payment");
   populateSelectOptions(consultationSelect, "consultation", { multiple: true });
+  buildConsultationsChecklist();
   populateSelectOptions(formsSelect, "forms", { multiple: true });
   buildFormsChecklist();
   populateSelectOptions(consentsSelect, "consents", { multiple: true });
@@ -205,13 +208,53 @@ function buildConsentsChecklist() {
   refreshConsentsChecklist();
 }
 
+function refreshConsultationsChecklist() {
+  if (!consultationsChecklist || !consultationSelect) return;
+  const selected = new Set(collectMultiValue(consultationSelect));
+  consultationsChecklist.querySelectorAll(".form-checklist__item").forEach((item) => {
+    const value = item.dataset.value;
+    const isSelected = selected.has(value);
+    item.classList.toggle("is-selected", isSelected);
+    item.setAttribute("aria-pressed", isSelected ? "true" : "false");
+    const icon = item.querySelector(".form-checklist__icon");
+    if (icon) {
+      icon.textContent = isSelected ? "✓" : "✕";
+    }
+  });
+}
+
+function buildConsultationsChecklist() {
+  if (!consultationsChecklist || !consultationSelect) return;
+  consultationsChecklist.innerHTML = "";
+  const options = getFieldOptions("consultation");
+  options.forEach((option) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "form-checklist__item";
+    button.dataset.value = option.value;
+    button.innerHTML = `
+      <span class="form-checklist__label">${option.label}</span>
+      <span class="form-checklist__icon" aria-hidden="true">✕</span>
+    `;
+    button.addEventListener("click", () => {
+      const current = new Set(collectMultiValue(consultationSelect));
+      if (current.has(option.value)) {
+        current.delete(option.value);
+      } else {
+        current.add(option.value);
+      }
+      setMultiValue(consultationSelect, Array.from(current));
+      refreshConsultationsChecklist();
+    });
+    consultationsChecklist.appendChild(button);
+  });
+  refreshConsultationsChecklist();
+}
+
 const patientNameEl = document.getElementById("patient-name");
 const patientWeekEl = document.getElementById("patient-week");
 const patientCityEl = document.getElementById("patient-city");
-const bookingSection = document.getElementById("patient-bookings");
 const bookingListEl = document.getElementById("patient-bookings-list");
-const bookingEmptyState = document.getElementById("patient-bookings-empty");
-const bookingHintEl = document.getElementById("patient-bookings-hint");
 const formEl = document.getElementById("patient-form");
 const formStatusEl = document.getElementById("form-status");
 const deletePatientBtn = document.getElementById("delete-patient-btn");
@@ -227,7 +270,7 @@ const procedureSelect = document.getElementById("procedure-type");
 const graftsInput = document.getElementById("grafts");
 const paymentSelect = document.getElementById("payment");
 const consultationSelect = document.getElementById("consultation");
-const photosInput = document.getElementById("photos");
+const consultationsChecklist = document.getElementById("consultations-checklist");
 const formsSelect = document.getElementById("forms");
 const formsChecklist = document.getElementById("forms-checklist");
 const consentsChecklist = document.getElementById("consents-checklist");
@@ -332,10 +375,7 @@ function populateForm(record) {
         : [];
     setMultiValue(consultationSelect, selectedConsultations);
   }
-  photosInput.value =
-    (record.photo_files?.length ?? record.photos ?? 0) > 0
-      ? String(record.photo_files.length ?? record.photos)
-      : "None";
+  refreshConsultationsChecklist();
   setMultiValue(formsSelect, record.forms || []);
   refreshFormsChecklist();
   setMultiValue(consentsSelect, record.consents || []);
@@ -511,16 +551,15 @@ function getBookingSortValue(entry) {
 }
 
 async function renderRelatedBookings(record) {
-  if (!bookingSection || !bookingListEl || !bookingEmptyState) {
+  if (!bookingListEl) {
     return;
   }
+  bookingListEl.innerHTML = "";
   if (!record) {
-    bookingSection.hidden = true;
     return;
   }
   const normalizedFirst = normalizeName(record.first_name);
   const normalizedLast = normalizeName(record.last_name);
-  bookingListEl.innerHTML = "";
   try {
     const patients = await loadAllPatients();
     const matches = patients
@@ -531,24 +570,28 @@ async function renderRelatedBookings(record) {
         );
       })
       .sort((a, b) => getBookingSortValue(a) - getBookingSortValue(b) || a.id - b.id);
-    if (!matches.length) {
-      bookingEmptyState.hidden = false;
-      bookingSection.hidden = false;
-      if (bookingHintEl) {
-        bookingHintEl.textContent = "No other bookings found.";
-      }
-      return;
-    }
-    bookingEmptyState.hidden = true;
+
     matches.forEach((entry) => {
-      const item = document.createElement("li");
       const button = document.createElement("button");
       button.type = "button";
-      button.className = "patient-bookings__item";
+      button.className = "settings-tab";
       if (entry.id === record.id) {
         button.classList.add("is-active");
       }
-      button.textContent = buildBookingLabel(entry);
+      
+      const titleSpan = document.createElement("span");
+      titleSpan.className = "settings-tab__title";
+      titleSpan.textContent = formatBookingDate(entry.procedure_date);
+      
+      const subtitleSpan = document.createElement("span");
+      subtitleSpan.className = "settings-tab__subtitle";
+      const statusLabel = getOptionLabel("status", entry.status) || entry.status || "Status not set";
+      const typeLabel = getOptionLabel("procedure_type", entry.procedure_type) || entry.procedure_type || "Type not set";
+      subtitleSpan.textContent = `${statusLabel} • ${typeLabel}`;
+
+      button.appendChild(titleSpan);
+      button.appendChild(subtitleSpan);
+
       button.addEventListener("click", () => {
         if (entry.id === record.id) {
           return;
@@ -559,25 +602,10 @@ async function renderRelatedBookings(record) {
         });
         window.location.href = `patient.html?${params.toString()}`;
       });
-      item.appendChild(button);
-      if (entry.id === record.id) {
-        const tag = document.createElement("span");
-        tag.className = "patient-bookings__pill";
-        tag.textContent = "Current booking";
-        item.appendChild(tag);
-      }
-      bookingListEl.appendChild(item);
+      bookingListEl.appendChild(button);
     });
-    bookingSection.hidden = false;
-    if (bookingHintEl) {
-      const extra =
-        matches.length > 1 ? "Select another consultation or surgery to edit." : "Only one booking exists.";
-      bookingHintEl.textContent = extra;
-    }
   } catch (error) {
     console.warn("Unable to render related bookings", error);
-    bookingEmptyState.hidden = false;
-    bookingSection.hidden = false;
   }
 }
 
@@ -589,8 +617,7 @@ function buildPhotoUrl(relativePath) {
 }
 
 function updatePhotoCountInput() {
-  const count = getPhotoFiles().length;
-  photosInput.value = count > 0 ? String(count) : "None";
+  // No longer needed as the photos input field has been removed
 }
 
 function renderPhotoGallery() {
@@ -709,11 +736,9 @@ function buildPayloadFromForm() {
     procedure_type: procedureSelect.value,
     grafts: graftsInput.value.trim(),
     payment: paymentSelect.value,
-    consultation: consultationSelect ? collectMultiValue(consultationSelect) : [],
+    consultation: collectMultiValue(consultationSelect),
     forms: collectMultiValue(formsSelect),
     consents: collectMultiValue(consentsSelect),
-    photos: getPhotoFiles().length,
-    photo_files: getPhotoFiles(),
   };
 }
 
