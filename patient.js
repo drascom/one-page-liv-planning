@@ -55,6 +55,8 @@ const BOOKING_DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   year: "numeric",
 });
+const MONTH_FORMATTER = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" });
+const DAY_FORMATTER = new Intl.DateTimeFormat("en-US", { weekday: "short" });
 
 function buildApiUrl(path) {
   return new URL(path, API_BASE_URL).toString();
@@ -615,6 +617,64 @@ function buildBookingLabel(entry) {
   return `${dateText} • ${statusLabel} • ${typeLabel}`;
 }
 
+function formatMonthLabelFromDate(date) {
+  return MONTH_FORMATTER.format(new Date(date.getFullYear(), date.getMonth(), 1));
+}
+
+function parseISODate(value) {
+  if (!value) return null;
+  const text = String(value);
+  const datePart = text.includes("T") ? text.split("T")[0] : text.split(" ")[0] || text;
+  const date = new Date(`${datePart}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatLocalISODate(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getWeekMetaForDate(date) {
+  const day = date.getDate();
+  const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+  const mondayAlignedOffset = (firstDayOfMonth + 6) % 7;
+  const weekIndex = Math.floor((mondayAlignedOffset + day - 1) / 7) + 1;
+
+  const weekdayMondayFirst = (date.getDay() + 6) % 7;
+  const weekStart = new Date(date);
+  weekStart.setDate(date.getDate() - weekdayMondayFirst);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  const monthStartShort = weekStart.toLocaleString("en-US", { month: "short" });
+  const monthEndShort = weekEnd.toLocaleString("en-US", { month: "short" });
+  return {
+    label: `Week ${weekIndex}`,
+    range: `${monthStartShort} ${weekStart.getDate()} – ${monthEndShort} ${weekEnd.getDate()}`,
+    order: weekIndex,
+  };
+}
+
+function deriveProcedureMetadata(base, procedureDate) {
+  const parsed = parseISODate(procedureDate);
+  if (!parsed) {
+    return base;
+  }
+  const weekMeta = getWeekMetaForDate(parsed);
+  return {
+    ...base,
+    month_label: formatMonthLabelFromDate(parsed),
+    week_label: weekMeta.label,
+    week_range: weekMeta.range,
+    week_order: weekMeta.order,
+    day_label: DAY_FORMATTER.format(parsed),
+    day_order: (parsed.getDay() + 6) % 7,
+    procedure_date: formatLocalISODate(parsed),
+  };
+}
+
 function getBookingSortValue(entry) {
   const parsed = Date.parse(entry.procedure_date ?? "");
   if (Number.isNaN(parsed)) {
@@ -805,15 +865,10 @@ function buildProcedurePayloadFromForm() {
   if (!currentPatient) {
     return null;
   }
-  const base = activeProcedure || {};
-  return {
+  const base = activeProcedure || patientProcedures[0] || {};
+  const payload = {
+    ...base,
     patient_id: currentPatient.id,
-    month_label: base.month_label,
-    week_label: base.week_label,
-    week_range: base.week_range,
-    week_order: base.week_order,
-    day_label: base.day_label,
-    day_order: base.day_order,
     procedure_date: procedureDateInput.value || base.procedure_date,
     status: statusSelect.value,
     procedure_type: procedureSelect.value,
@@ -823,6 +878,7 @@ function buildProcedurePayloadFromForm() {
     forms: collectMultiValue(formsSelect),
     consents: collectMultiValue(consentsSelect),
   };
+  return deriveProcedureMetadata(payload, payload.procedure_date);
 }
 
 async function savePatient(event) {
