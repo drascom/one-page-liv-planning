@@ -248,11 +248,11 @@ async function fetchPatientById(patientId) {
   return response.json();
 }
 
-async function fetchProcedures() {
-  const response = await fetch(buildApiUrl("/procedures"));
+async function fetchSurgeries() {
+  const response = await fetch(buildApiUrl("/surgeries"));
   handleUnauthorized(response);
   if (!response.ok) {
-    throw new Error(`Unable to load procedures (${response.status})`);
+    throw new Error(`Unable to load surgeries (${response.status})`);
   }
   return response.json();
 }
@@ -749,17 +749,17 @@ function updateControlState() {
 
 function updateTotalPatients(total) {
   if (totalPatientCount) {
-    totalPatientCount.textContent = `${total} total patient${total === 1 ? "" : "s"}`;
+    totalPatientCount.textContent = `${total} total surger${total === 1 ? "y" : "ies"}`;
   }
 }
 
 function updateMonthPatientCount(total) {
   if (monthPatientCount) {
-    monthPatientCount.textContent = `${total} patient${total === 1 ? "" : "s"} this month`;
+    monthPatientCount.textContent = `${total} surger${total === 1 ? "y" : "ies"} this month`;
   }
   const calendarMonthPatients = document.getElementById("calendar-month-patients");
   if (calendarMonthPatients) {
-    calendarMonthPatients.textContent = `${total} patient${total === 1 ? "" : "s"}`;
+    calendarMonthPatients.textContent = `${total} surger${total === 1 ? "y" : "ies"}`;
   }
 }
 
@@ -788,8 +788,8 @@ function renderSelectedMonth() {
     if (searchQuery) {
       const hasAnyMatches = filteredMonthlySchedules.some((month) => month.weeks?.length);
       const message = hasAnyMatches
-        ? `No patients matching "${searchQuery}" in ${selectedLabel}.`
-        : `No patients found matching "${searchQuery}".`;
+        ? `No surgeries matching "${searchQuery}" in ${selectedLabel}.`
+        : `No surgeries found matching "${searchQuery}".`;
       setScheduleStatus(message);
       const matchingWeeks = filteredMonthlySchedules.reduce(
         (total, month) => total + (month.weeks?.length ?? 0),
@@ -799,7 +799,7 @@ function renderSelectedMonth() {
         ? `${matchingWeeks} matching week${matchingWeeks === 1 ? "" : "s"}`
         : "0 matches";
     } else {
-      setScheduleStatus(`No patient records found for ${selectedLabel}.`);
+      setScheduleStatus(`No surgeries scheduled for ${selectedLabel}.`);
       weekCount.textContent = "0 weeks scheduled";
     }
     updateMonthPatientCount(0);
@@ -930,7 +930,7 @@ async function handleAddPatientClick() {
     if (!newPatientId) {
       throw new Error("Missing patient id in response");
     }
-    const procedureResponse = await fetch(buildApiUrl("/procedures"), {
+    const procedureResponse = await fetch(buildApiUrl("/surgeries"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -1076,7 +1076,7 @@ async function handleDeleteSelected() {
   }
   try {
     for (const procedureId of selectedProcedureIds) {
-      const response = await fetch(buildApiUrl(`/procedures/${procedureId}`), {
+      const response = await fetch(buildApiUrl(`/surgeries/${procedureId}`), {
         method: "DELETE",
       });
       handleUnauthorized(response);
@@ -1341,7 +1341,7 @@ async function initializeSchedule() {
       await fetchFieldOptions();
       fieldOptionsLoaded = true;
     }
-    const [patients, procedures] = await Promise.all([fetchPatients(), fetchProcedures()]);
+    const [patients, procedures] = await Promise.all([fetchPatients(), fetchSurgeries()]);
     const patientLookup = new Map();
     patients.forEach((patient) => patientLookup.set(Number(patient.id), patient));
     normalizedProcedures = procedures.map((procedure) =>

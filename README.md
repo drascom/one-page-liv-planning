@@ -90,14 +90,16 @@ If you are behind nginx proxy manager with ssl certificate than use
 | POST | `/plans/` | Create plan |
 | PUT | `/plans/{id}` | Update plan |
 | DELETE | `/plans/{id}` | Delete plan |
-| GET | `/patients/` | List the patient schedule |
-| POST | `/patients/` | Create a placeholder patient |
+| GET | `/patients/` | List patients (personal info only) |
+| POST | `/patients/` | Create a patient |
 | GET/PUT | `/patients/{id}` | Fetch or update a patient record |
 | DELETE | `/patients/{id}` | Delete a patient (admin session only) |
-| GET | `/procedures/` | List procedures (filter by `patient_id` when needed) |
-| POST | `/procedures/` | Create a procedure linked to a patient |
-| GET/PUT | `/procedures/{id}` | Fetch or update a procedure |
-| DELETE | `/procedures/{id}` | Delete a procedure |
+| GET | `/surgeries/` | List surgeries (filter by `patient_id` when needed) |
+| POST | `/surgeries/` | Create a surgery linked to a patient |
+| GET/PUT | `/surgeries/{id}` | Fetch or update a surgery |
+| DELETE | `/surgeries/{id}` | Delete a surgery |
+| GET/POST/DELETE | `/patients/{id}/photos` | List/create/delete photo metadata (files land in `/uploads`) |
+| GET/POST/DELETE | `/patients/{id}/payments` | Manage patient payments |
 | POST | `/uploads/{last_name}` | Upload photos for a patient |
 | DELETE | `/uploads/{patient_id}?file=path` | Remove a photo |
 | GET | `/field-options` | Fetch the dropdown metadata (status, forms, etc.) |
@@ -109,6 +111,8 @@ If you are behind nginx proxy manager with ssl certificate than use
 | GET/POST/DELETE | `/api-tokens` | Manage integration tokens scoped to the current admin user |
 | GET | `/api/v1/search?token=abc123xyz&full_name=name%20Surname` | External-only endpoint that finds a patient by full name and returns `{ "success": true, "patient": { ... } }` (with `id`/`surgery_date` for backwards compatibility) or `{ "success": false, "message": "Patient record not found" }`. You can also continue sending `name`+`surname` pairs for backwards compatibility. |
 
+Legacy `/procedures` routes are still exposed as aliases for the surgeries endpoints so older integrations continue to function.
+
 ### Sample patient requests
 
 Create a patient (internal session cookie example):
@@ -117,26 +121,11 @@ Create a patient (internal session cookie example):
 curl -X POST "http://127.0.0.1:8000/patients" \
   -H "Content-Type: application/json" \
   -d '{
-    "month_label": "June 2024",
-    "week_label": "Week 2",
-    "week_range": "Jun 10 – Jun 16",
-    "week_order": 2,
-    "day_label": "Tue",
-    "day_order": 2,
     "first_name": "Jane",
     "last_name": "Doe",
     "email": "jane.doe@example.com",
     "phone": "+1-555-123-4567",
-    "city": "Los Angeles",
-    "procedure_date": "2024-06-12",
-    "status": "consult",
-    "procedure_type": "Facelift",
-    "payment": "Deposit received",
-    "consultation": [],
-    "forms": [],
-    "consents": [],
-    "photos": 0,
-    "photo_files": []
+    "city": "Los Angeles"
   }'
 ```
 
@@ -146,80 +135,46 @@ Update an existing patient (replace `123` with the record id):
 curl -X PUT "http://127.0.0.1:8000/patients/123" \
   -H "Content-Type: application/json" \
   -d '{
-    "month_label": "June 2024",
-    "week_label": "Week 2",
-    "week_range": "Jun 10 – Jun 16",
-    "week_order": 2,
-    "day_label": "Tue",
-    "day_order": 2,
     "first_name": "Jane",
     "last_name": "Doe",
     "email": "jane.doe@example.com",
     "phone": "+1-555-987-6543",
-    "city": "Los Angeles",
-    "procedure_date": "2024-06-18",
-    "status": "pre-op",
-    "procedure_type": "Facelift",
-    "grafts": "2500",
-    "payment": "Paid in full",
-    "consultation": ["consultation1"],
-    "forms": ["health_history"],
-    "consents": ["photo_release"],
-    "photos": 0,
+    "city": "Los Angeles"
+  }'
+```
+
+### Sample surgery requests
+
+Create a surgery for an existing patient:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/surgeries" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "patient_id": 123,
+    "month_label": "January 2025",
+    "week_label": "Week 1",
+    "week_range": "Jan 1 – Jan 7",
+    "week_order": 1,
+    "day_label": "Mon",
+    "day_order": 1,
+    "procedure_type": "small",
+    "status": "reserved",
+    "procedure_date": "2025-01-02",
+    "grafts": "",
+    "payment": "waiting",
+    "consultation": [],
+    "forms": [],
+    "consents": [],
     "photo_files": []
   }'
 ```
 
-### Sample procedure requests
+Purging a patient via `DELETE /patients/{id}/purge` cascades and removes all linked surgeries and their metadata so downstream integrations do not have to manually clean them up.
 
-Create a procedure for an existing patient:
+### Migration note
 
-```bash
-curl -X POST "http://127.0.0.1:8000/procedures" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "patient_id": 123,
-    "name": "Follow-up",
-    "procedure_type": "small",
-    "status": "scheduled",
-    "procedure_date": "2025-01-02",
-    "payment": "deposit",
-    "notes": "Add any free-form notes here"
-  }'
-```
-
-Purging a patient via `DELETE /patients/{id}/purge` cascades and removes all linked procedures so downstream integrations do not
-have to manually clean them up.
-
-### Simplified payloads (`POST /patients` or `POST /patients/multiple`)
-
-Some integrations (n8n, webhooks, etc.) only provide entries like the following:
-
-```json
-[
-  {
-    "status": "Reserved",
-    "surgery_type": "Hair Transplant",
-    "name": "name surname",
-    "number": "2500",
-    "date": "2025-11-05T00:00:00.000Z"
-  }
-]
-```
-
-You can send that payload directly to `POST /patients` (single record) or batch it via `POST /patients/multiple`. The `/api/v1` prefixed routes accept the exact same JSON with an API token.
-
-Behind the scenes the backend will:
-
-- Parse `date`, derive `month_label`, `week_label`, `week_range`, `week_order`, `day_label`, `day_order`, and `procedure_date`.
-- Split `name` into `first_name`/`last_name` so the calendar displays the same wording.
-- Copy `surgery_type` into `procedure_type` (fallbacks to your first dropdown option).
-- Copy `status` (when provided) or use your default status.
-- Copy `number` into the grafts field when it looks like an amount; if it looks like a phone number we store it as the phone instead.
-- Extract embedded phone numbers from the `name` text so contacts stay searchable.
-- Fill the remaining required fields (`email`, `city`, `payment`, `consultation`, `forms`, `consents`, etc.) with sensible defaults so records remain editable in the UI.
-
-This keeps the integration payload minimal—the server handles all of the calendar bookkeeping for you.
+The SQLite schema now separates personal information (`patients`) from scheduling data (`surgeries`) plus related `photos` and `payments` tables. The bootstrap step will drop and recreate any legacy versions of those tables and skips migrating historic data so the API and UI can rely on the new shape immediately.
 
 ### Frontend capabilities
 

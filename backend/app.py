@@ -17,6 +17,7 @@ from .routes import (
     field_options_router,
     patients_router,
     procedures_router,
+    surgeries_router,
     require_api_token,
     router as plans_router,
     search_router,
@@ -58,6 +59,7 @@ app.mount("/uploaded-files", StaticFiles(directory=str(settings.uploads_root)), 
 PROTECTED_FRONTEND_PREFIXES: tuple[str, ...] = (
     "/plans",
     "/patients",
+    "/surgeries",
     "/procedures",
     "/uploads",
     "/field-options",
@@ -123,6 +125,7 @@ def create_app() -> FastAPI:
     auth_dependency = [Depends(require_current_user)]
     api.include_router(plans_router, dependencies=auth_dependency, include_in_schema=False)
     api.include_router(patients_router, dependencies=auth_dependency, include_in_schema=False)
+    api.include_router(surgeries_router, dependencies=auth_dependency, include_in_schema=False)
     api.include_router(procedures_router, dependencies=auth_dependency, include_in_schema=False)
     api.include_router(api_tokens_router, dependencies=auth_dependency)
     api.include_router(audit_router, dependencies=auth_dependency)
@@ -131,6 +134,7 @@ def create_app() -> FastAPI:
     for protected_router in (
         plans_router,
         patients_router,
+        surgeries_router,
         procedures_router,
         upload_router,
         field_options_router,
@@ -168,6 +172,7 @@ app.include_router(auth_router)
 auth_dependency = [Depends(require_current_user)]
 app.include_router(plans_router, dependencies=auth_dependency, include_in_schema=False)
 app.include_router(patients_router, dependencies=auth_dependency, include_in_schema=False)
+app.include_router(surgeries_router, dependencies=auth_dependency, include_in_schema=False)
 app.include_router(procedures_router, dependencies=auth_dependency, include_in_schema=False)
 app.include_router(api_tokens_router, dependencies=auth_dependency)
 app.include_router(audit_router, dependencies=auth_dependency)
@@ -176,6 +181,7 @@ app.include_router(field_options_router, dependencies=auth_dependency, include_i
 for protected_router in (
     plans_router,
     patients_router,
+    surgeries_router,
     procedures_router,
     upload_router,
     field_options_router,

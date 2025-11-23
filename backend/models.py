@@ -28,27 +28,12 @@ class WeeklyPlan(WeeklyPlanBase):
 
 
 class PatientBase(BaseModel):
-    month_label: str = Field(..., description="Name of the month to display (e.g. June 2024)")
-    week_label: str = Field(..., description="Readable label for the week (Week 1)")
-    week_range: str = Field(..., description="Date range for the week (Jun 3 – Jun 9)")
-    week_order: int = Field(..., description="Sort order for the week block")
-    day_label: str = Field(..., description="Day label shown in the schedule (Mon, Tue)")
-    day_order: int = Field(..., description="Sort order inside the week")
+    """Patient model - personal information only."""
     first_name: str = Field(..., description="Patient first name")
     last_name: str = Field(..., description="Patient last name")
     email: str = Field(..., description="Preferred contact email")
     phone: str = Field(..., description="Preferred phone number")
     city: str = Field(..., description="Patient city")
-    procedure_date: Optional[str] = Field(None, description="ISO date for the scheduled procedure")
-    status: str = Field(..., description="Surgery workflow status")
-    procedure_type: str = Field(..., description="Buckets used to filter surgeries")
-    grafts: str = Field("", description="Number of grafts or imported numeric detail")
-    payment: str = Field(..., description="Payment collection status")
-    consultation: List[str] = Field(default_factory=list, description="Consultations recorded for the patient")
-    forms: List[str] = Field(default_factory=list, description="Completed form identifiers")
-    consents: List[str] = Field(default_factory=list, description="Completed consent identifiers")
-    photos: int = Field(0, description="Number of uploaded photos", ge=0)
-    photo_files: List[str] = Field(default_factory=list, description="Relative file paths for uploaded photos")
 
 
 class PatientCreate(PatientBase):
@@ -56,15 +41,18 @@ class PatientCreate(PatientBase):
 
 
 class Patient(PatientBase):
-    id: int = Field(..., description="Database identifier for the procedure/patient row")
-    patient_id: Optional[int] = Field(None, description="Identifier for the patient profile owner")
+    id: int = Field(..., description="Database identifier for the patient")
     deleted: bool = Field(False, description="Whether the record is hidden (soft deleted)")
+    created_at: str = Field(..., description="Timestamp when the patient was created")
+    updated_at: str = Field(..., description="Timestamp when the patient was last updated")
+    photo_count: int = Field(0, description="Number of photo records linked to the patient", ge=0)
 
     class Config:
         from_attributes = True
 
 
-class ProcedureBase(BaseModel):
+class SurgeryBase(BaseModel):
+    """Surgery/procedure model - contains scheduling and procedure metadata."""
     month_label: str = Field(..., description="Name of the month to display (e.g. June 2024)")
     week_label: str = Field(..., description="Readable label for the week (Week 1)")
     week_range: str = Field(..., description="Date range for the week (Jun 3 – Jun 9)")
@@ -79,18 +67,63 @@ class ProcedureBase(BaseModel):
     consultation: List[str] = Field(default_factory=list, description="Consultations recorded for the procedure")
     forms: List[str] = Field(default_factory=list, description="Completed form identifiers")
     consents: List[str] = Field(default_factory=list, description="Completed consent identifiers")
-    photos: int = Field(0, description="Number of uploaded photos", ge=0)
     photo_files: List[str] = Field(default_factory=list, description="Relative file paths for uploaded photos")
 
 
-class ProcedureCreate(ProcedureBase):
+class SurgeryCreate(SurgeryBase):
     pass
 
 
-class Procedure(ProcedureBase):
-    id: int = Field(..., description="Database identifier for the procedure")
-    patient_id: int = Field(..., description="Identifier for the patient profile owner")
+class SurgeryCreatePayload(SurgeryCreate):
+    patient_id: int = Field(..., description="Identifier for the patient this surgery belongs to")
+
+
+class Surgery(SurgeryBase):
+    id: int = Field(..., description="Database identifier for the surgery")
+    patient_id: int = Field(..., description="Identifier for the patient this surgery belongs to")
+    photos: int = Field(0, description="Number of uploaded photos", ge=0)
     deleted: bool = Field(False, description="Whether the record is hidden (soft deleted)")
+    created_at: str = Field(..., description="Timestamp when the surgery was created")
+    updated_at: str = Field(..., description="Timestamp when the surgery was last updated")
+
+    class Config:
+        from_attributes = True
+
+
+class PhotoBase(BaseModel):
+    """Photo model for patient photos."""
+    name: str = Field(..., description="Photo name/description")
+    file_path: str = Field(..., description="Relative path to the photo file")
+    taken_at: Optional[str] = Field(None, description="When the photo was taken")
+
+
+class PhotoCreate(PhotoBase):
+    pass
+
+
+class Photo(PhotoBase):
+    id: int = Field(..., description="Database identifier for the photo")
+    patient_id: int = Field(..., description="Identifier for the patient this photo belongs to")
+    created_at: str = Field(..., description="Timestamp when the photo was uploaded")
+
+    class Config:
+        from_attributes = True
+
+
+class PaymentBase(BaseModel):
+    """Payment model for patient payments."""
+    amount: float = Field(..., description="Payment amount")
+    currency: str = Field("GBP", description="Currency code (e.g. GBP, USD)")
+
+
+class PaymentCreate(PaymentBase):
+    pass
+
+
+class Payment(PaymentBase):
+    id: int = Field(..., description="Database identifier for the payment")
+    patient_id: int = Field(..., description="Identifier for the patient this payment belongs to")
+    created_at: str = Field(..., description="Timestamp when the payment was recorded")
 
     class Config:
         from_attributes = True
@@ -102,27 +135,6 @@ class PatientSearchResult(BaseModel):
     surgery_date: Optional[str] = Field(None, description="ISO surgery date (procedure_date in the DB)")
     patient: Optional[Patient] = Field(None, description="Full patient record when a match is found")
     message: Optional[str] = Field(None, description="Human readable message (e.g. when the patient is missing)")
-
-
-class ProcedureBase(BaseModel):
-    patient_id: int = Field(..., description="Identifier for the related patient")
-    name: str = Field(..., description="Short label for the procedure (e.g. Consultation, Surgery)")
-    procedure_type: str = Field(..., description="Type/category of the procedure")
-    status: str = Field(..., description="Workflow status for this procedure")
-    procedure_date: Optional[str] = Field(None, description="ISO date when the procedure occurs")
-    payment: Optional[str] = Field(None, description="Payment status or note for this procedure")
-    notes: Optional[str] = Field(None, description="Free-form notes about the procedure")
-
-
-class ProcedureCreate(ProcedureBase):
-    pass
-
-
-class Procedure(ProcedureBase):
-    id: int = Field(..., description="Database identifier for the procedure")
-
-    class Config:
-        from_attributes = True
 
 
 class SimplifiedPatientPayload(BaseModel):
@@ -223,6 +235,7 @@ class UserRoleUpdate(BaseModel):
     is_admin: bool
 
 
+# Legacy Procedure models - kept for backward compatibility with procedure_bookings table
 class ProcedureType(str, Enum):
     SMALL = "small"
     BIG = "big"
@@ -237,7 +250,7 @@ class ProcedureStatus(str, Enum):
     DONE = "done"
 
 
-class ProcedureBase(BaseModel):
+class ProcedureBookingBase(BaseModel):
     patient_id: int = Field(..., description="Foreign key to the patient record")
     type: ProcedureType = Field(..., description="Type of procedure being booked")
     status: ProcedureStatus = Field(..., description="Current workflow status for the booking")
@@ -246,14 +259,20 @@ class ProcedureBase(BaseModel):
     notes: Optional[str] = Field(None, description="Free-form scheduling notes")
 
 
-class ProcedureCreate(ProcedureBase):
+class ProcedureBookingCreate(ProcedureBookingBase):
     pass
 
 
-class Procedure(ProcedureBase):
+class ProcedureBooking(ProcedureBookingBase):
     id: int = Field(..., description="Database identifier for the procedure booking")
     created_at: datetime = Field(..., description="Timestamp when the booking was created")
     updated_at: datetime = Field(..., description="Timestamp when the booking was last updated")
 
     class Config:
         from_attributes = True
+
+
+# Aliases for backward compatibility
+Procedure = Surgery
+ProcedureCreate = SurgeryCreate
+ProcedureBase = SurgeryBase

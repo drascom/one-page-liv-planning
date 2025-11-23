@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -41,12 +40,16 @@ from .models import (
     LoginRequest,
     Patient,
     PatientCreate,
-    Procedure,
-    ProcedureCreate,
+    Surgery,
+    SurgeryCreate,
+    SurgeryCreatePayload,
+    Photo,
+    PhotoCreate,
+    Payment,
+    PaymentCreate,
     PatientSearchResult,
-    Procedure,
-    ProcedureCreate,
-    SimplifiedPatientPayload,
+    Procedure,  # Alias for Surgery (backward compatibility)
+    ProcedureCreate,  # Alias for SurgeryCreate (backward compatibility)
     User,
     UserCreate,
     UserPasswordUpdate,
@@ -58,6 +61,7 @@ from .settings import get_settings
 
 router = APIRouter(prefix="/plans", tags=["plans"])
 patients_router = APIRouter(prefix="/patients", tags=["patients"])
+surgeries_router = APIRouter(prefix="/surgeries", tags=["surgeries"])
 procedures_router = APIRouter(prefix="/procedures", tags=["procedures"])
 upload_router = APIRouter(prefix="/uploads", tags=["uploads"])
 api_tokens_router = APIRouter(prefix="/api-tokens", tags=["api tokens"])
@@ -71,182 +75,17 @@ audit_router = APIRouter(prefix="/api-requests", tags=["api requests"])
 settings = get_settings()
 UPLOAD_ROOT = settings.uploads_root
 REQUIRED_MIN_OPTION_COUNTS: Dict[str, int] = {"status": 1, "procedure_type": 1, "payment": 1}
-IMPORTED_DEFAULT_FALLBACKS: Dict[str, str] = {"status": "reserved", "procedure_type": "small", "payment": "waiting"}
-PHONE_PATTERN = re.compile(r"(\+?\d[\d\s().-]{6,})")
 
 
-def _week_of_month(target: date) -> int:
-    first_day = target.replace(day=1)
-    monday_aligned_offset = (first_day.weekday())  # Monday = 0
-    return (monday_aligned_offset + target.day - 1) // 7 + 1
-
-
-def _format_week_range(target: date) -> str:
-    start = target - timedelta(days=target.weekday())
-    end = start + timedelta(days=6)
-    return f"{start.strftime('%b')} {start.day} – {end.strftime('%b')} {end.day}"
-
-
-def _split_full_name(raw_value: str) -> tuple[str, str]:
-    cleaned = " ".join((raw_value or "").split())
-    if not cleaned:
-        return ("Imported", "Patient")
-    parts = cleaned.split(" ", 1)
-    if len(parts) == 1:
-        return (parts[0], "")
-    return parts[0], parts[1]
-
-
-def _looks_like_phone(value: str) -> bool:
-    digits = re.sub(r"\D", "", value or "")
-    return len(digits) >= 7
-
-
-def _extract_phone_from_text(value: str) -> Optional[str]:
-    if not value:
-        return None
-    match = PHONE_PATTERN.search(value)
-    if match:
-        return match.group(0).strip()
-    return None
-
-
-def _default_field_value(field: str, fallback: str) -> str:
+def _coerce_patient_payload(data: dict) -> PatientCreate:
+    """Validate and normalize patient payloads (personal details only)."""
     try:
-        options = database.get_field_options(field)
-    except ValueError:
-        return fallback
-    if options:
-        return options[0]["value"]
-    return fallback
-
-
-def _resolve_import_defaults() -> Dict[str, str]:
-    return {
-        key: _default_field_value(key, IMPORTED_DEFAULT_FALLBACKS[key])
-        for key in IMPORTED_DEFAULT_FALLBACKS
-    }
-
-
-def _date_only(value) -> Optional[str]:
-    if value is None:
-        return None
-    text = str(value).strip()
-    if not text:
-        return None
-    date_part = text.split("T", 1)[0].split(" ", 1)[0]
-    try:
-        return date.fromisoformat(date_part).isoformat()
-    except ValueError:
-        try:
-            return datetime.fromisoformat(date_part).date().isoformat()
-        except ValueError:
-            return date_part
-
-
-def _normalize_import_record(record: SimplifiedPatientPayload, defaults: Dict[str, str]) -> PatientCreate:
-    scheduled_date = record.date.date()
-    week_order = _week_of_month(scheduled_date)
-    week_label = f"Week {week_order}"
-    first_name, last_name = _split_full_name(record.name)
-    extracted_phone = _extract_phone_from_text(record.name)
-    number_value = (record.number or "").strip()
-    phone_value = extracted_phone or ""
-    grafts_value = ""
-    if number_value:
-        if not phone_value and _looks_like_phone(number_value):
-            phone_value = number_value
-        elif not _looks_like_phone(number_value):
-            grafts_value = number_value
-    payment_value = defaults["payment"]
-    status_value = record.status or defaults["status"]
-    procedure_type_value = record.surgery_type or defaults["procedure_type"]
-    return PatientCreate(
-        month_label=scheduled_date.strftime("%B %Y"),
-        week_label=week_label,
-        week_range=_format_week_range(scheduled_date),
-        week_order=week_order,
-        day_label=scheduled_date.strftime("%a"),
-        day_order=scheduled_date.weekday() + 1,
-        first_name=first_name,
-        last_name=last_name,
-        email="",
-        phone=phone_value,
-        city="",
-        procedure_date=scheduled_date.isoformat(),
-        status=status_value,
-        procedure_type=procedure_type_value,
-        grafts=grafts_value,
-        payment=payment_value,
-        consultation=[],
-        forms=[],
-        consents=[],
-        photos=0,
-        photo_files=[],
-    )
-
-
-def _coerce_patient_payload(data: dict, defaults: Dict[str, str]) -> PatientCreate:
-    normalized_data = dict(data)
-    if "procedure_date" in normalized_data:
-        normalized_data["procedure_date"] = _date_only(normalized_data.get("procedure_date"))
-    try:
-        return PatientCreate.model_validate(normalized_data)
-    except ValidationError as patient_error:
-        try:
-            simplified_payload = SimplifiedPatientPayload.model_validate(normalized_data)
-        except ValidationError as simplified_error:
-            detail = json.loads(patient_error.json())
-            detail.extend(json.loads(simplified_error.json()))
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=detail,
-            )
-        return _normalize_import_record(simplified_payload, defaults)
-
-
-UPDATE_OVERRIDABLE_FIELDS: set[str] = {
-    "month_label",
-    "week_label",
-    "week_range",
-    "week_order",
-    "day_label",
-    "day_order",
-    "procedure_date",
-    "first_name",
-    "last_name",
-    "status",
-    "procedure_type",
-    "grafts",
-    "payment",
-    "phone",
-}
-
-
-def _coerce_update_payload(existing: dict, data: dict, defaults: Dict[str, str]) -> PatientCreate:
-    normalized_data = dict(data)
-    if "procedure_date" in normalized_data:
-        normalized_data["procedure_date"] = _date_only(normalized_data.get("procedure_date"))
-    try:
-        return PatientCreate.model_validate(normalized_data)
-    except ValidationError as patient_error:
-        try:
-            simplified_payload = SimplifiedPatientPayload.model_validate(normalized_data)
-        except ValidationError as simplified_error:
-            detail = json.loads(patient_error.json())
-            detail.extend(json.loads(simplified_error.json()))
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=detail,
-            )
-        normalized = _normalize_import_record(simplified_payload, defaults).model_dump()
-        merged_data = {
-            field: existing[field]
-            for field in PatientCreate.model_fields
-        }
-        for key in UPDATE_OVERRIDABLE_FIELDS:
-            merged_data[key] = normalized[key]
-        return PatientCreate(**merged_data)
+        return PatientCreate.model_validate(data)
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=json.loads(exc.json()),
+        ) from exc
 
 
 def _authorization_header_token(header_value: Optional[str]) -> Optional[str]:
@@ -337,91 +176,140 @@ def get_patient(patient_id: int) -> Patient:
     """Return the patient identified by ``patient_id``."""
     record = database.fetch_patient(patient_id)
     if not record:
-        procedure = database.fetch_procedure(patient_id, include_deleted=True)
-        if procedure:
-            owner = database.fetch_patient(procedure["patient_id"], include_deleted=True)
-            if owner:
-                record = {
-                    **owner,
-                    **{key: procedure[key] for key in procedure if key != "legacy_patient_id"},
-                    "id": procedure["id"],
-                    "patient_id": procedure["patient_id"],
-                }
-    if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     return Patient(**record)
 
 
+@patients_router.get("/{patient_id}/surgeries", response_model=list[Surgery])
 @patients_router.get("/{patient_id}/procedures", response_model=list[Procedure])
 def list_procedures(patient_id: int, include_deleted: bool = False) -> list[Procedure]:
     patient = database.fetch_patient(patient_id, include_deleted=True)
     if not patient:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
-    return database.list_procedures_for_patient(patient_id, include_deleted=include_deleted)
+    records = database.list_surgeries_for_patient(patient_id, include_deleted=include_deleted)
+    return [Procedure(**record) for record in records]
 
 
+@patients_router.post("/{patient_id}/surgeries", response_model=Surgery, status_code=status.HTTP_201_CREATED)
 @patients_router.post("/{patient_id}/procedures", response_model=Procedure, status_code=status.HTTP_201_CREATED)
 def create_procedure(patient_id: int, payload: ProcedureCreate) -> Procedure:
     patient = database.fetch_patient(patient_id)
     if not patient:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
-    return database.create_procedure(patient_id, payload.model_dump())
+    created = database.create_surgery(patient_id, payload.model_dump())
+    return Procedure(**created)
 
 
+@patients_router.get("/{patient_id}/surgeries/{procedure_id}", response_model=Surgery)
 @patients_router.get("/{patient_id}/procedures/{procedure_id}", response_model=Procedure)
 def get_procedure(patient_id: int, procedure_id: int, include_deleted: bool = False) -> Procedure:
-    procedure = database.fetch_procedure(procedure_id, include_deleted=include_deleted)
+    procedure = database.fetch_surgery(procedure_id, include_deleted=include_deleted)
     if not procedure or procedure["patient_id"] != patient_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
-    return procedure
+    return Procedure(**procedure)
 
 
+@patients_router.put("/{patient_id}/surgeries/{procedure_id}", response_model=Surgery)
 @patients_router.put("/{patient_id}/procedures/{procedure_id}", response_model=Procedure)
 def update_procedure(patient_id: int, procedure_id: int, payload: ProcedureCreate) -> Procedure:
-    procedure = database.fetch_procedure(procedure_id, include_deleted=True)
+    procedure = database.fetch_surgery(procedure_id, include_deleted=True)
     if not procedure or procedure["patient_id"] != patient_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
-    updated = database.update_procedure(procedure_id, payload.model_dump())
+    updated = database.update_surgery(procedure_id, payload.model_dump())
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
-    return updated
+    return Procedure(**updated)
 
 
+@patients_router.delete("/{patient_id}/surgeries/{procedure_id}", status_code=status.HTTP_204_NO_CONTENT)
 @patients_router.delete("/{patient_id}/procedures/{procedure_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_procedure(patient_id: int, procedure_id: int) -> Response:
-    procedure = database.fetch_procedure(procedure_id, include_deleted=True)
+    procedure = database.fetch_surgery(procedure_id, include_deleted=True)
     if not procedure or procedure["patient_id"] != patient_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
-    removed = database.delete_procedure(procedure_id)
+    removed = database.delete_surgery(procedure_id)
     if not removed:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@patients_router.post("/", status_code=status.HTTP_201_CREATED)
-def create_patient(payload: dict = Body(...)) -> JSONResponse:
-    """Create a new patient record (full payload or simplified integration payload)."""
-    defaults = _resolve_import_defaults()
-    patient_payload = _coerce_patient_payload(payload, defaults)
-    record_data = patient_payload.model_dump()
-    record = database.create_patient(record_data)
-    database.log_api_request("/patients", "POST", payload)
-    return JSONResponse({"detail": "Created", "id": record["id"]}, status_code=status.HTTP_201_CREATED)
+@patients_router.get("/{patient_id}/photos", response_model=List[Photo])
+def list_patient_photos(patient_id: int) -> List[Photo]:
+    """Return photo records linked to a patient."""
+    patient = database.fetch_patient(patient_id, include_deleted=True)
+    if not patient:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    photos = database.list_photos_for_patient(patient_id)
+    return [Photo(**photo) for photo in photos]
 
 
-@patients_router.put("/{patient_id}")
-def update_patient(patient_id: int, payload: dict = Body(...)) -> JSONResponse:
+@patients_router.post("/{patient_id}/photos", response_model=Photo, status_code=status.HTTP_201_CREATED)
+def create_patient_photo(patient_id: int, payload: PhotoCreate) -> Photo:
+    """Create a photo record (metadata only; files are handled via /uploads)."""
+    patient = database.fetch_patient(patient_id)
+    if not patient:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    record = database.create_photo(patient_id, payload.name, payload.file_path, payload.taken_at)
+    return Photo(**record)
+
+
+@patients_router.delete("/{patient_id}/photos/{photo_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_patient_photo_record(patient_id: int, photo_id: int) -> None:
+    """Delete a photo record linked to the patient."""
+    photo = next((item for item in database.list_photos_for_patient(patient_id) if item["id"] == photo_id), None)
+    if not photo:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Photo not found")
+    database.delete_photo(photo_id)
+
+
+@patients_router.get("/{patient_id}/payments", response_model=List[Payment])
+def list_patient_payments(patient_id: int) -> List[Payment]:
+    """Return payments linked to a patient."""
+    patient = database.fetch_patient(patient_id, include_deleted=True)
+    if not patient:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    payments = database.list_payments_for_patient(patient_id)
+    return [Payment(**payment) for payment in payments]
+
+
+@patients_router.post("/{patient_id}/payments", response_model=Payment, status_code=status.HTTP_201_CREATED)
+def create_patient_payment(patient_id: int, payload: PaymentCreate) -> Payment:
+    patient = database.fetch_patient(patient_id)
+    if not patient:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    payment = database.create_payment(patient_id, payload.amount, payload.currency)
+    return Payment(**payment)
+
+
+@patients_router.delete("/{patient_id}/payments/{payment_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_patient_payment(patient_id: int, payment_id: int) -> None:
+    payment = next((item for item in database.list_payments_for_patient(patient_id) if item["id"] == payment_id), None)
+    if not payment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
+    database.delete_payment(payment_id)
+
+
+@patients_router.post("/", response_model=Patient, status_code=status.HTTP_201_CREATED)
+def create_patient(payload: PatientCreate) -> Patient:
+    """Create a new patient record (personal information only)."""
+    patient_payload = _coerce_patient_payload(payload.model_dump())
+    record = database.create_patient(patient_payload.model_dump())
+    database.log_api_request("/patients", "POST", patient_payload.model_dump())
+    return Patient(**record)
+
+
+@patients_router.put("/{patient_id}", response_model=Patient)
+def update_patient(patient_id: int, payload: PatientCreate) -> Patient:
     """Update the patient record identified by ``patient_id``."""
     existing = database.fetch_patient(patient_id)
     if not existing:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
-    defaults = _resolve_import_defaults()
-    patient_payload = _coerce_update_payload(existing, payload, defaults)
+    patient_payload = _coerce_patient_payload(payload.model_dump())
     updated = database.update_patient(patient_id, patient_payload.model_dump())
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
-    database.log_api_request(f"/patients/{patient_id}", "PUT", payload)
-    return JSONResponse({"detail": "Updated", "id": patient_id})
+    database.log_api_request(f"/patients/{patient_id}", "PUT", patient_payload.model_dump())
+    return Patient(**updated)
 
 
 @patients_router.delete("/{patient_id}", status_code=status.HTTP_200_OK)
@@ -449,66 +337,70 @@ def purge_patient_route(patient_id: int, _: dict = Depends(require_admin_user)) 
     record = database.fetch_patient(patient_id, include_deleted=True)
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
-    _remove_patient_files(record.get("photo_files") or [])
+    photo_paths = [photo["file_path"] for photo in database.list_photos_for_patient(patient_id)]
+    _remove_patient_files(photo_paths)
     deleted = database.purge_patient(patient_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to delete patient")
 
 
-@patients_router.post("/multiple", status_code=status.HTTP_201_CREATED)
-def import_patients(payload: List[dict] = Body(...)) -> JSONResponse:
-    """Convert simplified integration payloads into full-fledged patient records."""
+@patients_router.post("/multiple", response_model=List[Patient], status_code=status.HTTP_201_CREATED)
+def import_patients(payload: List[PatientCreate]) -> List[Patient]:
+    """Bulk-create patient records from a list of personal-info payloads."""
     if not payload:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Provide at least one record")
-    defaults = _resolve_import_defaults()
-    created: List[int] = []
+    created: List[Patient] = []
     for record in payload:
-        patient_payload = _coerce_patient_payload(record, defaults)
-        record_data = patient_payload.model_dump()
-        created_record = database.create_patient(record_data)
-        created.append(created_record["id"])
-    database.log_api_request("/patients/multiple", "POST", payload)
-    return JSONResponse({"detail": "Imported", "ids": created}, status_code=status.HTTP_201_CREATED)
+        patient_payload = _coerce_patient_payload(record.model_dump())
+        created_record = database.create_patient(patient_payload.model_dump())
+        created.append(Patient(**created_record))
+    database.log_api_request("/patients/multiple", "POST", [patient.model_dump() for patient in payload])
+    return created
 
 
+@surgeries_router.get("/", response_model=List[Surgery])
 @procedures_router.get("/", response_model=List[Procedure])
 def list_procedures_route(patient_id: Optional[int] = Query(None)) -> List[Procedure]:
     """Return every stored procedure, optionally filtered by patient."""
-    records = database.list_procedures(patient_id=patient_id)
-    return [Procedure(**record) for record in records]
+    records = database.list_surgeries(patient_id=patient_id)
+    return [Surgery(**record) for record in records]
 
 
+@surgeries_router.post("/", response_model=Surgery, status_code=status.HTTP_201_CREATED)
 @procedures_router.post("/", response_model=Procedure, status_code=status.HTTP_201_CREATED)
-def create_procedure_route(payload: ProcedureCreate) -> Procedure:
+def create_procedure_route(payload: SurgeryCreatePayload) -> Procedure:
     """Create a procedure and link it to a patient."""
     patient = database.fetch_patient(payload.patient_id)
     if not patient:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
-    created = database.create_procedure(payload.model_dump())
-    return Procedure(**created)
+    created = database.create_surgery(payload.patient_id, payload.model_dump(exclude={"patient_id"}))
+    return Surgery(**created)
 
 
+@surgeries_router.get("/{procedure_id}", response_model=Surgery)
 @procedures_router.get("/{procedure_id}", response_model=Procedure)
 def fetch_procedure_route(procedure_id: int) -> Procedure:
-    record = database.fetch_procedure(procedure_id)
+    record = database.fetch_surgery(procedure_id)
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
-    return Procedure(**record)
+    return Surgery(**record)
 
 
+@surgeries_router.put("/{procedure_id}", response_model=Surgery)
 @procedures_router.put("/{procedure_id}", response_model=Procedure)
-def update_procedure_route(procedure_id: int, payload: ProcedureCreate) -> Procedure:
+def update_procedure_route(procedure_id: int, payload: SurgeryCreatePayload) -> Procedure:
     if not database.fetch_patient(payload.patient_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
-    updated = database.update_procedure(procedure_id, payload.model_dump())
+    updated = database.update_surgery(procedure_id, payload.model_dump(exclude={"patient_id"}))
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
-    return Procedure(**updated)
+    return Surgery(**updated)
 
 
+@surgeries_router.delete("/{procedure_id}", status_code=status.HTTP_204_NO_CONTENT)
 @procedures_router.delete("/{procedure_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_procedure_route(procedure_id: int) -> None:
-    deleted = database.delete_procedure(procedure_id)
+    deleted = database.delete_surgery(procedure_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
 
@@ -810,9 +702,15 @@ def search_patients_route(
     if not record:
         return PatientSearchResult(success=False, message="Patient record not found")
     patient = Patient(**record)
+    surgery_date = None
+    surgeries = database.list_surgeries_for_patient(patient.id)
+    for surgery in surgeries:
+        if surgery.get("procedure_date"):
+            surgery_date = surgery["procedure_date"]
+            break
     return PatientSearchResult(
         success=True,
         id=patient.id,
-        surgery_date=patient.procedure_date,
+        surgery_date=surgery_date,
         patient=patient,
     )

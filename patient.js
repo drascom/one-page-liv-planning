@@ -309,6 +309,7 @@ let activePhotoIndex = 0;
 let isAdminUser = false;
 let patientProcedures = [];
 let activeProcedure = null;
+let patientPhotos = [];
 
 function loadActiveContext() {
   if (typeof window === "undefined" || !window.localStorage) {
@@ -452,8 +453,10 @@ async function fetchPatient() {
     currentPatient = null;
     patientProcedures = [];
     activeProcedure = null;
+    patientPhotos = [];
     refreshDeleteButtonState();
     renderRelatedBookings(null);
+    renderPhotoGallery();
     return;
   }
   try {
@@ -464,11 +467,9 @@ async function fetchPatient() {
       throw new Error(`Server responded with ${response.status}`);
     }
     const record = await response.json();
-    record.photo_files = record.photo_files ?? [];
-    record.photos = record.photo_files.length ?? record.photos ?? 0;
     currentPatient = record;
     populatePatientForm(record);
-    updatePhotoCountInput();
+    await fetchPhotosForPatient(record.id);
     patientStatusEl.textContent = "";
     await fetchProceduresForPatient(record.id);
     formStatusEl.textContent = "";
@@ -482,8 +483,10 @@ async function fetchPatient() {
     currentPatient = null;
     patientProcedures = [];
     activeProcedure = null;
+    patientPhotos = [];
     refreshDeleteButtonState();
     renderRelatedBookings(null);
+    renderPhotoGallery();
   }
 }
 
@@ -500,7 +503,7 @@ function parsePhotos(value) {
 }
 
 function getPhotoFiles() {
-  return currentPatient?.photo_files ?? [];
+  return patientPhotos.map((photo) => photo.file_path);
 }
 
 async function fetchPatientById(patientId) {
@@ -512,19 +515,32 @@ async function fetchPatientById(patientId) {
   return response.json();
 }
 
+async function fetchPhotosForPatient(patientId) {
+  const response = await fetch(buildApiUrl(`/patients/${patientId}/photos`));
+  handleUnauthorized(response);
+  if (!response.ok) {
+    throw new Error(`Unable to load photos (${response.status})`);
+  }
+  const payload = await response.json();
+  patientPhotos = Array.isArray(payload) ? payload : [];
+  updatePhotoCountInput();
+  renderPhotoGallery();
+  return patientPhotos;
+}
+
 async function fetchProceduresForPatient(patientId) {
   if (!patientId || !proceduresStatusEl) {
     return [];
   }
-  proceduresStatusEl.textContent = "Loading procedures...";
+  proceduresStatusEl.textContent = "Loading surgeries...";
   try {
-    const response = await fetch(buildApiUrl(`/patients/${patientId}/procedures`));
+    const response = await fetch(buildApiUrl(`/patients/${patientId}/surgeries`));
     handleUnauthorized(response);
     let payload = [];
     if (response.ok) {
       payload = await response.json();
     } else {
-      const fallback = await fetch(buildApiUrl("/procedures"));
+      const fallback = await fetch(buildApiUrl("/surgeries"));
       handleUnauthorized(fallback);
       if (!fallback.ok) {
         throw new Error(`Unable to load procedures (${response.status})`);
@@ -546,12 +562,12 @@ async function fetchProceduresForPatient(patientId) {
     if (proceduresStatusEl) {
       proceduresStatusEl.textContent = patientProcedures.length
         ? ""
-        : "No procedures found. Use Add to create one.";
+        : "No surgeries found. Use Add to create one.";
     }
     return patientProcedures;
   } catch (error) {
     console.error(error);
-    proceduresStatusEl.textContent = "Unable to load procedures.";
+    proceduresStatusEl.textContent = "Unable to load surgeries.";
     patientProcedures = [];
     activeProcedure = null;
     renderRelatedBookings(null);
@@ -841,11 +857,7 @@ async function deletePhoto(relativePath) {
     if (!response.ok) {
       throw new Error(`Failed to delete photo (${response.status})`);
     }
-    const payload = await response.json();
-    currentPatient.photo_files = payload.photoFiles ?? [];
-    currentPatient.photos = currentPatient.photo_files.length;
-    updatePhotoCountInput();
-    renderPhotoGallery();
+    await fetchPhotosForPatient(currentPatient.id);
     if (getPhotoFiles().length === 0) {
       closePhotoViewer();
     } else if (activePhotoIndex >= getPhotoFiles().length) {
@@ -938,8 +950,8 @@ async function savePatient(event) {
 
   try {
     const endpoint = activeProcedure
-      ? buildApiUrl(`/procedures/${activeProcedure.id}`)
-      : buildApiUrl(`/procedures`);
+      ? buildApiUrl(`/surgeries/${activeProcedure.id}`)
+      : buildApiUrl(`/surgeries`);
     const response = await fetch(endpoint, {
       method: activeProcedure ? "PUT" : "POST",
       headers: {
@@ -1020,11 +1032,8 @@ async function uploadFiles(fileList) {
     }
     const payload = await response.json();
     files.forEach(appendUploadedFileItem);
-    if (payload.photoFiles && currentPatient) {
-      currentPatient.photo_files = payload.photoFiles;
-      currentPatient.photos = currentPatient.photo_files.length;
-      updatePhotoCountInput();
-      renderPhotoGallery();
+    if (currentPatient?.id) {
+      await fetchPhotosForPatient(currentPatient.id);
     }
     uploadStatus.textContent = `Uploaded ${files.length} file(s).`;
   } catch (error) {
@@ -1131,7 +1140,7 @@ async function handleCancelProcedure() {
   cancelProcedureBtn.disabled = true;
   cancelProcedureBtn.textContent = "Cancelling...";
   try {
-    const response = await fetch(buildApiUrl(`/procedures/${activeProcedure.id}`), { method: "DELETE" });
+    const response = await fetch(buildApiUrl(`/surgeries/${activeProcedure.id}`), { method: "DELETE" });
     handleUnauthorized(response);
     if (!response.ok) {
       throw new Error(`Failed to cancel (status ${response.status})`);
