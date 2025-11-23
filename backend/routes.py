@@ -41,6 +41,8 @@ from .models import (
     LoginRequest,
     Patient,
     PatientCreate,
+    Procedure,
+    ProcedureCreate,
     PatientSearchResult,
     SimplifiedPatientPayload,
     User,
@@ -332,8 +334,65 @@ def get_patient(patient_id: int) -> Patient:
     """Return the patient identified by ``patient_id``."""
     record = database.fetch_patient(patient_id)
     if not record:
+        procedure = database.fetch_procedure(patient_id, include_deleted=True)
+        if procedure:
+            owner = database.fetch_patient(procedure["patient_id"], include_deleted=True)
+            if owner:
+                record = {
+                    **owner,
+                    **{key: procedure[key] for key in procedure if key != "legacy_patient_id"},
+                    "id": procedure["id"],
+                    "patient_id": procedure["patient_id"],
+                }
+    if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     return Patient(**record)
+
+
+@patients_router.get("/{patient_id}/procedures", response_model=list[Procedure])
+def list_procedures(patient_id: int, include_deleted: bool = False) -> list[Procedure]:
+    patient = database.fetch_patient(patient_id, include_deleted=True)
+    if not patient:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    return database.list_procedures_for_patient(patient_id, include_deleted=include_deleted)
+
+
+@patients_router.post("/{patient_id}/procedures", response_model=Procedure, status_code=status.HTTP_201_CREATED)
+def create_procedure(patient_id: int, payload: ProcedureCreate) -> Procedure:
+    patient = database.fetch_patient(patient_id)
+    if not patient:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    return database.create_procedure(patient_id, payload.model_dump())
+
+
+@patients_router.get("/{patient_id}/procedures/{procedure_id}", response_model=Procedure)
+def get_procedure(patient_id: int, procedure_id: int, include_deleted: bool = False) -> Procedure:
+    procedure = database.fetch_procedure(procedure_id, include_deleted=include_deleted)
+    if not procedure or procedure["patient_id"] != patient_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
+    return procedure
+
+
+@patients_router.put("/{patient_id}/procedures/{procedure_id}", response_model=Procedure)
+def update_procedure(patient_id: int, procedure_id: int, payload: ProcedureCreate) -> Procedure:
+    procedure = database.fetch_procedure(procedure_id, include_deleted=True)
+    if not procedure or procedure["patient_id"] != patient_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
+    updated = database.update_procedure(procedure_id, payload.model_dump())
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
+    return updated
+
+
+@patients_router.delete("/{patient_id}/procedures/{procedure_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_procedure(patient_id: int, procedure_id: int) -> Response:
+    procedure = database.fetch_procedure(procedure_id, include_deleted=True)
+    if not procedure or procedure["patient_id"] != patient_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
+    removed = database.delete_procedure(procedure_id)
+    if not removed:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @patients_router.post("/", status_code=status.HTTP_201_CREATED)
