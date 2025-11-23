@@ -200,3 +200,46 @@ def test_procedure_recovery_requires_patient(client: TestClient):
     recovered_procedure = client.post(f"/procedures/{procedure_id}/recover")
     assert recovered_procedure.status_code == 200
     assert recovered_procedure.json()["deleted"] is False
+
+
+def test_procedure_search_returns_success_and_message(client: TestClient):
+    patient_id = _create_patient(client)
+    payload = {
+        "patient_id": patient_id,
+        "procedure_date": "2025-04-05",
+        "status": "reserved",
+        "procedure_type": "small",
+        "grafts": "",
+        "payment": "waiting",
+        "consultation": [],
+        "forms": [],
+        "consents": [],
+        "photo_files": [],
+    }
+    created = client.post("/procedures", json=payload)
+    assert created.status_code == 201
+    procedure_id = created.json()["id"]
+
+    match = client.get(
+        f"/procedures/search?patient_id={patient_id}&procedure_date=2025-04-05"
+    )
+    assert match.status_code == 200
+    body = match.json()
+    assert body["success"] is True
+    assert body["procedure"]["id"] == procedure_id
+
+    missing = client.get(
+        f"/procedures/search?patient_id={patient_id}&procedure_date=2025-04-06"
+    )
+    assert missing.status_code == 200
+    missing_body = missing.json()
+    assert missing_body["success"] is False
+    assert missing_body["message"] == "Procedure not found"
+
+    missing_patient = client.get(
+        "/procedures/search?patient_id=999999&procedure_date=2025-04-05"
+    )
+    assert missing_patient.status_code == 200
+    missing_patient_body = missing_patient.json()
+    assert missing_patient_body["success"] is False
+    assert missing_patient_body["message"] == "Patient record not found"

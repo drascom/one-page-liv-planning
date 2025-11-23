@@ -84,6 +84,12 @@ class Procedure(ProcedureBase):
         from_attributes = True
 
 
+class ProcedureSearchResult(BaseModel):
+    success: bool = Field(..., description="Whether a matching procedure was found")
+    message: Optional[str] = Field(None, description="Details when the procedure is missing")
+    procedure: Optional[Procedure] = Field(None, description="Matched procedure when success is true")
+
+
 class PhotoBase(BaseModel):
     """Photo model for patient photos."""
     name: str = Field(..., description="Photo name/description")

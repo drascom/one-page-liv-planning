@@ -44,6 +44,7 @@ from .models import (
     Procedure,
     ProcedureCreate,
     ProcedureCreatePayload,
+    ProcedureSearchResult,
     DeletedProcedureRecord,
     Photo,
     PhotoCreate,
@@ -366,6 +367,30 @@ def create_procedure_route(payload: ProcedureCreatePayload) -> OperationResult:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     created = database.create_procedure(payload.patient_id, payload.model_dump(exclude={"patient_id"}))
     return OperationResult(success=True, id=created["id"], message="Procedure created")
+
+
+@procedures_router.get("/search", response_model=ProcedureSearchResult)
+def search_procedure_route(
+    patient_id: int = Query(..., description="Patient identifier to search"),
+    procedure_date: Optional[str] = Query(None, description="ISO procedure date (YYYY-MM-DD) to match"),
+    include_deleted: bool = Query(False, description="Include deleted procedures in the search"),
+) -> ProcedureSearchResult:
+    patient = database.fetch_patient(patient_id, include_deleted=True)
+    if not patient:
+        return ProcedureSearchResult(success=False, message="Patient record not found")
+    if not procedure_date:
+        return ProcedureSearchResult(success=False, message="procedure_date is missing")
+    try:
+        record = database.find_procedure_by_patient_and_date(
+            patient_id,
+            procedure_date,
+            include_deleted=include_deleted,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    if not record:
+        return ProcedureSearchResult(success=False, message="Procedure not found")
+    return ProcedureSearchResult(success=True, procedure=Procedure(**record))
 
 
 @procedures_router.get("/deleted", response_model=List[DeletedProcedureRecord])

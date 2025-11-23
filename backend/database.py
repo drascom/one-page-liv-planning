@@ -1009,6 +1009,37 @@ def list_procedures_for_patient(
     )
 
 
+def find_procedure_by_patient_and_date(
+    patient_id: int,
+    procedure_date: Optional[str],
+    *,
+    include_deleted: bool = False,
+) -> Optional[Dict[str, Any]]:
+    """Return the first procedure for a patient on the supplied date."""
+    normalized_date = _date_only(procedure_date)
+    if not normalized_date:
+        raise ValueError("procedure_date is missing or invalid")
+    with closing(get_connection()) as conn:
+        cursor = conn.execute(
+            """
+            SELECT
+                procedures.*,
+                (
+                    SELECT COUNT(*) FROM photos WHERE photos.patient_id = procedures.patient_id
+                ) AS photo_count
+            FROM procedures
+            WHERE patient_id = ?
+              AND procedure_date = ?
+              AND deleted = ?
+            ORDER BY id ASC
+            LIMIT 1
+            """,
+            (patient_id, normalized_date, 1 if include_deleted else 0),
+        )
+        row = cursor.fetchone()
+        return _row_to_procedure(row) if row else None
+
+
 def fetch_procedure(procedure_id: int, *, include_deleted: bool = False) -> Optional[Dict[str, Any]]:
     """Fetch a single procedure by ID."""
     with closing(get_connection()) as conn:

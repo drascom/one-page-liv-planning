@@ -98,6 +98,7 @@ If you are behind nginx proxy manager with ssl certificate than use
 | POST | `/procedures/` | Create a procedure linked to a patient |
 | GET/PUT | `/procedures/{id}` | Fetch or update a procedure |
 | DELETE | `/procedures/{id}` | Delete a procedure |
+| GET | `/procedures/search?patient_id=123&procedure_date=2025-02-12` | Return `{ "success": true, "procedure": { ... } }` when a patient has a procedure on the supplied date, or `{ "success": false, "message": "Procedure not found" }` otherwise. |
 | GET/POST/DELETE | `/patients/{id}/photos` | List/create/delete photo metadata (files land in `/uploads`) |
 | GET/POST/DELETE | `/patients/{id}/payments` | Manage patient payments |
 | POST | `/uploads/{last_name}` | Upload photos for a patient |
@@ -214,6 +215,23 @@ curl -X POST "http://127.0.0.1:8000/api/v1/procedures" \
     "consents": [],
     "photo_files": []
   }'
+```
+
+Check whether a patient already has a procedure scheduled on a specific date:
+
+```bash
+curl -X GET "http://127.0.0.1:8000/api/v1/procedures/search?patient_id=123&procedure_date=2025-02-12" \
+  -H "Authorization: Bearer f1iUbTg7yfh1cdncn2SWcq3t1eiQZZQUHmVZS3jPIrOiquyx"
+```
+
+Responses include a `success` flag plus either the matching procedure or a friendly message:
+
+```json
+// When a matching procedure exists
+{ "success": true, "procedure": { "id": 456, "procedure_date": "2025-02-12", ... } }
+
+// When nothing matches
+{ "success": false, "message": "Procedure not found" }
 ```
 
 ### Automated workflow smoke test
