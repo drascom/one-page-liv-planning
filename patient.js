@@ -55,6 +55,8 @@ const BOOKING_DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   year: "numeric",
 });
+const MONTH_FORMATTER = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" });
+const DAY_FORMATTER = new Intl.DateTimeFormat("en-US", { weekday: "short" });
 
 function buildApiUrl(path) {
   return new URL(path, API_BASE_URL).toString();
@@ -255,9 +257,14 @@ const patientNameEl = document.getElementById("patient-name");
 const patientWeekEl = document.getElementById("patient-week");
 const patientCityEl = document.getElementById("patient-city");
 const bookingListEl = document.getElementById("patient-bookings-list");
+const proceduresStatusEl = document.getElementById("procedures-status");
 const formEl = document.getElementById("patient-form");
 const formStatusEl = document.getElementById("form-status");
+const patientStatusEl = document.getElementById("patient-status");
+const procedureFormStatusEl = document.getElementById("procedure-form-status");
 const deletePatientBtn = document.getElementById("delete-patient-btn");
+const addProcedureBtn = document.getElementById("add-procedure-btn");
+const cancelProcedureBtn = document.getElementById("cancel-procedure-btn");
 
 const firstNameInput = document.getElementById("first-name");
 const lastNameInput = document.getElementById("last-name");
@@ -294,12 +301,14 @@ const viewerDeleteBtn = document.getElementById("photo-viewer-delete");
 const params = new URLSearchParams(window.location.search);
 const requestedId = params.get("id");
 const requestedName = params.get("patient");
+const requestedProcedureIdParam = params.get("procedure");
+const requestedProcedureId = requestedProcedureIdParam ? Number(requestedProcedureIdParam) : null;
 
 let currentPatient = null;
 let activePhotoIndex = 0;
 let isAdminUser = false;
-let cachedPatients = null;
-let cachedProcedures = new Map();
+let patientProcedures = [];
+let activeProcedure = null;
 
 function loadActiveContext() {
   if (typeof window === "undefined" || !window.localStorage) {
@@ -314,21 +323,22 @@ function loadActiveContext() {
   }
 }
 
-function persistReturnToScheduleContext(record) {
-  if (!record || typeof window === "undefined" || !window.localStorage) {
+function persistReturnToScheduleContext(patient, procedure) {
+  if (!patient || typeof window === "undefined" || !window.localStorage) {
     return;
   }
   try {
     localStorage.setItem(
       ACTIVE_PATIENT_KEY,
       JSON.stringify({
-        patientId: record.id,
-        patient: `${record.first_name} ${record.last_name}`.trim(),
-        weekLabel: record.week_label,
-        weekRange: record.week_range,
-        day: record.day_label,
-        monthLabel: record.month_label,
-        procedureDate: record.procedure_date,
+        patientId: patient.id,
+        patient: `${patient.first_name} ${patient.last_name}`.trim(),
+        weekLabel: procedure?.week_label,
+        weekRange: procedure?.week_range,
+        day: procedure?.day_label,
+        monthLabel: procedure?.month_label,
+        procedureDate: procedure?.procedure_date,
+        procedureId: procedure?.id,
         shouldReturnToSchedule: true,
         capturedAt: new Date().toISOString(),
       })
@@ -338,12 +348,12 @@ function persistReturnToScheduleContext(record) {
   }
 }
 
-function syncHeader(record) {
-  const displayName = `${record.first_name} ${record.last_name}`.trim() || requestedName || "Patient";
+function syncHeader(patient, procedure) {
+  const displayName = `${patient?.first_name || ""} ${patient?.last_name || ""}`.trim() || requestedName || "Patient";
   patientNameEl.textContent = displayName;
-  const weekBits = [record.week_label, record.day_label].filter(Boolean).join(" • ");
+  const weekBits = [procedure?.week_label, procedure?.day_label].filter(Boolean).join(" • ");
   patientWeekEl.textContent = weekBits;
-  patientCityEl.textContent = record.city ? `City: ${record.city}` : "";
+  patientCityEl.textContent = patient?.city ? `City: ${patient.city}` : "";
 }
 
 function setMultiValue(selectEl, values) {
@@ -353,37 +363,67 @@ function setMultiValue(selectEl, values) {
   });
 }
 
-function populateForm(record) {
-  record.photo_files = record.photo_files ?? [];
-  if (currentPatient) {
-    currentPatient.photo_files = record.photo_files;
+function populatePatientForm(record) {
+  if (!record) {
+    return;
   }
+  record.photo_files = record.photo_files ?? [];
+  currentPatient.photo_files = record.photo_files;
   firstNameInput.value = record.first_name || "";
   lastNameInput.value = record.last_name || "";
-  procedureDateInput.value = record.procedure_date || "";
   emailInput.value = record.email || DEFAULT_CONTACT.email;
   phoneInput.value = record.phone || DEFAULT_CONTACT.phone;
   cityInput.value = record.city || DEFAULT_CONTACT.city;
-  statusSelect.value = record.status || "reserved";
-  procedureSelect.value = record.procedure_type || "small";
-  graftsInput.value = record.grafts || "";
-  paymentSelect.value = record.payment || "waiting";
+  renderPhotoGallery();
+  refreshDeleteButtonState();
+  syncHeader(record, activeProcedure);
+}
+
+function clearProcedureForm() {
+  procedureDateInput.value = "";
+  statusSelect.value = getFieldOptions("status")[0]?.value || "";
+  procedureSelect.value = getFieldOptions("procedure_type")[0]?.value || "";
+  graftsInput.value = "";
+  paymentSelect.value = getFieldOptions("payment")[0]?.value || "";
+  setMultiValue(consultationSelect, []);
+  refreshConsultationsChecklist();
+  setMultiValue(formsSelect, []);
+  refreshFormsChecklist();
+  setMultiValue(consentsSelect, []);
+  refreshConsentsChecklist();
+  if (procedureFormStatusEl) {
+    procedureFormStatusEl.textContent = "";
+  }
+}
+
+function populateProcedureForm(procedure) {
+  if (!procedure) {
+    clearProcedureForm();
+    syncHeader(currentPatient || {}, null);
+    return;
+  }
+  procedureDateInput.value = procedure.procedure_date || "";
+  statusSelect.value = procedure.status || getFieldOptions("status")[0]?.value || "";
+  procedureSelect.value = procedure.procedure_type || getFieldOptions("procedure_type")[0]?.value || "";
+  graftsInput.value = procedure.grafts || "";
+  paymentSelect.value = procedure.payment || getFieldOptions("payment")[0]?.value || "";
   if (consultationSelect) {
-    const selectedConsultations = Array.isArray(record.consultation)
-      ? record.consultation
-      : record.consultation
-        ? [record.consultation]
+    const selectedConsultations = Array.isArray(procedure.consultation)
+      ? procedure.consultation
+      : procedure.consultation
+        ? [procedure.consultation]
         : [];
     setMultiValue(consultationSelect, selectedConsultations);
   }
   refreshConsultationsChecklist();
-  setMultiValue(formsSelect, record.forms || []);
+  setMultiValue(formsSelect, procedure.forms || []);
   refreshFormsChecklist();
-  setMultiValue(consentsSelect, record.consents || []);
+  setMultiValue(consentsSelect, procedure.consents || []);
   refreshConsentsChecklist();
-  syncHeader(record);
-  renderPhotoGallery();
-  refreshDeleteButtonState();
+  syncHeader(currentPatient || {}, procedure);
+  if (procedureFormStatusEl) {
+    procedureFormStatusEl.textContent = "";
+  }
 }
 
 function disableForm(disabled) {
@@ -391,6 +431,12 @@ function disableForm(disabled) {
     element.disabled = disabled;
   });
   browseButton.disabled = disabled;
+  if (addProcedureBtn) {
+    addProcedureBtn.disabled = disabled;
+  }
+  if (cancelProcedureBtn) {
+    cancelProcedureBtn.disabled = disabled || !activeProcedure;
+  }
 }
 
 async function fetchPatient() {
@@ -399,13 +445,19 @@ async function fetchPatient() {
     patientNameEl.textContent = context?.patient || requestedName || "Patient";
     patientWeekEl.textContent = context?.weekLabel || "";
     formStatusEl.textContent = "Select a patient from the schedule first.";
+    patientStatusEl.textContent = "";
+    procedureFormStatusEl.textContent = "";
+    proceduresStatusEl.textContent = "";
     disableForm(true);
     currentPatient = null;
+    patientProcedures = [];
+    activeProcedure = null;
     refreshDeleteButtonState();
     renderRelatedBookings(null);
     return;
   }
   try {
+    patientStatusEl.textContent = "Loading patient...";
     const response = await fetch(buildApiUrl(`/patients/${requestedId}`));
     handleUnauthorized(response);
     if (!response.ok) {
@@ -415,17 +467,21 @@ async function fetchPatient() {
     record.photo_files = record.photo_files ?? [];
     record.photos = record.photo_files.length ?? record.photos ?? 0;
     currentPatient = record;
-    populateForm(record);
+    populatePatientForm(record);
     updatePhotoCountInput();
+    patientStatusEl.textContent = "";
+    await fetchProceduresForPatient(record.id);
     formStatusEl.textContent = "";
     disableForm(false);
     refreshDeleteButtonState();
-    renderRelatedBookings(record);
   } catch (error) {
     console.error(error);
     formStatusEl.textContent = "Unable to load patient details.";
+    patientStatusEl.textContent = "";
     disableForm(true);
     currentPatient = null;
+    patientProcedures = [];
+    activeProcedure = null;
     refreshDeleteButtonState();
     renderRelatedBookings(null);
   }
@@ -456,6 +512,55 @@ async function fetchPatientById(patientId) {
   return response.json();
 }
 
+async function fetchProceduresForPatient(patientId) {
+  if (!patientId || !proceduresStatusEl) {
+    return [];
+  }
+  proceduresStatusEl.textContent = "Loading procedures...";
+  try {
+    const response = await fetch(buildApiUrl(`/patients/${patientId}/procedures`));
+    handleUnauthorized(response);
+    let payload = [];
+    if (response.ok) {
+      payload = await response.json();
+    } else {
+      const fallback = await fetch(buildApiUrl("/procedures"));
+      handleUnauthorized(fallback);
+      if (!fallback.ok) {
+        throw new Error(`Unable to load procedures (${response.status})`);
+      }
+      const allProcedures = await fallback.json();
+      payload = Array.isArray(allProcedures)
+        ? allProcedures.filter((procedure) => Number(procedure.patient_id) === Number(patientId))
+        : [];
+    }
+    patientProcedures = Array.isArray(payload) ? payload : [];
+    const preferredId = Number.isFinite(requestedProcedureId) ? requestedProcedureId : null;
+    activeProcedure =
+      (preferredId && patientProcedures.find((procedure) => procedure.id === preferredId)) ||
+      patientProcedures[0] ||
+      null;
+    renderRelatedBookings(patientProcedures);
+    populateProcedureForm(activeProcedure);
+    refreshCancelButtonState();
+    if (proceduresStatusEl) {
+      proceduresStatusEl.textContent = patientProcedures.length
+        ? ""
+        : "No procedures found. Use Add to create one.";
+    }
+    return patientProcedures;
+  } catch (error) {
+    console.error(error);
+    proceduresStatusEl.textContent = "Unable to load procedures.";
+    patientProcedures = [];
+    activeProcedure = null;
+    renderRelatedBookings(null);
+    clearProcedureForm();
+    refreshCancelButtonState();
+    return [];
+  }
+}
+
 function normalizeName(value) {
   return (value || "").trim().toLowerCase();
 }
@@ -479,57 +584,91 @@ function formatBookingDate(value) {
   return BOOKING_DATE_FORMATTER.format(parsed);
 }
 
-async function loadAllPatients() {
-  if (cachedPatients) {
-    return cachedPatients;
+function formatMonthLabelFromDate(date) {
+  const parsedDate = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "";
   }
-  try {
-    const response = await fetch(buildApiUrl("/patients"));
-    handleUnauthorized(response);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch patients (${response.status})`);
-    }
-    cachedPatients = await response.json();
-  } catch (error) {
-    console.warn("Unable to load patients for duplicate check", error);
-    cachedPatients = [];
-  }
-  return cachedPatients;
+  return MONTH_FORMATTER.format(new Date(parsedDate.getFullYear(), parsedDate.getMonth(), 1));
 }
 
-async function findDuplicatePatient({ first_name, last_name, procedure_date, id: selfId }) {
-  const normalizedFirst = normalizeName(first_name);
-  const normalizedLast = normalizeName(last_name);
+function parseISODate(value) {
+  if (!value) return null;
+  const text = String(value);
+  const datePart = text.includes("T") ? text.split("T")[0] : text.split(" ")[0] || text;
+  const date = new Date(`${datePart}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatLocalISODate(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getWeekMetaForDate(date) {
+  const day = date.getDate();
+  const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+  const mondayAlignedOffset = (firstDayOfMonth + 6) % 7;
+  const weekIndex = Math.floor((mondayAlignedOffset + day - 1) / 7) + 1;
+  const weekdayMondayFirst = (date.getDay() + 6) % 7;
+  const weekStart = new Date(date);
+  weekStart.setDate(date.getDate() - weekdayMondayFirst);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  const monthStartShort = weekStart.toLocaleString("en-US", { month: "short" });
+  const monthEndShort = weekEnd.toLocaleString("en-US", { month: "short" });
+  return {
+    label: `Week ${weekIndex}`,
+    range: `${monthStartShort} ${weekStart.getDate()} – ${monthEndShort} ${weekEnd.getDate()}`,
+    order: weekIndex,
+  };
+}
+
+function deriveProcedureMetadata(base, procedureDate) {
+  const parsed = parseISODate(procedureDate);
+  if (!parsed) {
+    return base;
+  }
+  const weekMeta = getWeekMetaForDate(parsed);
+  return {
+    ...base,
+    month_label: formatMonthLabelFromDate(parsed),
+    week_label: weekMeta.label,
+    week_range: weekMeta.range,
+    week_order: weekMeta.order,
+    day_label: DAY_FORMATTER.format(parsed),
+    day_order: (parsed.getDay() + 6) % 7,
+    procedure_date: formatLocalISODate(parsed),
+  };
+}
+
+function findDuplicateProcedureForPatient({ procedure_date, id: selfId }) {
   const normalizedDate = dateOnly(procedure_date);
-  if (!normalizedFirst || !normalizedLast || !normalizedDate) {
+  if (!normalizedDate) {
     return null;
   }
-  const patients = await loadAllPatients();
   return (
-    patients.find((patient) => {
-      if (selfId && patient.id === selfId) return false;
-      return (
-        normalizeName(patient.first_name) === normalizedFirst &&
-        normalizeName(patient.last_name) === normalizedLast &&
-        dateOnly(patient.procedure_date) === normalizedDate
-      );
-    }) || null
+    patientProcedures.find(
+      (procedure) =>
+        (!selfId || procedure.id !== selfId) && dateOnly(procedure.procedure_date) === normalizedDate
+    ) || null
   );
 }
 
 async function confirmDuplicateIfNeeded(payload) {
-  const duplicate = await findDuplicatePatient(payload);
+  const duplicate = findDuplicateProcedureForPatient(payload);
   if (!duplicate) {
     return true;
   }
-  const name = `${duplicate.first_name} ${duplicate.last_name}`.trim();
   const date = duplicate.procedure_date || "this date";
   const proceed = window.confirm(
-    `A patient named "${name}" already has a procedure on ${date}.\n\nPress OK to add another patient with the same name, or Cancel to open the existing record instead.`
+    `This patient already has a procedure on ${date}.\n\nPress OK to add another procedure on the same date, or Cancel to edit the existing entry instead.`
   );
   if (!proceed) {
-    const params = new URLSearchParams({ id: String(duplicate.id), patient: name });
-    window.location.href = `patient.html?${params.toString()}`;
+    selectProcedure(duplicate.id);
     return false;
   }
   return true;
@@ -551,61 +690,67 @@ function getBookingSortValue(entry) {
   return parsed;
 }
 
-async function renderRelatedBookings(record) {
+function renderRelatedBookings(entries) {
   if (!bookingListEl) {
     return;
   }
   bookingListEl.innerHTML = "";
-  if (!record) {
-    return;
-  }
-  try {
-    const patientId = record.patient_id || record.id;
-    if (!cachedProcedures.has(patientId)) {
-      const response = await fetch(buildApiUrl(`/patients/${patientId}/procedures`));
-      handleUnauthorized(response);
-      if (!response.ok) {
-        throw new Error(`Unable to load procedures (${response.status})`);
-      }
-      cachedProcedures.set(patientId, await response.json());
+  const procedures = Array.isArray(entries)
+    ? [...entries].sort((a, b) => getBookingSortValue(a) - getBookingSortValue(b) || a.id - b.id)
+    : [];
+  procedures.forEach((entry) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "settings-tab";
+    if (entry.id === activeProcedure?.id) {
+      button.classList.add("is-active");
     }
 
-    const matches = (cachedProcedures.get(patientId) || []).sort(
-      (a, b) => getBookingSortValue(a) - getBookingSortValue(b) || a.id - b.id
-    );
+    const titleSpan = document.createElement("span");
+    titleSpan.className = "settings-tab__title";
+    titleSpan.textContent = formatBookingDate(entry.procedure_date);
 
-    matches.forEach((entry) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "settings-tab";
-      if (entry.id === record.id) {
-        button.classList.add("is-active");
+    const subtitleSpan = document.createElement("span");
+    subtitleSpan.className = "settings-tab__subtitle";
+    const statusLabel = getOptionLabel("status", entry.status) || entry.status || "Status not set";
+    const typeLabel =
+      getOptionLabel("procedure_type", entry.procedure_type) || entry.procedure_type || "Type not set";
+    subtitleSpan.textContent = `${statusLabel} • ${typeLabel}`;
+
+    button.appendChild(titleSpan);
+    button.appendChild(subtitleSpan);
+
+    button.addEventListener("click", () => {
+      if (entry.id === activeProcedure?.id) {
+        return;
       }
-      
-      const titleSpan = document.createElement("span");
-      titleSpan.className = "settings-tab__title";
-      titleSpan.textContent = formatBookingDate(entry.procedure_date);
-      
-      const subtitleSpan = document.createElement("span");
-      subtitleSpan.className = "settings-tab__subtitle";
-      const statusLabel = getOptionLabel("status", entry.status) || entry.status || "Status not set";
-      const typeLabel = getOptionLabel("procedure_type", entry.procedure_type) || entry.procedure_type || "Type not set";
-      subtitleSpan.textContent = `${statusLabel} • ${typeLabel}`;
-
-      button.appendChild(titleSpan);
-      button.appendChild(subtitleSpan);
-
-      button.addEventListener("click", () => {
-        if (entry.id === record.id) {
-          return;
-        }
-        const params = new URLSearchParams({ id: String(entry.id), patient: `${record.first_name} ${record.last_name}`.trim() });
-        window.location.href = `patient.html?${params.toString()}`;
-      });
-      bookingListEl.appendChild(button);
+      selectProcedure(entry.id);
     });
-  } catch (error) {
-    console.warn("Unable to render related bookings", error);
+    bookingListEl.appendChild(button);
+  });
+}
+
+function selectProcedure(procedureId) {
+  const match = patientProcedures.find((procedure) => procedure.id === procedureId);
+  if (!match) {
+    return;
+  }
+  activeProcedure = match;
+  populateProcedureForm(activeProcedure);
+  renderRelatedBookings(patientProcedures);
+  refreshCancelButtonState();
+  if (proceduresStatusEl) {
+    proceduresStatusEl.textContent = "";
+  }
+}
+
+function startNewProcedure() {
+  activeProcedure = null;
+  clearProcedureForm();
+  renderRelatedBookings(patientProcedures);
+  refreshCancelButtonState();
+  if (procedureFormStatusEl) {
+    procedureFormStatusEl.textContent = "Creating a new procedure entry.";
   }
 }
 
@@ -715,23 +860,28 @@ async function deletePhoto(relativePath) {
   }
 }
 
-function buildPayloadFromForm() {
+function buildPatientPayloadFromForm() {
   if (!currentPatient) {
     return null;
   }
   return {
-    month_label: currentPatient.month_label,
-    week_label: currentPatient.week_label,
-    week_range: currentPatient.week_range,
-    week_order: currentPatient.week_order,
-    day_label: currentPatient.day_label,
-    day_order: currentPatient.day_order,
-    procedure_date: procedureDateInput.value || currentPatient.procedure_date,
     first_name: firstNameInput.value.trim() || currentPatient.first_name,
     last_name: lastNameInput.value.trim() || currentPatient.last_name,
     email: emailInput.value.trim(),
     phone: phoneInput.value.trim(),
     city: cityInput.value.trim(),
+  };
+}
+
+function buildProcedurePayloadFromForm() {
+  if (!currentPatient) {
+    return null;
+  }
+  const base = activeProcedure || patientProcedures[0] || {};
+  const payload = {
+    ...base,
+    patient_id: currentPatient.id,
+    procedure_date: procedureDateInput.value || base.procedure_date,
     status: statusSelect.value,
     procedure_type: procedureSelect.value,
     grafts: graftsInput.value.trim(),
@@ -740,6 +890,7 @@ function buildPayloadFromForm() {
     forms: collectMultiValue(formsSelect),
     consents: collectMultiValue(consentsSelect),
   };
+  return deriveProcedureMetadata(payload, payload.procedure_date);
 }
 
 async function savePatient(event) {
@@ -747,37 +898,77 @@ async function savePatient(event) {
   if (!currentPatient) {
     return;
   }
-  const payload = buildPayloadFromForm();
-  if (!payload) {
+  const patientPayload = buildPatientPayloadFromForm();
+  const procedurePayload = buildProcedurePayloadFromForm();
+  if (!patientPayload || !procedurePayload) {
     return;
   }
-  const shouldProceed = await confirmDuplicateIfNeeded({ ...payload, id: currentPatient.id });
+  const shouldProceed = await confirmDuplicateIfNeeded({
+    ...procedurePayload,
+    id: activeProcedure?.id,
+  });
   if (!shouldProceed) {
     return;
   }
   formStatusEl.textContent = "Saving...";
+  patientStatusEl.textContent = "Updating patient...";
+  procedureFormStatusEl.textContent = activeProcedure ? "Saving procedure..." : "Creating procedure...";
   try {
     const response = await fetch(buildApiUrl(`/patients/${currentPatient.id}`), {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(patientPayload),
     });
     handleUnauthorized(response);
     if (!response.ok) {
-      throw new Error(`Failed to save (status ${response.status})`);
+      throw new Error(`Failed to save patient (status ${response.status})`);
     }
-    const result = await response.json();
-    const refreshed = await fetchPatientById(result.id ?? currentPatient.id);
-    currentPatient = refreshed;
-    populateForm(refreshed);
-    updatePhotoCountInput();
-    persistReturnToScheduleContext(refreshed);
-    formStatusEl.textContent = "Patient record saved. Returning to schedule...";
+    const updatedPatient = await response.json();
+    currentPatient = updatedPatient;
+    populatePatientForm(updatedPatient);
+    patientStatusEl.textContent = "Patient details saved.";
+  } catch (error) {
+    console.error(error);
+    formStatusEl.textContent = error.message;
+    patientStatusEl.textContent = error.message;
+    return;
+  }
+
+  try {
+    const endpoint = activeProcedure
+      ? buildApiUrl(`/procedures/${activeProcedure.id}`)
+      : buildApiUrl(`/procedures`);
+    const response = await fetch(endpoint, {
+      method: activeProcedure ? "PUT" : "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(procedurePayload),
+    });
+    handleUnauthorized(response);
+    if (!response.ok) {
+      throw new Error(`Failed to save procedure (status ${response.status})`);
+    }
+    const savedProcedure = await response.json();
+    const existingIndex = patientProcedures.findIndex((procedure) => procedure.id === savedProcedure.id);
+    if (existingIndex >= 0) {
+      patientProcedures[existingIndex] = savedProcedure;
+    } else {
+      patientProcedures.push(savedProcedure);
+    }
+    activeProcedure = savedProcedure;
+    populateProcedureForm(savedProcedure);
+    renderRelatedBookings(patientProcedures);
+    refreshCancelButtonState();
+    procedureFormStatusEl.textContent = "Procedure saved.";
+    persistReturnToScheduleContext(currentPatient, savedProcedure);
+    formStatusEl.textContent = "Record saved. Returning to schedule...";
     window.location.href = "/";
   } catch (error) {
     console.error(error);
+    procedureFormStatusEl.textContent = error.message;
     formStatusEl.textContent = error.message;
   }
 }
@@ -920,6 +1111,48 @@ function refreshDeleteButtonState() {
   deletePatientBtn.disabled = !currentPatient;
 }
 
+function refreshCancelButtonState() {
+  if (!cancelProcedureBtn) {
+    return;
+  }
+  cancelProcedureBtn.hidden = !activeProcedure;
+  cancelProcedureBtn.disabled = !activeProcedure;
+}
+
+async function handleCancelProcedure() {
+  if (!activeProcedure) {
+    return;
+  }
+  const confirmed = window.confirm("Cancel this procedure? This removes it from the schedule.");
+  if (!confirmed) {
+    return;
+  }
+  const originalLabel = cancelProcedureBtn.textContent;
+  cancelProcedureBtn.disabled = true;
+  cancelProcedureBtn.textContent = "Cancelling...";
+  try {
+    const response = await fetch(buildApiUrl(`/procedures/${activeProcedure.id}`), { method: "DELETE" });
+    handleUnauthorized(response);
+    if (!response.ok) {
+      throw new Error(`Failed to cancel (status ${response.status})`);
+    }
+    patientProcedures = patientProcedures.filter((procedure) => procedure.id !== activeProcedure.id);
+    activeProcedure = patientProcedures[0] ?? null;
+    populateProcedureForm(activeProcedure);
+    renderRelatedBookings(patientProcedures);
+    refreshCancelButtonState();
+    proceduresStatusEl.textContent = patientProcedures.length
+      ? ""
+      : "No procedures found. Use Add to create one.";
+  } catch (error) {
+    console.error(error);
+    alert(`Unable to cancel this procedure: ${error.message}`);
+  } finally {
+    cancelProcedureBtn.textContent = originalLabel;
+    cancelProcedureBtn.disabled = false;
+  }
+}
+
 async function handleDeletePatient() {
   if (!currentPatient || !isAdminUser) {
     return;
@@ -941,7 +1174,7 @@ async function handleDeletePatient() {
     if (!response.ok) {
       throw new Error(`Failed to remove (status ${response.status})`);
     }
-    persistReturnToScheduleContext(currentPatient);
+    persistReturnToScheduleContext(currentPatient, activeProcedure);
     window.location.href = "/";
   } catch (error) {
     console.error(error);
@@ -954,6 +1187,12 @@ async function handleDeletePatient() {
 
 if (deletePatientBtn) {
   deletePatientBtn.addEventListener("click", handleDeletePatient);
+}
+if (cancelProcedureBtn) {
+  cancelProcedureBtn.addEventListener("click", handleCancelProcedure);
+}
+if (addProcedureBtn) {
+  addProcedureBtn.addEventListener("click", startNewProcedure);
 }
 
 async function initializePatientPage() {
