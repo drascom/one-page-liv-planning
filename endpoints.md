@@ -62,5 +62,5 @@ The frontend uses the base endpoints below directly and no token is required for
 - `DELETE /api/v1/patients/{id}` – Listed for completeness; it still requires an authenticated admin session (intended for the internal UI) and performs a soft delete.
 - `GET /api/v1/patients/deleted` and `POST /api/v1/patients/{id}/recover` follow the same behavior as the base routes for managing soft-deleted records.
 - `DELETE /api/v1/patients/{id}/purge` – Permanently delete a patient (admin + token required).
-- All `/api/v1/...` requests require either an `Authorization: Bearer <token>` header (preferred) or the `token` query parameter (e.g. `/api/v1/patients?token=abc123xyz`) for backwards compatibility.
+- All `/api/v1/...` requests require an `Authorization: Bearer <token>` header. Requests without this header are rejected.
 - `GET /api/v1/search` – Provide the full name via `full_name=Randhir%20Sandhu` (preferred) or continue using the legacy `name`/`surname` parameters to look up a single patient. Returns `{ "success": true, "patient": { ... }, "id": 123, "surgery_date": "2024-03-11" }` when found, `{ "success": false, "message": "Patient record not found" }` when no record matches, or `{ "success": false, "message": "Name is missing" }` when no name parameter is supplied.

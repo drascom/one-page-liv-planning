@@ -48,12 +48,6 @@ def test_procedure_crud_and_filtering(client: TestClient):
 
     create_payload = {
         "patient_id": patient_id,
-        "month_label": "January 2025",
-        "week_label": "Week 1",
-        "week_range": "Jan 1 – Jan 7",
-        "week_order": 1,
-        "day_label": "Mon",
-        "day_order": 1,
         "procedure_date": "2025-01-02",
         "status": "reserved",
         "procedure_type": "small",
@@ -65,13 +59,16 @@ def test_procedure_crud_and_filtering(client: TestClient):
         "photo_files": [],
     }
 
-    created = client.post("/surgeries", json=create_payload)
+    created = client.post("/procedures", json=create_payload)
     assert created.status_code == 201
-    procedure = created.json()
-    assert procedure["patient_id"] == patient_id
-    assert procedure["status"] == create_payload["status"]
+    create_result = created.json()
+    assert create_result["success"] is True
+    procedure_id = create_result["id"]
+    fetched_after_create = client.get(f"/procedures/{procedure_id}")
+    assert fetched_after_create.status_code == 200
+    assert fetched_after_create.json()["patient_id"] == patient_id
 
-    listed = client.get(f"/surgeries?patient_id={patient_id}")
+    listed = client.get(f"/procedures?patient_id={patient_id}")
     assert listed.status_code == 200
     assert len(listed.json()) == 1
 
@@ -80,20 +77,21 @@ def test_procedure_crud_and_filtering(client: TestClient):
         "status": "complete",
         "payment": "paid",
     }
-    updated = client.put(f"/surgeries/{procedure['id']}", json=update_payload)
+    updated = client.put(f"/procedures/{procedure_id}", json=update_payload)
     assert updated.status_code == 200
     body = updated.json()
-    assert body["status"] == "complete"
-    assert body["payment"] == "paid"
+    assert body["success"] is True
 
-    fetched = client.get(f"/surgeries/{procedure['id']}")
+    fetched = client.get(f"/procedures/{procedure_id}")
     assert fetched.status_code == 200
-    assert fetched.json()["status"] == "complete"
+    details = fetched.json()
+    assert details["status"] == "complete"
+    assert details["payment"] == "paid"
 
-    deleted = client.delete(f"/surgeries/{procedure['id']}")
+    deleted = client.delete(f"/procedures/{procedure_id}")
     assert deleted.status_code == 204
 
-    missing = client.get(f"/surgeries/{procedure['id']}")
+    missing = client.get(f"/procedures/{procedure_id}")
     assert missing.status_code == 404
 
 
@@ -101,15 +99,9 @@ def test_procedures_removed_with_patient(client: TestClient):
     patient_id = _create_patient(client)
 
     response = client.post(
-        "/surgeries",
+        "/procedures",
         json={
             "patient_id": patient_id,
-            "month_label": "January 2025",
-            "week_label": "Week 1",
-            "week_range": "Jan 1 – Jan 7",
-            "week_order": 1,
-            "day_label": "Mon",
-            "day_order": 1,
             "grafts": "",
             "procedure_type": "small",
             "status": "scheduled",
@@ -122,10 +114,89 @@ def test_procedures_removed_with_patient(client: TestClient):
         },
     )
     assert response.status_code == 201
+    assert response.json()["success"] is True
 
     purge = client.delete(f"/patients/{patient_id}/purge")
     assert purge.status_code == 204
 
-    remaining = client.get(f"/surgeries?patient_id={patient_id}")
+    remaining = client.get(f"/procedures?patient_id={patient_id}")
     assert remaining.status_code == 200
     assert remaining.json() == []
+
+
+def test_admin_manages_deleted_procedures(client: TestClient):
+    patient_id = _create_patient(client)
+    payload = {
+        "patient_id": patient_id,
+        "procedure_date": "2025-02-01",
+        "status": "reserved",
+        "procedure_type": "small",
+        "grafts": "",
+        "payment": "waiting",
+        "consultation": [],
+        "forms": [],
+        "consents": [],
+        "photo_files": [],
+    }
+    created = client.post("/procedures", json=payload)
+    assert created.status_code == 201
+    procedure_id = created.json()["id"]
+
+    deleted = client.delete(f"/procedures/{procedure_id}")
+    assert deleted.status_code == 204
+
+    deleted_list = client.get("/procedures/deleted")
+    assert deleted_list.status_code == 200
+    records = deleted_list.json()
+    assert any(entry["procedure"]["id"] == procedure_id for entry in records)
+
+    recovered = client.post(f"/procedures/{procedure_id}/recover")
+    assert recovered.status_code == 200
+    recovered_body = recovered.json()
+    assert recovered_body["id"] == procedure_id
+    assert recovered_body["deleted"] is False
+
+    fetched = client.get(f"/procedures/{procedure_id}")
+    assert fetched.status_code == 200
+
+    client.delete(f"/procedures/{procedure_id}")
+    purged = client.delete(f"/procedures/{procedure_id}/purge")
+    assert purged.status_code == 204
+
+    deleted_list_after = client.get("/procedures/deleted")
+    assert deleted_list_after.status_code == 200
+    assert all(entry["procedure"]["id"] != procedure_id for entry in deleted_list_after.json())
+
+
+def test_procedure_recovery_requires_patient(client: TestClient):
+    patient_id = _create_patient(client)
+    payload = {
+        "patient_id": patient_id,
+        "procedure_date": "2025-03-04",
+        "status": "reserved",
+        "procedure_type": "small",
+        "grafts": "",
+        "payment": "waiting",
+        "consultation": [],
+        "forms": [],
+        "consents": [],
+        "photo_files": [],
+    }
+    created = client.post("/procedures", json=payload)
+    assert created.status_code == 201
+    procedure_id = created.json()["id"]
+
+    soft_deleted_patient = client.delete(f"/patients/{patient_id}")
+    assert soft_deleted_patient.status_code == 200
+
+    blocked_recover = client.post(f"/procedures/{procedure_id}/recover")
+    assert blocked_recover.status_code == 400
+    detail = blocked_recover.json()["detail"]
+    assert "Restore the patient" in detail
+
+    restored_patient = client.post(f"/patients/{patient_id}/recover")
+    assert restored_patient.status_code == 200
+
+    recovered_procedure = client.post(f"/procedures/{procedure_id}/recover")
+    assert recovered_procedure.status_code == 200
+    assert recovered_procedure.json()["deleted"] is False

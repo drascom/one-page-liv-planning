@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 import json
+import random
 import secrets
 import sqlite3
 import string
 from contextlib import closing
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -100,18 +101,12 @@ def _reset_patients_table(conn: sqlite3.Connection) -> None:
     )
 
 
-def _reset_surgeries_table(conn: sqlite3.Connection) -> None:
-    cursor = conn.execute("PRAGMA table_info(surgeries)")
+def _reset_procedures_table(conn: sqlite3.Connection) -> None:
+    cursor = conn.execute("PRAGMA table_info(procedures)")
     columns = {row[1] for row in cursor.fetchall()}
     desired = {
         "id",
         "patient_id",
-        "month_label",
-        "week_label",
-        "week_range",
-        "week_order",
-        "day_label",
-        "day_order",
         "procedure_date",
         "status",
         "procedure_type",
@@ -127,19 +122,13 @@ def _reset_surgeries_table(conn: sqlite3.Connection) -> None:
     }
     if columns and columns == desired:
         return
-    conn.execute("DROP TABLE IF EXISTS surgeries")
     conn.execute("DROP TABLE IF EXISTS procedures")
+    conn.execute("DROP TABLE IF EXISTS surgeries")
     conn.execute(
         """
-        CREATE TABLE IF NOT EXISTS surgeries (
+        CREATE TABLE IF NOT EXISTS procedures (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             patient_id INTEGER NOT NULL,
-            month_label TEXT NOT NULL,
-            week_label TEXT NOT NULL,
-            week_range TEXT NOT NULL,
-            week_order INTEGER NOT NULL,
-            day_label TEXT NOT NULL,
-            day_order INTEGER NOT NULL,
             procedure_date TEXT,
             status TEXT NOT NULL,
             procedure_type TEXT NOT NULL,
@@ -156,7 +145,7 @@ def _reset_surgeries_table(conn: sqlite3.Connection) -> None:
         )
         """
     )
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_surgeries_patient_id ON surgeries(patient_id)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_procedures_patient_id ON procedures(patient_id)")
 
 
 def _create_photos_table(conn: sqlite3.Connection) -> None:
@@ -296,11 +285,11 @@ DEFAULT_FIELD_OPTIONS: Dict[str, List[Dict[str, str]]] = {
 
 
 def init_db() -> None:
-    """Create the database tables for patients, surgeries, photos, payments, and ancillary data."""
+    """Create the database tables for patients, procedures, photos, payments, and ancillary data."""
     with closing(sqlite3.connect(DB_PATH)) as conn:
         _create_weekly_plans(conn)
         _reset_patients_table(conn)
-        _reset_surgeries_table(conn)
+        _reset_procedures_table(conn)
         _create_photos_table(conn)
         _create_payments_table(conn)
         _create_procedure_bookings(conn)
@@ -585,17 +574,11 @@ def _row_to_patient(row: sqlite3.Row) -> Dict[str, Any]:
     }
 
 
-def _row_to_surgery(row: sqlite3.Row) -> Dict[str, Any]:
-    """Convert a surgery row to a dictionary."""
+def _row_to_procedure(row: sqlite3.Row) -> Dict[str, Any]:
+    """Convert a procedure row to a dictionary."""
     return {
         "id": row["id"],
         "patient_id": row["patient_id"],
-        "month_label": row["month_label"],
-        "week_label": row["week_label"],
-        "week_range": row["week_range"],
-        "week_order": row["week_order"],
-        "day_label": row["day_label"],
-        "day_order": row["day_order"],
         "procedure_date": _date_only(row["procedure_date"]),
         "status": row["status"],
         "procedure_type": row["procedure_type"],
@@ -793,7 +776,7 @@ def find_patient_by_full_name(full_name: str) -> Optional[Dict[str, Any]]:
 
 
 def find_patient_by_name_and_date(first_name: str, last_name: str, procedure_date: Optional[str]) -> Optional[Dict[str, Any]]:
-    """Find a patient by name and look for a surgery with the given date."""
+    """Find a patient by name and look for a procedure with the given date."""
     if not procedure_date:
         return None
     normalized_date = _date_only(procedure_date)
@@ -814,48 +797,54 @@ def find_patient_by_name_and_date(first_name: str, last_name: str, procedure_dat
         if not row:
             return None
         patient = _row_to_patient(row)
-        # Verify they have a surgery on that date
-        surgery_cursor = conn.execute(
+        # Verify they have a procedure on that date
+        procedure_cursor = conn.execute(
             """
-            SELECT COUNT(*) FROM surgeries
+            SELECT COUNT(*) FROM procedures
             WHERE patient_id = ? AND procedure_date = ? AND deleted = 0
             """,
             (patient["id"], normalized_date),
         )
-        if surgery_cursor.fetchone()[0] > 0:
+        if procedure_cursor.fetchone()[0] > 0:
             return patient
         return None
 
 
-def list_surgeries(
+def list_procedures(
     patient_id: Optional[int] = None,
     *,
     include_deleted: bool = False,
+    only_deleted: bool = False,
 ) -> List[Dict[str, Any]]:
-    """List surgeries, optionally filtered by patient."""
+    """List procedures, optionally filtered by patient."""
     clauses: list[str] = []
     params: list[Any] = []
     if patient_id is not None:
-        clauses.append("surgeries.patient_id = ?")
+        clauses.append("procedures.patient_id = ?")
         params.append(patient_id)
-    if not include_deleted:
-        clauses.append("surgeries.deleted = 0")
+    if only_deleted:
+        clauses.append("procedures.deleted = 1")
+    elif not include_deleted:
+        clauses.append("procedures.deleted = 0")
     where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
     with closing(get_connection()) as conn:
         cursor = conn.execute(
             f"""
             SELECT
-                surgeries.*,
+                procedures.*,
                 (
-                    SELECT COUNT(*) FROM photos WHERE photos.patient_id = surgeries.patient_id
+                    SELECT COUNT(*) FROM photos WHERE photos.patient_id = procedures.patient_id
                 ) AS photo_count
-            FROM surgeries
+            FROM procedures
             {where}
-            ORDER BY week_order ASC, day_order ASC, id ASC
+            ORDER BY
+                CASE WHEN procedure_date IS NULL OR procedure_date = '' THEN 1 ELSE 0 END,
+                procedure_date ASC,
+                id ASC
             """,
             params,
         )
-        return [_row_to_surgery(row) for row in cursor.fetchall()]
+        return [_row_to_procedure(row) for row in cursor.fetchall()]
 
 
 def log_api_request(path: str, method: str, payload: Any) -> None:
@@ -905,8 +894,8 @@ def _serialize_patient_payload(data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _serialize_surgery_payload(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Serialize surgery/procedure data."""
+def _serialize_procedure_payload(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Serialize procedure data."""
     consultation_value = data.get("consultation") or []
     if isinstance(consultation_value, str):
         consultation_list: List[str] = [consultation_value]
@@ -914,12 +903,6 @@ def _serialize_surgery_payload(data: Dict[str, Any]) -> Dict[str, Any]:
         consultation_list = list(consultation_value)
 
     return {
-        "month_label": data.get("month_label", ""),
-        "week_label": data.get("week_label", ""),
-        "week_range": data.get("week_range", ""),
-        "week_order": data.get("week_order", 0),
-        "day_label": data.get("day_label", ""),
-        "day_order": data.get("day_order", 0),
         "procedure_date": _date_only(data.get("procedure_date")),
         "status": data.get("status", ""),
         "procedure_type": data.get("procedure_type", ""),
@@ -989,7 +972,7 @@ def update_patient(patient_id: int, data: Dict[str, Any]) -> Optional[Dict[str, 
 
 
 def delete_patient(patient_id: int) -> bool:
-    """Soft delete a patient (also soft deletes all their surgeries via trigger/cascade)."""
+    """Soft delete a patient (also soft deletes all their procedures via trigger/cascade)."""
     with closing(get_connection()) as conn:
         cursor = conn.execute(
             """
@@ -999,10 +982,10 @@ def delete_patient(patient_id: int) -> bool:
             """,
             (patient_id,),
         )
-        # Also soft delete all surgeries for this patient
+        # Also soft delete all procedures for this patient
         conn.execute(
             """
-            UPDATE surgeries
+            UPDATE procedures
             SET deleted = 1
             WHERE patient_id = ? AND deleted = 0
             """,
@@ -1012,51 +995,53 @@ def delete_patient(patient_id: int) -> bool:
         return cursor.rowcount > 0
 
 
-def list_surgeries_for_patient(patient_id: int, *, include_deleted: bool = False) -> List[Dict[str, Any]]:
-    """List all surgeries for a specific patient."""
-    return list_surgeries(patient_id=patient_id, include_deleted=include_deleted)
+def list_procedures_for_patient(
+    patient_id: int,
+    *,
+    include_deleted: bool = False,
+    only_deleted: bool = False,
+) -> List[Dict[str, Any]]:
+    """List all procedures for a specific patient."""
+    return list_procedures(
+        patient_id=patient_id,
+        include_deleted=include_deleted,
+        only_deleted=only_deleted,
+    )
 
 
-def fetch_surgery(surgery_id: int, *, include_deleted: bool = False) -> Optional[Dict[str, Any]]:
-    """Fetch a single surgery by ID."""
+def fetch_procedure(procedure_id: int, *, include_deleted: bool = False) -> Optional[Dict[str, Any]]:
+    """Fetch a single procedure by ID."""
     with closing(get_connection()) as conn:
         query = """
             SELECT
-                surgeries.*,
+                procedures.*,
                 (
-                    SELECT COUNT(*) FROM photos WHERE photos.patient_id = surgeries.patient_id
+                    SELECT COUNT(*) FROM photos WHERE photos.patient_id = procedures.patient_id
                 ) AS photo_count
-            FROM surgeries
+            FROM procedures
             WHERE id = ?
         """
-        params: Tuple[int, ...] = (surgery_id,)
+        params: Tuple[int, ...] = (procedure_id,)
         if not include_deleted:
             query += " AND deleted = 0"
         cursor = conn.execute(query, params)
         row = cursor.fetchone()
-        return _row_to_surgery(row) if row else None
+        return _row_to_procedure(row) if row else None
 
 
-def create_surgery(patient_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
-    """Create a new surgery record for a patient."""
-    payload = _serialize_surgery_payload(data)
+def create_procedure(patient_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
+    """Create a new procedure record for a patient."""
+    payload = _serialize_procedure_payload(data)
     with closing(get_connection()) as conn:
         cursor = conn.execute(
             """
-            INSERT INTO surgeries (
-                patient_id, month_label, week_label, week_range, week_order,
-                day_label, day_order, procedure_date, status, procedure_type, grafts, payment,
+            INSERT INTO procedures (
+                patient_id, procedure_date, status, procedure_type, grafts, payment,
                 consultation, forms, consents, photo_files
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 patient_id,
-                payload["month_label"],
-                payload["week_label"],
-                payload["week_range"],
-                payload["week_order"],
-                payload["day_label"],
-                payload["day_order"],
                 payload["procedure_date"],
                 payload["status"],
                 payload["procedure_type"],
@@ -1070,26 +1055,20 @@ def create_surgery(patient_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
         )
         conn.commit()
         new_id = cursor.lastrowid
-    created = fetch_surgery(new_id)
+    created = fetch_procedure(new_id)
     if not created:
-        raise RuntimeError("Failed to fetch surgery after creation")
+        raise RuntimeError("Failed to fetch procedure after creation")
     return created
 
 
-def update_surgery(surgery_id: int, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """Update an existing surgery record."""
-    payload = _serialize_surgery_payload(data)
+def update_procedure(procedure_id: int, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Update an existing procedure record."""
+    payload = _serialize_procedure_payload(data)
     with closing(get_connection()) as conn:
         cursor = conn.execute(
             """
-            UPDATE surgeries
+            UPDATE procedures
             SET
-                month_label = ?,
-                week_label = ?,
-                week_range = ?,
-                week_order = ?,
-                day_label = ?,
-                day_order = ?,
                 procedure_date = ?,
                 status = ?,
                 procedure_type = ?,
@@ -1103,12 +1082,6 @@ def update_surgery(surgery_id: int, data: Dict[str, Any]) -> Optional[Dict[str, 
             WHERE id = ?
             """,
             (
-                payload["month_label"],
-                payload["week_label"],
-                payload["week_range"],
-                payload["week_order"],
-                payload["day_label"],
-                payload["day_order"],
                 payload["procedure_date"],
                 payload["status"],
                 payload["procedure_type"],
@@ -1118,56 +1091,58 @@ def update_surgery(surgery_id: int, data: Dict[str, Any]) -> Optional[Dict[str, 
                 payload["forms"],
                 payload["consents"],
                 payload["photo_files"],
-                surgery_id,
+                procedure_id,
             ),
         )
         conn.commit()
         if cursor.rowcount == 0:
             return None
-    return fetch_surgery(surgery_id)
+    return fetch_procedure(procedure_id)
 
 
-def delete_surgery(surgery_id: int) -> bool:
-    """Soft delete a surgery record."""
+def delete_procedure(procedure_id: int) -> bool:
+    """Soft delete a procedure record."""
     with closing(get_connection()) as conn:
         cursor = conn.execute(
             """
-            UPDATE surgeries
+            UPDATE procedures
             SET deleted = 1
             WHERE id = ? AND deleted = 0
             """,
-            (surgery_id,),
+            (procedure_id,),
         )
         conn.commit()
         return cursor.rowcount > 0
 
 
-# Backward-compatible procedure aliases (procedures == surgeries in the new schema)
-def list_procedures(patient_id: Optional[int] = None, *, include_deleted: bool = False) -> List[Dict[str, Any]]:
-    return list_surgeries(patient_id=patient_id, include_deleted=include_deleted)
+def restore_procedure(procedure_id: int) -> Optional[Dict[str, Any]]:
+    """Restore a soft-deleted procedure."""
+    with closing(get_connection()) as conn:
+        cursor = conn.execute(
+            """
+            UPDATE procedures
+            SET deleted = 0
+            WHERE id = ? AND deleted = 1
+            """,
+            (procedure_id,),
+        )
+        conn.commit()
+        if cursor.rowcount == 0:
+            return None
+    return fetch_procedure(procedure_id)
 
 
-def list_procedures_for_patient(patient_id: int, *, include_deleted: bool = False) -> List[Dict[str, Any]]:
-    return list_surgeries_for_patient(patient_id, include_deleted=include_deleted)
+def purge_procedure(procedure_id: int) -> bool:
+    """Hard delete a procedure record."""
+    with closing(get_connection()) as conn:
+        cursor = conn.execute("DELETE FROM procedures WHERE id = ?", (procedure_id,))
+        conn.commit()
+        return cursor.rowcount > 0
 
 
-def fetch_procedure(procedure_id: int, *, include_deleted: bool = False) -> Optional[Dict[str, Any]]:
-    return fetch_surgery(procedure_id, include_deleted=include_deleted)
-
-
-def create_procedure(data: Dict[str, Any]) -> Dict[str, Any]:
-    patient_id_value = data.get("patient_id")
-    if patient_id_value is None:
-        raise ValueError("patient_id is required to create a procedure")
-    return create_surgery(int(patient_id_value), data)
-
-
-def update_procedure(procedure_id: int, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    return update_surgery(procedure_id, data)
-
-
-def delete_procedure(procedure_id: int) -> bool:
-    return delete_surgery(procedure_id)
+def fetch_deleted_procedures() -> List[Dict[str, Any]]:
+    """Return every soft-deleted procedure."""
+    return list_procedures(include_deleted=True, only_deleted=True)
 
 
 # Photo management functions
@@ -1382,14 +1357,31 @@ def seed_patients_if_empty() -> bool:
 
 
 def _seed_patients_if_empty(conn: sqlite3.Connection) -> bool:
-    """Seed demo patients if the table is empty (no longer seeds surgeries)."""
+    """Seed demo patients if the table is empty."""
     cursor = conn.execute("SELECT COUNT(*) FROM patients")
     existing = cursor.fetchone()[0]
     if existing:
         return False
-    # Since DEFAULT_PATIENTS is empty and we're using the new schema,
-    # we don't seed any demo data by default
-    return False
+    rng = random.Random(2025)
+    patient_ids: list[int] = []
+    for record in DEMO_PATIENTS:
+        cursor = conn.execute(
+            """
+            INSERT INTO patients (first_name, last_name, email, phone, city)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                record["first_name"],
+                record["last_name"],
+                record["email"],
+                record["phone"],
+                record["city"],
+            ),
+        )
+        patient_ids.append(cursor.lastrowid)
+    conn.commit()
+    _seed_demo_procedures(conn, patient_ids, rng)
+    return True
 
 
 def _seed_procedures_from_patients_if_empty(conn: sqlite3.Connection) -> bool:
@@ -1397,4 +1389,69 @@ def _seed_procedures_from_patients_if_empty(conn: sqlite3.Connection) -> bool:
     return False
 
 
-DEFAULT_PATIENTS: List[Dict[str, Any]] = []
+def _seed_demo_procedures(conn: sqlite3.Connection, patient_ids: List[int], rng: random.Random) -> None:
+    """Create demo procedures in November 2025 for seeded patients."""
+    if not patient_ids:
+        return
+    status_options = [option["value"] for option in DEFAULT_FIELD_OPTIONS["status"]]
+    type_options = [option["value"] for option in DEFAULT_FIELD_OPTIONS["procedure_type"]]
+    payment_options = [option["value"] for option in DEFAULT_FIELD_OPTIONS["payment"]]
+    start_date = date(2025, 11, 1)
+    for _ in range(10):
+        scheduled_for = start_date + timedelta(days=rng.randrange(30))
+        conn.execute(
+            """
+            INSERT INTO procedures (
+                patient_id, procedure_date, status, procedure_type, grafts, payment,
+                consultation, forms, consents, photo_files
+            ) VALUES (?, ?, ?, ?, ?, ?, '[]', '[]', '[]', '[]')
+            """,
+            (
+                rng.choice(patient_ids),
+                scheduled_for.isoformat(),
+                rng.choice(status_options),
+                rng.choice(type_options),
+                str(rng.randrange(1500, 3500, 100)),
+                rng.choice(payment_options),
+            ),
+        )
+    conn.commit()
+
+
+DEMO_PATIENTS: List[Dict[str, Any]] = [
+    {
+        "first_name": "Ava",
+        "last_name": "Wallace",
+        "email": "ava.wallace@example.com",
+        "phone": "+44 7700 900001",
+        "city": "London",
+    },
+    {
+        "first_name": "Noah",
+        "last_name": "Patel",
+        "email": "noah.patel@example.com",
+        "phone": "+44 7700 900002",
+        "city": "Manchester",
+    },
+    {
+        "first_name": "Isla",
+        "last_name": "Khan",
+        "email": "isla.khan@example.com",
+        "phone": "+44 7700 900003",
+        "city": "Leeds",
+    },
+    {
+        "first_name": "Leo",
+        "last_name": "Campbell",
+        "email": "leo.campbell@example.com",
+        "phone": "+44 7700 900004",
+        "city": "Bristol",
+    },
+    {
+        "first_name": "Maya",
+        "last_name": "Hughes",
+        "email": "maya.hughes@example.com",
+        "phone": "+44 7700 900005",
+        "city": "Cardiff",
+    },
+]

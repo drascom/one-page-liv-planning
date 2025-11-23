@@ -23,6 +23,10 @@ const deletedStatus = document.getElementById("deleted-patients-status");
 const recoverAllBtn = document.getElementById("recover-all-btn");
 const refreshDeletedBtn = document.getElementById("refresh-deleted-btn");
 let deletedPatientsCache = [];
+const deletedProceduresList = document.getElementById("deleted-procedure-list");
+const deletedProceduresStatus = document.getElementById("deleted-procedures-status");
+const refreshDeletedProceduresBtn = document.getElementById("refresh-deleted-procedures-btn");
+let deletedProceduresCache = [];
 
 initSessionControls();
 
@@ -633,6 +637,7 @@ async function purgeAllPatients() {
     }
     setPurgeStatus(`Deleted ${allPatients.length} patient record${allPatients.length === 1 ? "" : "s"}.`);
     await fetchDeletedPatients();
+    await fetchDeletedProcedures();
   } catch (error) {
     console.error(error);
     setPurgeStatus(error.message || "Unable to delete patient records.");
@@ -651,6 +656,168 @@ function setDeletedStatus(message) {
         deletedStatus.textContent = "";
       }
     }, 5000);
+  }
+}
+
+function setDeletedProceduresStatus(message) {
+  if (!deletedProceduresStatus) return;
+  deletedProceduresStatus.textContent = message;
+  if (message) {
+    setTimeout(() => {
+      if (deletedProceduresStatus.textContent === message) {
+        deletedProceduresStatus.textContent = "";
+      }
+    }, 5000);
+  }
+}
+
+function formatProcedureDateText(value) {
+  if (!value) {
+    return "Date not recorded";
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return escapeHtml(String(value));
+  }
+  return parsed.toLocaleDateString();
+}
+
+function renderDeletedProcedures(records) {
+  if (!deletedProceduresList) return;
+  deletedProceduresCache = Array.isArray(records) ? records.filter(Boolean) : [];
+  if (!deletedProceduresCache.length) {
+    deletedProceduresList.innerHTML = `<p class="photo-empty">No deleted procedures.</p>`;
+    return;
+  }
+  deletedProceduresList.innerHTML = deletedProceduresCache
+    .map((entry) => {
+      const procedure = entry?.procedure ?? {};
+      const patient = entry?.patient ?? {};
+      if (!procedure.id || !patient.id) {
+        return "";
+      }
+      const patientName = escapeHtml(`${patient.first_name || ""} ${patient.last_name || ""}`.trim() || "Patient");
+      const typeLabel = escapeHtml(procedure.procedure_type || "Unknown type");
+      const statusLabel = escapeHtml(procedure.status || "Unknown status");
+      const paymentLabel = escapeHtml(procedure.payment || "Unknown payment");
+      const dateLabel = formatProcedureDateText(procedure.procedure_date);
+      const patientMeta = `Email: ${escapeHtml(patient.email || "N/A")} • City: ${escapeHtml(patient.city || "N/A")}`;
+      const patientDeleted = Boolean(patient.deleted);
+      const recoverDisabled = patientDeleted ? "disabled aria-disabled=\"true\"" : "";
+      const recoverTitle = patientDeleted ? 'title="Restore patient to enable recovery"' : "";
+      const patientNotice = patientDeleted
+        ? '<p class="form-status form-status--danger">Restore this patient before recovering the procedure.</p>'
+        : "";
+      return `
+        <div class="token-card" data-procedure-id="${procedure.id}">
+          <div>
+            <p class="token-name">${patientName}</p>
+            <p class="token-created">Type: ${typeLabel} • Status: ${statusLabel}</p>
+            <p class="token-created">Date: ${dateLabel} • Payment: ${paymentLabel}</p>
+            <p class="token-created">${patientMeta}</p>
+            ${patientNotice}
+          </div>
+          <div class="token-actions">
+            <button
+              type="button"
+              class="secondary-btn"
+              data-action="recover-procedure"
+              data-procedure-id="${procedure.id}"
+              ${recoverDisabled}
+              ${recoverTitle}
+            >
+              Restore
+            </button>
+            <button
+              type="button"
+              class="danger-btn"
+              data-action="purge-procedure"
+              data-procedure-id="${procedure.id}"
+            >
+              Delete permanently
+            </button>
+          </div>
+        </div>
+      `;
+    })
+    .filter(Boolean)
+    .join("");
+}
+
+async function fetchDeletedProcedures() {
+  if (!deletedProceduresList) return;
+  setDeletedProceduresStatus("Loading deleted procedures...");
+  try {
+    const response = await fetch(buildApiUrl("/procedures/deleted"));
+    handleUnauthorized(response);
+    if (!response.ok) {
+      throw new Error("Unable to load deleted procedures.");
+    }
+    const payload = await response.json();
+    renderDeletedProcedures(payload);
+    setDeletedProceduresStatus("");
+  } catch (error) {
+    console.error(error);
+    setDeletedProceduresStatus(error.message || "Unable to load deleted procedures.");
+  }
+}
+
+async function recoverProcedureRecord(procedureId, trigger) {
+  if (!procedureId) return;
+  if (trigger) {
+    trigger.disabled = true;
+    trigger.textContent = "Restoring...";
+  }
+  try {
+    const response = await fetch(buildApiUrl(`/procedures/${procedureId}/recover`), {
+      method: "POST",
+    });
+    handleUnauthorized(response);
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.detail || "Unable to restore this procedure.");
+    }
+    setDeletedProceduresStatus("Procedure restored.");
+    await fetchDeletedProcedures();
+  } catch (error) {
+    console.error(error);
+    setDeletedProceduresStatus(error.message || "Unable to restore procedure.");
+  } finally {
+    if (trigger) {
+      trigger.disabled = false;
+      trigger.textContent = "Restore";
+    }
+  }
+}
+
+async function purgeProcedureRecord(procedureId, trigger) {
+  if (!procedureId) return;
+  if (!window.confirm("Permanently delete this procedure? This cannot be undone.")) {
+    return;
+  }
+  if (trigger) {
+    trigger.disabled = true;
+    trigger.textContent = "Deleting...";
+  }
+  try {
+    const response = await fetch(buildApiUrl(`/procedures/${procedureId}/purge`), {
+      method: "DELETE",
+    });
+    handleUnauthorized(response);
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.detail || "Unable to delete this procedure.");
+    }
+    setDeletedProceduresStatus("Procedure permanently deleted.");
+    await fetchDeletedProcedures();
+  } catch (error) {
+    console.error(error);
+    setDeletedProceduresStatus(error.message || "Unable to delete procedure.");
+  } finally {
+    if (trigger) {
+      trigger.disabled = false;
+      trigger.textContent = "Delete permanently";
+    }
   }
 }
 
@@ -673,12 +840,13 @@ function renderDeletedPatients(patients) {
         <div class="token-card" data-patient-id="${patient.id}">
           <div>
             <p class="token-name">${escapeHtml(`${patient.first_name} ${patient.last_name}`.trim() || "Patient")}</p>
-            <p class="token-created">${escapeHtml(patient.week_label || "")} • ${escapeHtml(
-        patient.day_label || ""
-      )} • ${escapeHtml(patient.procedure_date || "No date")}</p>
-            <p class="token-created">Status: ${escapeHtml(patient.status || "Unknown")} • ${
-        patient.city ? escapeHtml(patient.city) : "City N/A"
-      }</p>
+            <p class="token-created">
+              ${escapeHtml(patient.created_at || "Created date unknown")}
+              ${patient.updated_at ? `• ${escapeHtml(patient.updated_at)}` : ""}
+            </p>
+            <p class="token-created">City: ${
+              patient.city ? escapeHtml(patient.city) : "N/A"
+            } • Email: ${escapeHtml(patient.email || "N/A")}</p>
           </div>
           <div class="token-actions">
             <button
@@ -722,7 +890,7 @@ async function fetchDeletedPatients() {
   }
 }
 
-async function recoverPatient(patientId, trigger, { refresh = true } = {}) {
+async function recoverPatient(patientId, trigger, { refresh = true, refreshProcedures = true } = {}) {
   if (!patientId) return;
   if (trigger) {
     trigger.disabled = true;
@@ -740,6 +908,9 @@ async function recoverPatient(patientId, trigger, { refresh = true } = {}) {
     setDeletedStatus("Patient restored.");
     if (refresh) {
       await fetchDeletedPatients();
+    }
+    if (refreshProcedures) {
+      await fetchDeletedProcedures();
     }
   } catch (error) {
     console.error(error);
@@ -767,9 +938,10 @@ async function recoverAllPatients() {
   try {
     for (const patient of deletedPatientsCache) {
       // eslint-disable-next-line no-await-in-loop
-      await recoverPatient(patient.id, null, { refresh: false });
+      await recoverPatient(patient.id, null, { refresh: false, refreshProcedures: false });
     }
     await fetchDeletedPatients();
+    await fetchDeletedProcedures();
     setDeletedStatus("Recovered all deleted patients.");
   } catch (error) {
     console.error(error);
@@ -792,7 +964,7 @@ deletedList?.addEventListener("click", (event) => {
 
 async function purgePatientPermanently(patientId, trigger) {
   if (!patientId) return;
-  if (!window.confirm("Permanently delete this patient and surgery details? This cannot be undone.")) {
+  if (!window.confirm("Permanently delete this patient and procedure details? This cannot be undone.")) {
     return;
   }
   if (trigger) {
@@ -810,6 +982,7 @@ async function purgePatientPermanently(patientId, trigger) {
     }
     setDeletedStatus("Patient permanently deleted.");
     await fetchDeletedPatients();
+    await fetchDeletedProcedures();
   } catch (error) {
     console.error(error);
     setDeletedStatus(error.message || "Unable to delete patient.");
@@ -838,6 +1011,23 @@ deletedList?.addEventListener("click", (event) => {
 
 recoverAllBtn?.addEventListener("click", recoverAllPatients);
 refreshDeletedBtn?.addEventListener("click", fetchDeletedPatients);
+refreshDeletedProceduresBtn?.addEventListener("click", fetchDeletedProcedures);
+deletedProceduresList?.addEventListener("click", (event) => {
+  const recoverBtn = event.target.closest("[data-action='recover-procedure']");
+  if (recoverBtn) {
+    const procedureId = Number(recoverBtn.dataset.procedureId);
+    if (!Number.isFinite(procedureId)) return;
+    recoverProcedureRecord(procedureId, recoverBtn);
+    return;
+  }
+  const purgeBtn = event.target.closest("[data-action='purge-procedure']");
+  if (!purgeBtn) {
+    return;
+  }
+  const procedureId = Number(purgeBtn.dataset.procedureId);
+  if (!Number.isFinite(procedureId)) return;
+  purgeProcedureRecord(procedureId, purgeBtn);
+});
 
 const userAdminContainer = document.getElementById("user-admin");
 const userWarning = document.getElementById("user-admin-warning");
@@ -1020,6 +1210,7 @@ async function initializeSettingsPage() {
     recoverAllBtn.disabled = true;
   }
   await fetchDeletedPatients();
+  await fetchDeletedProcedures();
   await initializeUserManagement();
   fetchTokens();
 }

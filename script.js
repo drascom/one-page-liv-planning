@@ -248,11 +248,20 @@ async function fetchPatientById(patientId) {
   return response.json();
 }
 
-async function fetchSurgeries() {
-  const response = await fetch(buildApiUrl("/surgeries"));
+async function fetchProcedureById(procedureId) {
+  const response = await fetch(buildApiUrl(`/procedures/${procedureId}`));
   handleUnauthorized(response);
   if (!response.ok) {
-    throw new Error(`Unable to load surgeries (${response.status})`);
+    throw new Error(`Unable to load procedure (${response.status})`);
+  }
+  return response.json();
+}
+
+async function fetchProcedures() {
+  const response = await fetch(buildApiUrl("/procedures"));
+  handleUnauthorized(response);
+  if (!response.ok) {
+    throw new Error(`Unable to load procedures (${response.status})`);
   }
   return response.json();
 }
@@ -319,6 +328,31 @@ function persistActivePatientContext(context) {
   }
 }
 
+function buildScheduleMetadataFromDate(dateValue, fallback = {}) {
+  const parsed = parseISODate(dateValue);
+  if (!parsed) {
+    return {
+      monthLabel: fallback.monthLabel ?? "",
+      weekLabel: fallback.weekLabel ?? "Week 1",
+      weekRange: fallback.weekRange ?? fallback.monthLabel ?? "",
+      weekOrder: Number.isFinite(fallback.weekOrder) ? fallback.weekOrder : 1,
+      dayLabel: fallback.dayLabel ?? "",
+      normalizedDate: fallback.procedureDate ?? "",
+      sortKey: Number.isFinite(fallback.sortKey) ? fallback.sortKey : Number.MAX_SAFE_INTEGER,
+    };
+  }
+  const weekMeta = getWeekMetaForDate(parsed);
+  return {
+    monthLabel: formatMonthLabelFromDate(parsed),
+    weekLabel: weekMeta.label,
+    weekRange: weekMeta.range,
+    weekOrder: weekMeta.order,
+    dayLabel: DAY_FORMATTER.format(parsed),
+    normalizedDate: formatLocalISODate(parsed),
+    sortKey: parsed.getTime(),
+  };
+}
+
 function normalizeProcedureForSchedule(procedure, patientLookup = new Map()) {
   const lookupId = Number.isFinite(Number(procedure.patient_id)) ? Number(procedure.patient_id) : procedure.patient_id;
   const patient = patientLookup.get(lookupId) || procedure.patient || {};
@@ -326,14 +360,22 @@ function normalizeProcedureForSchedule(procedure, patientLookup = new Map()) {
   const lastName = patient.last_name || procedure.last_name || "";
   const patientId = patient.id ?? lookupId ?? null;
   const procedureId = procedure.id;
-  const date = parseISODate(procedure.procedure_date);
-  const scheduleMonthLabel = date ? formatMonthLabelFromDate(date) : procedure.month_label;
-  const weekMeta = date ? getWeekMetaForDate(date) : null;
-  const scheduleWeekLabel = weekMeta?.label ?? procedure.week_label ?? "Week 1";
-  const scheduleWeekRange = weekMeta?.range ?? procedure.week_range ?? scheduleMonthLabel;
-  const scheduleWeekOrder = weekMeta?.order ?? procedure.week_order ?? 1;
-  const scheduleDayLabel = date ? DAY_FORMATTER.format(date) : procedure.day_label;
-  const scheduleProcedureDate = date ? formatLocalISODate(date) : procedure.procedure_date;
+  const fallbackMeta = {
+    monthLabel: procedure.month_label,
+    weekLabel: procedure.week_label,
+    weekRange: procedure.week_range,
+    weekOrder: Number.isFinite(Number(procedure.week_order)) ? Number(procedure.week_order) : undefined,
+    dayLabel: procedure.day_label,
+    sortKey: Number.isFinite(Number(procedure.day_order)) ? Number(procedure.day_order) : undefined,
+    procedureDate: procedure.procedure_date,
+  };
+  const scheduleMeta = buildScheduleMetadataFromDate(procedure.procedure_date, fallbackMeta);
+  const scheduleMonthLabel = scheduleMeta.monthLabel || fallbackMeta.monthLabel || "Date not set";
+  const scheduleWeekLabel = scheduleMeta.weekLabel || fallbackMeta.weekLabel || "Week 1";
+  const scheduleWeekRange = scheduleMeta.weekRange || fallbackMeta.weekRange || scheduleMonthLabel;
+  const scheduleWeekOrder = scheduleMeta.weekOrder || fallbackMeta.weekOrder || 1;
+  const scheduleDayLabel = scheduleMeta.dayLabel || fallbackMeta.dayLabel || "";
+  const scheduleProcedureDate = scheduleMeta.normalizedDate || fallbackMeta.procedureDate || "";
   const searchFirst = normalizeSearchText(firstName);
   const searchLast = normalizeSearchText(lastName);
   const searchFull = `${searchFirst} ${searchLast}`.trim();
@@ -353,7 +395,7 @@ function normalizeProcedureForSchedule(procedure, patientLookup = new Map()) {
     scheduleWeekOrder,
     scheduleDayLabel: scheduleDayLabel || procedure.day_label,
     scheduleProcedureDate,
-    scheduleSortKey: date ? date.getTime() : procedure.day_order ?? 0,
+    scheduleSortKey: scheduleMeta.sortKey,
     consultation: Array.isArray(procedure.consultation)
       ? procedure.consultation
       : procedure.consultation
@@ -749,17 +791,17 @@ function updateControlState() {
 
 function updateTotalPatients(total) {
   if (totalPatientCount) {
-    totalPatientCount.textContent = `${total} total surger${total === 1 ? "y" : "ies"}`;
+    totalPatientCount.textContent = `${total} total procedure${total === 1 ? "" : "s"}`;
   }
 }
 
 function updateMonthPatientCount(total) {
   if (monthPatientCount) {
-    monthPatientCount.textContent = `${total} surger${total === 1 ? "y" : "ies"} this month`;
+    monthPatientCount.textContent = `${total} procedure${total === 1 ? "" : "s"} this month`;
   }
   const calendarMonthPatients = document.getElementById("calendar-month-patients");
   if (calendarMonthPatients) {
-    calendarMonthPatients.textContent = `${total} surger${total === 1 ? "y" : "ies"}`;
+    calendarMonthPatients.textContent = `${total} procedure${total === 1 ? "" : "s"}`;
   }
 }
 
@@ -788,8 +830,8 @@ function renderSelectedMonth() {
     if (searchQuery) {
       const hasAnyMatches = filteredMonthlySchedules.some((month) => month.weeks?.length);
       const message = hasAnyMatches
-        ? `No surgeries matching "${searchQuery}" in ${selectedLabel}.`
-        : `No surgeries found matching "${searchQuery}".`;
+        ? `No procedures matching "${searchQuery}" in ${selectedLabel}.`
+        : `No procedures found matching "${searchQuery}".`;
       setScheduleStatus(message);
       const matchingWeeks = filteredMonthlySchedules.reduce(
         (total, month) => total + (month.weeks?.length ?? 0),
@@ -799,7 +841,7 @@ function renderSelectedMonth() {
         ? `${matchingWeeks} matching week${matchingWeeks === 1 ? "" : "s"}`
         : "0 matches";
     } else {
-      setScheduleStatus(`No surgeries scheduled for ${selectedLabel}.`);
+      setScheduleStatus(`No procedures scheduled for ${selectedLabel}.`);
       weekCount.textContent = "0 weeks scheduled";
     }
     updateMonthPatientCount(0);
@@ -861,14 +903,6 @@ function handleTodayClick() {
 }
 
 function buildDefaultPatientPayloads() {
-  const monthLabel = formatMonthLabelFromDate(selectedDate);
-  const currentMonth = monthlySchedules.find((month) => month.label === monthLabel);
-  const existingWeeks = currentMonth?.weeks ?? [];
-  const newWeekOrder =
-    existingWeeks.length && existingWeeks[existingWeeks.length - 1]?.order
-      ? existingWeeks[existingWeeks.length - 1].order + 1
-      : 1;
-  const weekLabel = `Week ${existingWeeks.length + 1 || 1}`;
   const defaultStatus = getDefaultFieldValue("status", "reserved");
   const defaultProcedure = getDefaultFieldValue("procedure_type", "small");
   const defaultPayment = getDefaultFieldValue("payment", "waiting");
@@ -882,12 +916,6 @@ function buildDefaultPatientPayloads() {
   };
 
   const procedurePayload = {
-    month_label: monthLabel,
-    week_label: weekLabel,
-    week_range: monthLabel,
-    week_order: newWeekOrder,
-    day_label: "TBD",
-    day_order: 1,
     procedure_date: formatLocalISODate(selectedDate),
     status: defaultStatus,
     procedure_type: defaultProcedure,
@@ -925,12 +953,13 @@ async function handleAddPatientClick() {
     if (!patientResponse.ok) {
       throw new Error(`Failed to create patient (${patientResponse.status})`);
     }
-    const patient = await patientResponse.json();
-    const newPatientId = patient.id;
+    const patientResult = await patientResponse.json();
+    const newPatientId = patientResult?.id;
     if (!newPatientId) {
       throw new Error("Missing patient id in response");
     }
-    const procedureResponse = await fetch(buildApiUrl("/surgeries"), {
+    const patient = await fetchPatientById(newPatientId);
+    const procedureResponse = await fetch(buildApiUrl("/procedures"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -941,15 +970,26 @@ async function handleAddPatientClick() {
     if (!procedureResponse.ok) {
       throw new Error(`Failed to create procedure (${procedureResponse.status})`);
     }
-    const procedure = await procedureResponse.json();
+    const procedureResult = await procedureResponse.json();
+    const procedureId = procedureResult?.id;
+    if (!procedureId) {
+      throw new Error("Missing procedure id in response");
+    }
+    const procedure = await fetchProcedureById(procedureId);
+    const contextMeta = buildScheduleMetadataFromDate(
+      procedure?.procedure_date ?? procedurePayload.procedure_date,
+      { procedureDate: procedure?.procedure_date ?? procedurePayload.procedure_date }
+    );
+    const normalizedProcedureDate =
+      contextMeta.normalizedDate || procedure?.procedure_date || procedurePayload.procedure_date;
     persistActivePatientContext({
       patientId: patient.id,
       patient: `${patient.first_name} ${patient.last_name}`.trim(),
-      weekLabel: procedure?.week_label ?? procedurePayload.week_label,
-      weekRange: procedure?.week_range ?? procedurePayload.week_range,
-      day: procedure?.day_label ?? procedurePayload.day_label,
-      monthLabel: procedure?.month_label ?? procedurePayload.month_label,
-      procedureDate: procedure?.procedure_date ?? procedurePayload.procedure_date,
+      weekLabel: contextMeta.weekLabel,
+      weekRange: contextMeta.weekRange || contextMeta.monthLabel,
+      day: contextMeta.dayLabel,
+      monthLabel: contextMeta.monthLabel,
+      procedureDate: normalizedProcedureDate,
       procedureId: procedure?.id,
       capturedAt: new Date().toISOString(),
     });
@@ -1076,7 +1116,7 @@ async function handleDeleteSelected() {
   }
   try {
     for (const procedureId of selectedProcedureIds) {
-      const response = await fetch(buildApiUrl(`/surgeries/${procedureId}`), {
+      const response = await fetch(buildApiUrl(`/procedures/${procedureId}`), {
         method: "DELETE",
       });
       handleUnauthorized(response);
@@ -1341,7 +1381,7 @@ async function initializeSchedule() {
       await fetchFieldOptions();
       fieldOptionsLoaded = true;
     }
-    const [patients, procedures] = await Promise.all([fetchPatients(), fetchSurgeries()]);
+    const [patients, procedures] = await Promise.all([fetchPatients(), fetchProcedures()]);
     const patientLookup = new Map();
     patients.forEach((patient) => patientLookup.set(Number(patient.id), patient));
     normalizedProcedures = procedures.map((procedure) =>

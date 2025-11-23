@@ -51,17 +51,11 @@ class Patient(PatientBase):
         from_attributes = True
 
 
-class SurgeryBase(BaseModel):
-    """Surgery/procedure model - contains scheduling and procedure metadata."""
-    month_label: str = Field(..., description="Name of the month to display (e.g. June 2024)")
-    week_label: str = Field(..., description="Readable label for the week (Week 1)")
-    week_range: str = Field(..., description="Date range for the week (Jun 3 – Jun 9)")
-    week_order: int = Field(..., description="Sort order for the week block")
-    day_label: str = Field(..., description="Day label shown in the schedule (Mon, Tue)")
-    day_order: int = Field(..., description="Sort order inside the week")
+class ProcedureBase(BaseModel):
+    """Procedure model - contains scheduling and booking metadata."""
     procedure_date: Optional[str] = Field(None, description="ISO date for the scheduled procedure")
-    status: str = Field(..., description="Surgery workflow status")
-    procedure_type: str = Field(..., description="Buckets used to filter surgeries")
+    status: str = Field(..., description="Procedure workflow status")
+    procedure_type: str = Field(..., description="Buckets used to filter procedures")
     grafts: str = Field("", description="Number of grafts or imported numeric detail")
     payment: str = Field(..., description="Payment collection status")
     consultation: List[str] = Field(default_factory=list, description="Consultations recorded for the procedure")
@@ -70,21 +64,21 @@ class SurgeryBase(BaseModel):
     photo_files: List[str] = Field(default_factory=list, description="Relative file paths for uploaded photos")
 
 
-class SurgeryCreate(SurgeryBase):
+class ProcedureCreate(ProcedureBase):
     pass
 
 
-class SurgeryCreatePayload(SurgeryCreate):
-    patient_id: int = Field(..., description="Identifier for the patient this surgery belongs to")
+class ProcedureCreatePayload(ProcedureCreate):
+    patient_id: int = Field(..., description="Identifier for the patient this procedure belongs to")
 
 
-class Surgery(SurgeryBase):
-    id: int = Field(..., description="Database identifier for the surgery")
-    patient_id: int = Field(..., description="Identifier for the patient this surgery belongs to")
+class Procedure(ProcedureBase):
+    id: int = Field(..., description="Database identifier for the procedure")
+    patient_id: int = Field(..., description="Identifier for the patient this procedure belongs to")
     photos: int = Field(0, description="Number of uploaded photos", ge=0)
     deleted: bool = Field(False, description="Whether the record is hidden (soft deleted)")
-    created_at: str = Field(..., description="Timestamp when the surgery was created")
-    updated_at: str = Field(..., description="Timestamp when the surgery was last updated")
+    created_at: str = Field(..., description="Timestamp when the procedure was created")
+    updated_at: str = Field(..., description="Timestamp when the procedure was last updated")
 
     class Config:
         from_attributes = True
@@ -201,6 +195,16 @@ class ApiToken(ApiTokenBase):
         from_attributes = True
 
 
+class OperationResult(BaseModel):
+    success: bool = Field(..., description="Whether the operation succeeded")
+    id: int = Field(..., description="Identifier of the affected record")
+
+
+class DeletedProcedureRecord(BaseModel):
+    procedure: Procedure = Field(..., description="Soft-deleted procedure record")
+    patient: Patient = Field(..., description="Patient that owns the procedure")
+
+
 class FieldOption(BaseModel):
     value: str = Field(..., description="Stored value for the option", min_length=1)
     label: str = Field(..., description="Human-friendly label", min_length=1)
@@ -270,9 +274,3 @@ class ProcedureBooking(ProcedureBookingBase):
 
     class Config:
         from_attributes = True
-
-
-# Aliases for backward compatibility
-Procedure = Surgery
-ProcedureCreate = SurgeryCreate
-ProcedureBase = SurgeryBase

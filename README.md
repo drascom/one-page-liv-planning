@@ -94,10 +94,10 @@ If you are behind nginx proxy manager with ssl certificate than use
 | POST | `/patients/` | Create a patient |
 | GET/PUT | `/patients/{id}` | Fetch or update a patient record |
 | DELETE | `/patients/{id}` | Delete a patient (admin session only) |
-| GET | `/surgeries/` | List surgeries (filter by `patient_id` when needed) |
-| POST | `/surgeries/` | Create a surgery linked to a patient |
-| GET/PUT | `/surgeries/{id}` | Fetch or update a surgery |
-| DELETE | `/surgeries/{id}` | Delete a surgery |
+| GET | `/procedures/` | List procedures (filter by `patient_id` when needed) |
+| POST | `/procedures/` | Create a procedure linked to a patient |
+| GET/PUT | `/procedures/{id}` | Fetch or update a procedure |
+| DELETE | `/procedures/{id}` | Delete a procedure |
 | GET/POST/DELETE | `/patients/{id}/photos` | List/create/delete photo metadata (files land in `/uploads`) |
 | GET/POST/DELETE | `/patients/{id}/payments` | Manage patient payments |
 | POST | `/uploads/{last_name}` | Upload photos for a patient |
@@ -109,16 +109,15 @@ If you are behind nginx proxy manager with ssl certificate than use
 | GET | `/auth/me` | Return the current user |
 | GET/POST/PUT/DELETE | `/auth/users` | Admin user management APIs |
 | GET/POST/DELETE | `/api-tokens` | Manage integration tokens scoped to the current admin user |
-| GET | `/api/v1/search?token=abc123xyz&full_name=name%20Surname` | External-only endpoint that finds a patient by full name and returns `{ "success": true, "patient": { ... } }` (with `id`/`surgery_date` for backwards compatibility) or `{ "success": false, "message": "Patient record not found" }`. You can also continue sending `name`+`surname` pairs for backwards compatibility. |
-
-Legacy `/procedures` routes are still exposed as aliases for the surgeries endpoints so older integrations continue to function.
+| GET | `/api/v1/search?full_name=name%20Surname` | External-only endpoint that finds a patient by full name and returns `{ "success": true, "patient": { ... } }` (with `id`/`surgery_date` for backwards compatibility) or `{ "success": false, "message": "Patient record not found" }`. |
 
 ### Sample patient requests
 
 Create a patient (internal session cookie example):
 
 ```bash
-curl -X POST "http://127.0.0.1:8000/patients" \
+curl -X POST "http://127.0.0.1:8000/api/v1/patients" \
+  -H "Authorization: Bearer SfTcDiRknE4NcRnlm50TEeH9zR6SkgQvjYA6kV0RRj32PnsF" \
   -H "Content-Type: application/json" \
   -d '{
     "first_name": "Jane",
@@ -129,10 +128,17 @@ curl -X POST "http://127.0.0.1:8000/patients" \
   }'
 ```
 
+Successful requests return `201 Created` along with the inserted record id and a short message:
+
+```json
+{ "success": true, "id": 123, "message": "Patient created" }
+```
+
 Update an existing patient (replace `123` with the record id):
 
 ```bash
-curl -X PUT "http://127.0.0.1:8000/patients/123" \
+curl -X PUT "http://127.0.0.1:8000/api/v1/patients/123" \
+  -H "Authorization: Bearer SfTcDiRknE4NcRnlm50TEeH9zR6SkgQvjYA6kV0RRj32PnsF" \
   -H "Content-Type: application/json" \
   -d '{
     "first_name": "Jane",
@@ -143,24 +149,21 @@ curl -X PUT "http://127.0.0.1:8000/patients/123" \
   }'
 ```
 
-### Sample surgery requests
+Patient updates return `200 OK` with `{ "success": true, "id": 123, "message": "Patient updated" }`.
 
-Create a surgery for an existing patient:
+### Sample procedure requests
+
+Create a procedure for an existing patient:
 
 ```bash
-curl -X POST "http://127.0.0.1:8000/surgeries" \
+curl -X POST "http://127.0.0.1:8000/api/v1/procedures" \
+  -H "Authorization: Bearer SfTcDiRknE4NcRnlm50TEeH9zR6SkgQvjYA6kV0RRj32PnsF" \
   -H "Content-Type: application/json" \
   -d '{
-    "patient_id": 123,
-    "month_label": "January 2025",
-    "week_label": "Week 1",
-    "week_range": "Jan 1 – Jan 7",
-    "week_order": 1,
-    "day_label": "Mon",
-    "day_order": 1,
+    "patient_id": 4,
+    "procedure_date": "2025-01-02",
     "procedure_type": "small",
     "status": "reserved",
-    "procedure_date": "2025-01-02",
     "grafts": "",
     "payment": "waiting",
     "consultation": [],
@@ -170,11 +173,100 @@ curl -X POST "http://127.0.0.1:8000/surgeries" \
   }'
 ```
 
-Purging a patient via `DELETE /patients/{id}/purge` cascades and removes all linked surgeries and their metadata so downstream integrations do not have to manually clean them up.
+On success the server responds `201 Created` with `{ "success": true, "id": 456, "message": "Procedure created" }`, which you can store and later pass to the GET endpoint when you need the full record.
+
+Purging a patient via `DELETE /api/v1/patients/{id}/purge` cascades and removes all linked procedures and their metadata so downstream integrations do not have to manually clean them up.
+
+### Sample curl commands with API token
+
+The snippets below show how to call the `/api/v1` endpoints directly using the API token `SfTcDiRknE4NcRnlm50TEeH9zR6SkgQvjYA6kV0RRj32PnsF`.
+
+Create a patient via the token-protected API:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/v1/patients" \
+  -H "Authorization: Bearer SfTcDiRknE4NcRnlm50TEeH9zR6SkgQvjYA6kV0RRj32PnsF" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "first_name": "Token",
+    "last_name": "Patient",
+    "email": "token.patient@example.com",
+    "phone": "+1-555-111-2222",
+    "city": "Cardiff"
+  }'
+```
+
+Create a procedure linked to the new patient (replace `123` with the patient id returned above):
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/v1/procedures" \
+  -H "Authorization: Bearer SfTcDiRknE4NcRnlm50TEeH9zR6SkgQvjYA6kV0RRj32PnsF" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "patient_id": 123,
+    "procedure_date": "2025-02-12",
+    "procedure_type": "small",
+    "status": "reserved",
+    "grafts": "",
+    "payment": "waiting",
+    "consultation": [],
+    "forms": [],
+    "consents": [],
+    "photo_files": []
+  }'
+```
+
+### Automated workflow smoke test
+
+Use the helper script below to quickly exercise the full patient/procedure flow (login → create patient → create procedure → update both → purge everything). It logs in via the regular `/auth/login` endpoint, so the provided user must be an admin.
+
+```bash
+uv run python scripts/patient_workflow_test.py \
+  --base-url http://127.0.0.1:8000 \
+  --username admin \
+  --password changeme
+```
+
+Pass `--keep-records` if you want to inspect the created rows instead of purging them automatically when the script finishes.
+
+Update the patient’s contact info (the response again includes the `id` so you can confirm the change):
+
+```bash
+curl -X PUT "http://127.0.0.1:8000/api/v1/patients/123" \
+  -H "Authorization: Bearer SfTcDiRknE4NcRnlm50TEeH9zR6SkgQvjYA6kV0RRj32PnsF" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "first_name": "Token",
+    "last_name": "Patient",
+    "email": "token.patient+updated@example.com",
+    "phone": "+1-555-999-0000",
+    "city": "Cardiff"
+  }'
+```
+
+Update the related procedure (replace `456` with the procedure id you created earlier); the response body now mirrors the operation result, e.g. `{ "success": true, "id": 456, "message": "Procedure updated" }`:
+
+```bash
+curl -X PUT "http://127.0.0.1:8000/api/v1/procedures/456" \
+  -H "Authorization: Bearer SfTcDiRknE4NcRnlm50TEeH9zR6SkgQvjYA6kV0RRj32PnsF" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "patient_id": 123,
+    "procedure_date": "2025-02-12",
+    "procedure_type": "small",
+    "status": "confirmed",
+    "grafts": "",
+    "payment": "paid",
+    "consultation": [],
+    "forms": [],
+    "consents": [],
+    "photo_files": []
+  }'
+```
 
 ### Migration note
 
-The SQLite schema now separates personal information (`patients`) from scheduling data (`surgeries`) plus related `photos` and `payments` tables. The bootstrap step will drop and recreate any legacy versions of those tables and skips migrating historic data so the API and UI can rely on the new shape immediately.
+The SQLite schema now separates personal information (`patients`) from scheduling data (`procedures`) plus related `photos` and `payments` tables. The bootstrap step recreates those tables from scratch (legacy migrations were removed) so the API and UI can rely on the new shape immediately.
 
 ### Frontend capabilities
 
@@ -188,5 +280,5 @@ The SQLite schema now separates personal information (`patients`) from schedulin
 
 All HTTP APIs include interactive docs at `http://127.0.0.1:8000/docs` once the server is running.
 
-**External integrations:** Every route above is mirrored under `/api/v1/*` and requires an API token created in the Settings → API Tokens UI. Send it in the `Authorization: Bearer <token>` header (recommended) or fall back to the legacy `token` query string parameter if your client cannot set headers. The `/api/v1/search` helper is specifically designed for lightweight patient lookups from outside systems—you can now pass `full_name=name%20Surname` (preferred) or continue using the legacy `name` and optional `surname` parameters. The response includes the full patient payload when found (along with `id` and `surgery_date` for backwards compatibility), sets `success: false` with `message: "Patient record not found"` when no match exists, and returns `success: false` with `message: "Name is missing"` when no name parameters are supplied so you can spot empty requests.
+**External integrations:** Every route above is mirrored under `/api/v1/*` and requires an API token created in the Settings → API Tokens UI. Send it in the `Authorization: Bearer <token>` header (requests without this header are rejected). The `/api/v1/search` helper is specifically designed for lightweight patient lookups from outside systems—you can pass `full_name=name%20Surname` (preferred) or continue using the legacy `name` and optional `surname` parameters. The response includes the full patient payload when found (along with `id` and `surgery_date` for backwards compatibility), sets `success: false` with `message: "Patient record not found"` when no match exists, and returns `success: false` with `message: "Name is missing"` when no name parameters are supplied so you can spot empty requests.
 <!--  -->

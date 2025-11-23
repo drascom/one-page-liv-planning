@@ -328,17 +328,18 @@ function persistReturnToScheduleContext(patient, procedure) {
   if (!patient || typeof window === "undefined" || !window.localStorage) {
     return;
   }
+  const scheduleMeta = buildScheduleContextFromProcedure(procedure);
   try {
     localStorage.setItem(
       ACTIVE_PATIENT_KEY,
       JSON.stringify({
         patientId: patient.id,
         patient: `${patient.first_name} ${patient.last_name}`.trim(),
-        weekLabel: procedure?.week_label,
-        weekRange: procedure?.week_range,
-        day: procedure?.day_label,
-        monthLabel: procedure?.month_label,
-        procedureDate: procedure?.procedure_date,
+        weekLabel: scheduleMeta.weekLabel,
+        weekRange: scheduleMeta.weekRange,
+        day: scheduleMeta.dayLabel,
+        monthLabel: scheduleMeta.monthLabel,
+        procedureDate: scheduleMeta.procedureDate,
         procedureId: procedure?.id,
         shouldReturnToSchedule: true,
         capturedAt: new Date().toISOString(),
@@ -352,7 +353,8 @@ function persistReturnToScheduleContext(patient, procedure) {
 function syncHeader(patient, procedure) {
   const displayName = `${patient?.first_name || ""} ${patient?.last_name || ""}`.trim() || requestedName || "Patient";
   patientNameEl.textContent = displayName;
-  const weekBits = [procedure?.week_label, procedure?.day_label].filter(Boolean).join(" • ");
+  const scheduleMeta = buildScheduleContextFromProcedure(procedure);
+  const weekBits = [scheduleMeta.weekLabel, scheduleMeta.dayLabel].filter(Boolean).join(" • ");
   patientWeekEl.textContent = weekBits;
   patientCityEl.textContent = patient?.city ? `City: ${patient.city}` : "";
 }
@@ -515,6 +517,15 @@ async function fetchPatientById(patientId) {
   return response.json();
 }
 
+async function fetchProcedureById(procedureId) {
+  const response = await fetch(buildApiUrl(`/procedures/${procedureId}`));
+  handleUnauthorized(response);
+  if (!response.ok) {
+    throw new Error(`Unable to load procedure (${response.status})`);
+  }
+  return response.json();
+}
+
 async function fetchPhotosForPatient(patientId) {
   const response = await fetch(buildApiUrl(`/patients/${patientId}/photos`));
   handleUnauthorized(response);
@@ -532,15 +543,15 @@ async function fetchProceduresForPatient(patientId) {
   if (!patientId || !proceduresStatusEl) {
     return [];
   }
-  proceduresStatusEl.textContent = "Loading surgeries...";
+  proceduresStatusEl.textContent = "Loading procedures...";
   try {
-    const response = await fetch(buildApiUrl(`/patients/${patientId}/surgeries`));
+    const response = await fetch(buildApiUrl(`/patients/${patientId}/procedures`));
     handleUnauthorized(response);
     let payload = [];
     if (response.ok) {
       payload = await response.json();
     } else {
-      const fallback = await fetch(buildApiUrl("/surgeries"));
+      const fallback = await fetch(buildApiUrl("/procedures"));
       handleUnauthorized(fallback);
       if (!fallback.ok) {
         throw new Error(`Unable to load procedures (${response.status})`);
@@ -558,21 +569,21 @@ async function fetchProceduresForPatient(patientId) {
       null;
     renderRelatedBookings(patientProcedures);
     populateProcedureForm(activeProcedure);
-    refreshCancelButtonState();
+    refreshDeleteButtonState();
     if (proceduresStatusEl) {
       proceduresStatusEl.textContent = patientProcedures.length
         ? ""
-        : "No surgeries found. Use Add to create one.";
+        : "No procedures found. Use Add to create one.";
     }
     return patientProcedures;
   } catch (error) {
     console.error(error);
-    proceduresStatusEl.textContent = "Unable to load surgeries.";
+    proceduresStatusEl.textContent = "Unable to load procedures.";
     patientProcedures = [];
     activeProcedure = null;
     renderRelatedBookings(null);
     clearProcedureForm();
-    refreshCancelButtonState();
+    refreshDeleteButtonState();
     return [];
   }
 }
@@ -643,21 +654,33 @@ function getWeekMetaForDate(date) {
   };
 }
 
-function deriveProcedureMetadata(base, procedureDate) {
-  const parsed = parseISODate(procedureDate);
+function buildScheduleContextFromProcedure(procedure) {
+  if (!procedure) {
+    return {
+      weekLabel: "",
+      weekRange: "",
+      monthLabel: "",
+      dayLabel: "",
+      procedureDate: "",
+    };
+  }
+  const parsed = parseISODate(procedure.procedure_date);
   if (!parsed) {
-    return base;
+    return {
+      weekLabel: procedure.week_label || "",
+      weekRange: procedure.week_range || "",
+      monthLabel: procedure.month_label || "",
+      dayLabel: procedure.day_label || "",
+      procedureDate: procedure.procedure_date || "",
+    };
   }
   const weekMeta = getWeekMetaForDate(parsed);
   return {
-    ...base,
-    month_label: formatMonthLabelFromDate(parsed),
-    week_label: weekMeta.label,
-    week_range: weekMeta.range,
-    week_order: weekMeta.order,
-    day_label: DAY_FORMATTER.format(parsed),
-    day_order: (parsed.getDay() + 6) % 7,
-    procedure_date: formatLocalISODate(parsed),
+    weekLabel: weekMeta.label,
+    weekRange: weekMeta.range,
+    monthLabel: formatMonthLabelFromDate(parsed),
+    dayLabel: DAY_FORMATTER.format(parsed),
+    procedureDate: formatLocalISODate(parsed),
   };
 }
 
@@ -754,7 +777,7 @@ function selectProcedure(procedureId) {
   activeProcedure = match;
   populateProcedureForm(activeProcedure);
   renderRelatedBookings(patientProcedures);
-  refreshCancelButtonState();
+  refreshDeleteButtonState();
   if (proceduresStatusEl) {
     proceduresStatusEl.textContent = "";
   }
@@ -764,7 +787,7 @@ function startNewProcedure() {
   activeProcedure = null;
   clearProcedureForm();
   renderRelatedBookings(patientProcedures);
-  refreshCancelButtonState();
+  refreshDeleteButtonState();
   if (procedureFormStatusEl) {
     procedureFormStatusEl.textContent = "Creating a new procedure entry.";
   }
@@ -891,9 +914,8 @@ function buildProcedurePayloadFromForm() {
   }
   const base = activeProcedure || patientProcedures[0] || {};
   const payload = {
-    ...base,
     patient_id: currentPatient.id,
-    procedure_date: procedureDateInput.value || base.procedure_date,
+    procedure_date: procedureDateInput.value || base.procedure_date || "",
     status: statusSelect.value,
     procedure_type: procedureSelect.value,
     grafts: graftsInput.value.trim(),
@@ -902,7 +924,7 @@ function buildProcedurePayloadFromForm() {
     forms: collectMultiValue(formsSelect),
     consents: collectMultiValue(consentsSelect),
   };
-  return deriveProcedureMetadata(payload, payload.procedure_date);
+  return payload;
 }
 
 async function savePatient(event) {
@@ -937,9 +959,13 @@ async function savePatient(event) {
     if (!response.ok) {
       throw new Error(`Failed to save patient (status ${response.status})`);
     }
-    const updatedPatient = await response.json();
-    currentPatient = updatedPatient;
-    populatePatientForm(updatedPatient);
+    const updateResult = await response.json();
+    if (!updateResult?.id) {
+      throw new Error("Missing patient id in response");
+    }
+    const refreshedPatient = await fetchPatientById(updateResult.id);
+    currentPatient = refreshedPatient;
+    populatePatientForm(refreshedPatient);
     patientStatusEl.textContent = "Patient details saved.";
   } catch (error) {
     console.error(error);
@@ -950,8 +976,8 @@ async function savePatient(event) {
 
   try {
     const endpoint = activeProcedure
-      ? buildApiUrl(`/surgeries/${activeProcedure.id}`)
-      : buildApiUrl(`/surgeries`);
+      ? buildApiUrl(`/procedures/${activeProcedure.id}`)
+      : buildApiUrl(`/procedures`);
     const response = await fetch(endpoint, {
       method: activeProcedure ? "PUT" : "POST",
       headers: {
@@ -963,7 +989,11 @@ async function savePatient(event) {
     if (!response.ok) {
       throw new Error(`Failed to save procedure (status ${response.status})`);
     }
-    const savedProcedure = await response.json();
+    const procedureResult = await response.json();
+    if (!procedureResult?.id) {
+      throw new Error("Missing procedure id in response");
+    }
+    const savedProcedure = await fetchProcedureById(procedureResult.id);
     const existingIndex = patientProcedures.findIndex((procedure) => procedure.id === savedProcedure.id);
     if (existingIndex >= 0) {
       patientProcedures[existingIndex] = savedProcedure;
@@ -973,7 +1003,7 @@ async function savePatient(event) {
     activeProcedure = savedProcedure;
     populateProcedureForm(savedProcedure);
     renderRelatedBookings(patientProcedures);
-    refreshCancelButtonState();
+    refreshDeleteButtonState();
     procedureFormStatusEl.textContent = "Procedure saved.";
     persistReturnToScheduleContext(currentPatient, savedProcedure);
     formStatusEl.textContent = "Record saved. Returning to schedule...";
@@ -1112,7 +1142,7 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
-function refreshDeleteButtonState() {
+function refreshDeletePatientButtonState() {
   if (!deletePatientBtn) {
     return;
   }
@@ -1120,7 +1150,7 @@ function refreshDeleteButtonState() {
   deletePatientBtn.disabled = !currentPatient;
 }
 
-function refreshCancelButtonState() {
+function refreshDeleteProcedureButtonState() {
   if (!cancelProcedureBtn) {
     return;
   }
@@ -1128,34 +1158,41 @@ function refreshCancelButtonState() {
   cancelProcedureBtn.disabled = !activeProcedure;
 }
 
-async function handleCancelProcedure() {
+function refreshDeleteButtonState() {
+  refreshDeletePatientButtonState();
+  refreshDeleteProcedureButtonState();
+}
+
+async function handleDeleteProcedure() {
   if (!activeProcedure) {
     return;
   }
-  const confirmed = window.confirm("Cancel this procedure? This removes it from the schedule.");
+  const confirmed = window.confirm(
+    "Delete this procedure? It will move to Deleted Records where admins can restore it."
+  );
   if (!confirmed) {
     return;
   }
   const originalLabel = cancelProcedureBtn.textContent;
   cancelProcedureBtn.disabled = true;
-  cancelProcedureBtn.textContent = "Cancelling...";
+  cancelProcedureBtn.textContent = "Deleting...";
   try {
-    const response = await fetch(buildApiUrl(`/surgeries/${activeProcedure.id}`), { method: "DELETE" });
+    const response = await fetch(buildApiUrl(`/procedures/${activeProcedure.id}`), { method: "DELETE" });
     handleUnauthorized(response);
     if (!response.ok) {
-      throw new Error(`Failed to cancel (status ${response.status})`);
+      throw new Error(`Failed to delete (status ${response.status})`);
     }
     patientProcedures = patientProcedures.filter((procedure) => procedure.id !== activeProcedure.id);
     activeProcedure = patientProcedures[0] ?? null;
     populateProcedureForm(activeProcedure);
     renderRelatedBookings(patientProcedures);
-    refreshCancelButtonState();
+    refreshDeleteButtonState();
     proceduresStatusEl.textContent = patientProcedures.length
       ? ""
       : "No procedures found. Use Add to create one.";
   } catch (error) {
     console.error(error);
-    alert(`Unable to cancel this procedure: ${error.message}`);
+    alert(`Unable to delete this procedure: ${error.message}`);
   } finally {
     cancelProcedureBtn.textContent = originalLabel;
     cancelProcedureBtn.disabled = false;
@@ -1198,7 +1235,7 @@ if (deletePatientBtn) {
   deletePatientBtn.addEventListener("click", handleDeletePatient);
 }
 if (cancelProcedureBtn) {
-  cancelProcedureBtn.addEventListener("click", handleCancelProcedure);
+  cancelProcedureBtn.addEventListener("click", handleDeleteProcedure);
 }
 if (addProcedureBtn) {
   addProcedureBtn.addEventListener("click", startNewProcedure);

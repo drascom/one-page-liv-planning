@@ -10,12 +10,16 @@
 
 <body class="patient-page">
   <header class="patient-header">
-    <a href="/" class="back-link">← Back to schedule</a>
-    <button type="button" class="logout-link" data-logout-btn>Logout</button>
-    <div class="patient-heading">
-      <p class="patient-week">Integration</p>
-      <h1>API Tokens</h1>
-      <p class="patient-city">Create tokens to connect external systems.</p>
+    <div class="header-left">
+      <a href="/" class="back-link">← Back to schedule</a>
+      <div class="patient-heading">
+        <p class="patient-week">Integration</p>
+        <h1>API Tokens</h1>
+        <p class="patient-city">Create tokens to connect external systems.</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <button type="button" class="logout-link" data-logout-btn>Logout</button>
     </div>
   </header>
 
@@ -158,7 +162,7 @@
           <header class="settings-section__header">
             <p class="settings-section__eyebrow">Workspace</p>
             <h2>Deleted Records</h2>
-            <p>Soft-deleted patients stay here until you recover them.</p>
+            <p>Soft-deleted records stay here until you recover or purge them.</p>
           </header>
           <section class="patient-card">
             <div class="settings-section__header" style="gap: 12px;">
@@ -173,6 +177,19 @@
             </div>
             <div id="deleted-patients-status" class="form-status" aria-live="polite"></div>
             <div id="deleted-patient-list" class="token-list"></div>
+          </section>
+          <section class="patient-card">
+            <div class="settings-section__header" style="gap: 12px;">
+              <div>
+                <h3>Deleted Procedures</h3>
+                <p>Restore or permanently delete procedures removed from patient records.</p>
+              </div>
+              <div class="settings-danger-card__actions">
+                <button type="button" class="secondary-btn" id="refresh-deleted-procedures-btn">Refresh</button>
+              </div>
+            </div>
+            <div id="deleted-procedures-status" class="form-status" aria-live="polite"></div>
+            <div id="deleted-procedure-list" class="token-list"></div>
           </section>
         </section>
 

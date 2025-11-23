@@ -16,34 +16,32 @@
           <div class="hero__pill-row">
             <span class="hero__pill">One-page schedule</span>
           </div>
-       
         </div>
-       
-      </div>
-      <div class="hero__search-block">
-        <div class="hero__search-row">
-          <form class="patient-search" id="patient-search-form" role="search" autocomplete="off">
-            <label class="visually-hidden" for="patient-search">Search patients</label>
-            <input
-              id="patient-search"
-              type="search"
-              name="patientSearch"
-              placeholder="Search by name or surname"
-              enterkeyhint="search"
-            />
-            <button
-              type="button"
-              class="patient-search__clear"
-              id="patient-search-clear"
-              aria-label="Clear search"
-              title="Clear search"
-            >
-              ×
-            </button>
-            <ul class="patient-search__results" id="patient-search-results" role="listbox"></ul>
-          </form>
+        <div class="hero__search-block">
+          <div class="hero__search-row">
+            <form class="patient-search" id="patient-search-form" role="search" autocomplete="off">
+              <label class="visually-hidden" for="patient-search">Search patients</label>
+              <input
+                id="patient-search"
+                type="search"
+                name="patientSearch"
+                placeholder="Search by name or surname"
+                enterkeyhint="search"
+              />
+              <button
+                type="button"
+                class="patient-search__clear"
+                id="patient-search-clear"
+                aria-label="Clear search"
+                title="Clear search"
+              >
+                ×
+              </button>
+              <ul class="patient-search__results" id="patient-search-results" role="listbox"></ul>
+            </form>
+          </div>
+          <p class="hero__total-note">Total patients: <span id="total-patient-count"></span></p>
         </div>
-        <p class="hero__total-note">Total patients: <span id="total-patient-count"></span></p>
       </div>
     </div>
   </header>

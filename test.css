@@ -109,23 +109,21 @@ body {
 
 .patient-grid {
     display: grid;
-    grid-template-columns: 1.2fr 1fr; /* Details 1.2fr, Media 1fr, Surgery 2fr */
+    grid-template-columns: 1fr 1.5fr;
     grid-template-areas:
-        "details media"
-        "details surgery";
+        "left right";
     gap: 2rem;
 }
 
-.patient-details-card {
-    grid-area: details;
-}
-
-.patient-media-section {
-    grid-area: media;
+.patient-left-column {
+    grid-area: left;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
 }
 
 .patient-surgery-section {
-    grid-area: surgery;
+    grid-area: right;
 }
 
 /* Card Styles */
@@ -273,29 +271,67 @@ body {
 /* Tabs Menu */
 .tab-menu {
     display: flex;
-    border-bottom: 1px solid #eee;
+    gap: 1rem;
+    overflow-x: auto;
+    padding-bottom: 1rem;
     margin-bottom: 1.5rem;
+    border-bottom: 1px solid #eee;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin; /* Firefox */
+}
+
+.tab-menu::-webkit-scrollbar {
+    height: 6px;
+}
+
+.tab-menu::-webkit-scrollbar-thumb {
+    background-color: #ccc;
+    border-radius: 3px;
 }
 
 .tab-button {
-    padding: 0.8rem 1.5rem;
-    border: none;
-    background-color: transparent;
-    font-size: 1rem;
-    font-weight: 600;
-    color: #777;
+    flex: 0 0 auto; /* Don't shrink, stick to content size or width */
+    width: 160px;
+    padding: 1rem;
+    border: 1px solid #ddd;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #555;
     cursor: pointer;
     transition: all 0.2s ease;
-    border-bottom: 3px solid transparent;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    align-items: flex-start;
+    text-align: left;
+    scroll-snap-align: start;
+}
+
+.tab-button span {
+    display: block;
+}
+
+.tab-button span:first-child {
+    font-weight: 700;
+    color: #333;
+    font-size: 1rem;
 }
 
 .tab-button:hover {
-    color: #87ceeb;
+    border-color: #87ceeb;
+    background-color: #eaf6fc;
 }
 
 .tab-button.is-active {
-    color: #87ceeb;
-    border-bottom-color: #87ceeb;
+    background-color: #87ceeb;
+    color: #fff;
+    border-color: #87ceeb;
+}
+
+.tab-button.is-active span:first-child {
+    color: #fff;
 }
 
 .tab-panels {
@@ -309,6 +345,7 @@ body {
 .tab-panel.is-active {
     display: block;
 }
+
 
 /* Checklist */
 .checklist {
@@ -421,9 +458,8 @@ body {
     .patient-grid {
         grid-template-columns: 1fr;
         grid-template-areas:
-            "details"
-            "media"
-            "surgery";
+            "left"
+            "right";
     }
 
     .dashboard-header {
