@@ -679,6 +679,9 @@ function createCheckCell(value, label, countText = "") {
   cell.classList.add("col-check");
   cell.dataset.label = label;
 
+  const content = document.createElement("span");
+  content.className = "check-cell";
+
   const icon = document.createElement("span");
   icon.className = `check-icon ${value ? "check-icon--checked" : "check-icon--error"}`;
   icon.textContent = CHECKED_ICON[value];
@@ -687,13 +690,14 @@ function createCheckCell(value, label, countText = "") {
     `${label} ${value ? "complete" : "missing"}${countText ? ` (${countText})` : ""}`
   );
 
-  cell.appendChild(icon);
+  content.appendChild(icon);
   if (countText) {
     const count = document.createElement("span");
     count.className = "check-count";
     count.textContent = countText;
-    cell.appendChild(count);
+    content.appendChild(count);
   }
+  cell.appendChild(content);
   return cell;
 }
 

@@ -714,6 +714,14 @@ body {
   text-align: center;
 }
 
+.check-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  white-space: nowrap;
+}
+
 .col-consult {
   width: 10%;
   text-align: center;

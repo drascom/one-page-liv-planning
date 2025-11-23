@@ -211,13 +211,6 @@ def serve_patient(request: Request):
     return FileResponse(settings.static_root / "patient.html")
 
 
-@app.get("/patient-test.html", include_in_schema=False)
-def serve_patient_test(request: Request):
-    if not get_current_user(request):
-        return _redirect_to_login(request)
-    return FileResponse(settings.static_root / "patient-test.html")
-
-
 @app.get("/settings.html", include_in_schema=False)
 def serve_settings(request: Request):
     if not get_current_user(request):
