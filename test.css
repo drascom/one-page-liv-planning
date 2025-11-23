@@ -304,7 +304,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 0.3rem;
-    align-items: flex-start;
+    align-items: stretch;
     text-align: left;
     scroll-snap-align: start;
 }
@@ -328,6 +328,7 @@ body {
     background-color: #87ceeb;
     color: #fff;
     border-color: #87ceeb;
+    transform: scale(1.02);
 }
 
 .tab-button.is-active span:first-child {

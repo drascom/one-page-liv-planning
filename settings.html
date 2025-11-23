@@ -8,20 +8,21 @@
   <link rel="stylesheet" href="/static/styles.css" />
 </head>
 
-<body class="patient-page">
-  <header class="patient-header">
-    <div class="header-left">
-      <a href="/" class="back-link">← Back to schedule</a>
-      <div class="patient-heading">
-        <p class="patient-week">Integration</p>
-        <h1>API Tokens</h1>
-        <p class="patient-city">Create tokens to connect external systems.</p>
+<body class="patient-page app-shell">
+  <div class="app-layout">
+    <nav class="top-nav top-nav--subpage">
+      <div class="top-nav__brand">
+        <a class="top-nav__brand-link" href="/">
+          <span class="top-nav__brand-icon" aria-hidden="true">❖</span>
+          Liv Planner
+        </a>
+        <span class="top-nav__divider" aria-hidden="true">•</span>
+        <span class="top-nav__section">Settings</span>
       </div>
-    </div>
-    <div class="header-right">
-      <button type="button" class="logout-link" data-logout-btn>Logout</button>
-    </div>
-  </header>
+      <div class="top-nav__actions">
+        <button type="button" class="nav-btn nav-btn--primary" data-logout-btn>Logout</button>
+      </div>
+    </nav>
 
   <main class="patient-content settings-content">
     <div class="settings-shell">
@@ -223,6 +224,7 @@
       </div>
     </div>
   </main>
+  </div>
 
   <script src="/app-config.js"></script>
   <script src="/static/settings.js" type="module"></script>

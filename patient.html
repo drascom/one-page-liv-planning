@@ -7,20 +7,32 @@
     <link rel="stylesheet" href="/static/styles.css" />
     <link rel="stylesheet" href="/static/test.css" />
   </head>
-  <body class="patient-page new-patient-page">
-    <header class="dashboard-header new-patient-header">
-      <div class="dashboard-header__left header-left">
-        <a href="/" class="back-link">← Back to schedule</a>
-        <div class="patient-heading">
-          <h1 id="patient-name">Patient Record</h1>
-          <p class="patient-meta" id="patient-week"></p>
-          <p class="patient-meta" id="patient-city"></p>
+  <body class="patient-page new-patient-page app-shell">
+    <div class="app-layout">
+      <nav class="top-nav top-nav--subpage">
+        <div class="top-nav__brand">
+          <a class="top-nav__brand-link" href="/">
+            <span class="top-nav__brand-icon" aria-hidden="true">❖</span>
+            Liv Planner
+          </a>
+          <span class="top-nav__divider" aria-hidden="true">•</span>
+          <span class="top-nav__section">Patient Record</span>
         </div>
-      </div>
-      <div class="dashboard-header__right header-right">
-        <button type="button" class="btn btn-primary logout-link" data-logout-btn>Logout</button>
-      </div>
-    </header>
+        <div class="top-nav__actions">
+          <button type="button" class="nav-btn nav-btn--primary" data-logout-btn>Logout</button>
+        </div>
+      </nav>
+
+      <section class="subpage-hero subpage-hero--patient">
+        <div class="subpage-hero__details">
+          <p class="subpage-hero__eyebrow">Patient Profile</p>
+          <h1 id="patient-name">Patient Record</h1>
+          <div class="subpage-hero__meta">
+            <span id="patient-week"></span>
+            <span id="patient-city"></span>
+          </div>
+        </div>
+      </section>
 
     <main class="main-content patient-content new-patient-layout">
       <section class="patient-grid two-column-section">
@@ -199,6 +211,7 @@
         →
       </button>
       <button type="button" class="photo-viewer__delete" id="photo-viewer-delete">Delete photo</button>
+    </div>
     </div>
 
     <script src="/app-config.js"></script>

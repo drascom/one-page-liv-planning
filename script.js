@@ -129,7 +129,7 @@ const MONTH_FORMATTER = new Intl.DateTimeFormat("en-US", { month: "long", year: 
 const DAY_FORMATTER = new Intl.DateTimeFormat("en-US", { weekday: "short" });
 const DAY_NAME_FORMATTER = new Intl.DateTimeFormat("en-US", { weekday: "long" });
 
-const monthLabel = document.getElementById("selected-month");
+const monthDisplay = document.getElementById("current-month-label");
 const weekCount = document.getElementById("week-count");
 const monthPatientCount = document.getElementById("month-patient-count");
 const totalPatientCount = document.getElementById("total-patient-count");
@@ -795,13 +795,13 @@ function updateControlState() {
 
 function updateTotalPatients(total) {
   if (totalPatientCount) {
-    totalPatientCount.textContent = `${total} total procedure${total === 1 ? "" : "s"}`;
+    totalPatientCount.textContent = String(total);
   }
 }
 
 function updateMonthPatientCount(total) {
   if (monthPatientCount) {
-    monthPatientCount.textContent = `${total} procedure${total === 1 ? "" : "s"} this month`;
+    monthPatientCount.textContent = `${total} procedure${total === 1 ? "" : "s"}`;
   }
   const calendarMonthPatients = document.getElementById("calendar-month-patients");
   if (calendarMonthPatients) {
@@ -815,7 +815,9 @@ function renderSelectedMonth() {
   }
   const sourceSchedules = searchQuery ? filteredMonthlySchedules : monthlySchedules;
   const selectedLabel = formatMonthLabelFromDate(selectedDate);
-  monthLabel.textContent = selectedLabel;
+  if (monthDisplay) {
+    monthDisplay.textContent = selectedLabel;
+  }
   const currentMonth = sourceSchedules.find((month) => month.label === selectedLabel);
 
   if (yearSelect) {
@@ -841,19 +843,25 @@ function renderSelectedMonth() {
         (total, month) => total + (month.weeks?.length ?? 0),
         0
       );
-      weekCount.textContent = matchingWeeks
-        ? `${matchingWeeks} matching week${matchingWeeks === 1 ? "" : "s"}`
-        : "0 matches";
+      if (weekCount) {
+        weekCount.textContent = matchingWeeks
+          ? `${matchingWeeks} matching week${matchingWeeks === 1 ? "" : "s"}`
+          : "0 matches";
+      }
     } else {
       setScheduleStatus(`No procedures scheduled for ${selectedLabel}.`);
-      weekCount.textContent = "0 weeks scheduled";
+      if (weekCount) {
+        weekCount.textContent = "0 weeks scheduled";
+      }
     }
     updateMonthPatientCount(0);
   } else {
     currentMonth.weeks.forEach(renderWeek);
-    weekCount.textContent = `${currentMonth.weeks.length} ${searchQuery ? "matching week" : "week"}${
-      currentMonth.weeks.length === 1 ? "" : "s"
-    }`;
+    if (weekCount) {
+      weekCount.textContent = `${currentMonth.weeks.length} ${searchQuery ? "matching week" : "week"}${
+        currentMonth.weeks.length === 1 ? "" : "s"
+      }`;
+    }
     const monthPatientTotal = currentMonth.weeks.reduce(
       (total, week) => total + (week.days?.length ?? 0),
       0
@@ -1149,8 +1157,21 @@ async function handleDeleteSelected() {
 
 function renderWeek(week) {
   const clone = weekTemplate.content.cloneNode(true);
-  clone.querySelector(".week__title").textContent = week.label;
-  clone.querySelector(".week__range").textContent = week.range;
+  const rangeEl = clone.querySelector(".week__range");
+  if (rangeEl) {
+    rangeEl.textContent = week.range;
+  }
+  const badgeEl = clone.querySelector("[data-week-badge]");
+  if (badgeEl) {
+    badgeEl.textContent = week.label;
+  }
+  const countEl = clone.querySelector("[data-week-count]");
+  if (countEl) {
+    const totalProcedures = week.days?.length ?? 0;
+    countEl.textContent = `${totalProcedures} ${
+      totalProcedures === 1 ? "Procedure" : "Procedures"
+    }`;
+  }
   const table = clone.querySelector(".week__table");
   const existingTbody = table.querySelector("tbody");
   if (existingTbody) {
@@ -1429,8 +1450,12 @@ async function initializeSchedule() {
   } catch (error) {
     console.error(error);
     setScheduleStatus("Unable to load the schedule. Please try again later.");
-    monthLabel.textContent = "Consultation Planner";
-    weekCount.textContent = "";
+    if (weekCount) {
+      weekCount.textContent = "";
+    }
+    if (monthDisplay) {
+      monthDisplay.textContent = "Consultation Planner";
+    }
     updateControlState();
   }
 }

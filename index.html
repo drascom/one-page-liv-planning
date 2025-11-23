@@ -8,106 +8,105 @@
   <link rel="stylesheet" href="/static/styles.css" />
 </head>
 
-<body>
-  <header class="hero">
-    <div class="hero__content">
-      <div class="hero__layout">
-        <div class="hero__left">
-          <div class="hero__pill-row">
-            <span class="hero__pill">One-page schedule</span>
-          </div>
-        </div>
-        <div class="hero__search-block">
-          <div class="hero__search-row">
-            <form class="patient-search" id="patient-search-form" role="search" autocomplete="off">
-              <label class="visually-hidden" for="patient-search">Search patients</label>
-              <input
-                id="patient-search"
-                type="search"
-                name="patientSearch"
-                placeholder="Search by name or surname"
-                enterkeyhint="search"
-              />
-              <button
-                type="button"
-                class="patient-search__clear"
-                id="patient-search-clear"
-                aria-label="Clear search"
-                title="Clear search"
-              >
-                ×
-              </button>
-              <ul class="patient-search__results" id="patient-search-results" role="listbox"></ul>
-            </form>
-          </div>
-          <p class="hero__total-note">Total patients: <span id="total-patient-count"></span></p>
-        </div>
+<body class="app-shell">
+  <div class="app-layout">
+    <nav class="top-nav">
+      <div class="top-nav__brand">
+        <span class="top-nav__brand-icon" aria-hidden="true">❖</span>
+        <span>Liv Planner</span>
       </div>
-    </div>
-  </header>
-  <div class="hero__controls-row">
-    <div class="hero__controls-center">
-      <div class="month-controls" aria-label="Month navigation">
-        <button type="button" class="month-button" id="month-prev" aria-label="Previous month">←</button>
-        <div class="month-controls__year">
+      <form class="top-nav__search patient-search" id="patient-search-form" role="search" autocomplete="off">
+        <label class="visually-hidden" for="patient-search">Search patients</label>
+        <span class="search-icon" aria-hidden="true">🔍</span>
+        <input
+          id="patient-search"
+          type="search"
+          name="patientSearch"
+          class="search-input"
+          placeholder="Search by name or surname"
+          enterkeyhint="search"
+        />
+        <button
+          type="button"
+          class="patient-search__clear"
+          id="patient-search-clear"
+          aria-label="Clear search"
+          title="Clear search"
+        >
+          ×
+        </button>
+        <ul class="patient-search__results" id="patient-search-results" role="listbox"></ul>
+      </form>
+      <div class="top-nav__actions">
+        <a class="nav-btn nav-btn--ghost" href="settings.html" data-admin-link hidden>Settings</a>
+        <button type="button" class="nav-btn nav-btn--primary" data-logout-btn>Logout</button>
+      </div>
+    </nav>
+
+    <main class="main-container">
+      <section class="controls-bar">
+        <div class="controls-bar__primary">
+          <div class="date-nav-group" aria-label="Month navigation">
+            <button type="button" class="date-nav-btn" id="month-prev" aria-label="Previous month">←</button>
+            <button type="button" class="date-nav-btn" id="month-today">Today</button>
+            <button type="button" class="date-nav-btn" id="month-next" aria-label="Next month">→</button>
+          </div>
+          <div class="current-date-display" id="current-month-label">Loading...</div>
+        </div>
+        <div class="controls-bar__secondary">
           <label class="visually-hidden" for="year-select">Select year</label>
           <select id="year-select" class="year-select" aria-label="Select year"></select>
+          <div class="controls-bar__badges">
+            <span class="control-badge" id="calendar-month-patients"></span>
+            <span class="control-badge">
+              Total: <span id="total-patient-count"></span>
+            </span>
+          </div>
+          <button type="button" class="add-btn" id="add-patient-btn">
+            <span aria-hidden="true">＋</span>
+            Add Patient
+          </button>
         </div>
-        <button type="button" class="month-button" id="month-next" aria-label="Next month">→</button>
-        <button type="button" class="month-button month-button--ghost" id="month-today">Today</button>
-      </div>
-    </div>
-    <div class="hero__controls-right">
-      <a class="hero__settings-link hero__settings-link--icon" href="settings.html" aria-label="Open settings"
-        data-admin-link hidden>
-        <span aria-hidden="true">&#9881;</span>
-        <span class="visually-hidden">Settings</span>
-      </a>
-      <button type="button" class="hero__logout" data-logout-btn>Logout</button>
-    </div>
+      </section>
+
+      <section class="schedule-section">
+        <div class="schedule__board" id="schedule"></div>
+      </section>
+    </main>
   </div>
 
-  <main class="schedule">
-    <header class="schedule__header">
-     
-          <p class="hero__month-large" id="selected-month">Loading...</p>
-          <div class="hero__calendar-meta">
-            <span class="hero__week-count" id="week-count"></span>
-            <span class="" id="calendar-month-patients"></span>
-          </div>
-       
-      <div class="schedule__header-actions">
-        <button type="button" class="hero__add-btn" id="add-patient-btn">Add Patient</button>
-      </div>
-    </header>
-    <div class="schedule__board" id="schedule"></div>
-  </main>
-
   <template id="week-template">
-    <section class="week">
-      <header class="week__header">
-        <h2 class="week__title"></h2>
-        <span class="week__range"></span>
+    <section class="week-card">
+      <header class="week-card__header">
+        <div class="week-card__title">
+          <span class="week-card__badge" data-week-badge>Week</span>
+          <span class="week__range"></span>
+        </div>
+        <span class="week-card__count" data-week-count></span>
       </header>
-      <table class="week__table">
-        <thead>
-          <tr>
-            <th class="col-select" data-select-header hidden>Select</th>
-            <th class="col-day" aria-hidden="true"></th>
-            <th class="col-date">Date</th>
-            <th class="col-patient">Patient</th>
-            <th class="col-status">Status</th>
-            <th class="col-procedure">Type</th>
-            <th class="col-grafts">Grafts</th>
-            <th class="col-check">Forms</th>
-            <th class="col-check">Consents</th>
-            <th class="col-consult">Consulted</th>
-            <th class="col-payment">Payment</th>
-            <th class="col-photos">Photos</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+      <div class="week-card__body">
+        <div class="table-container">
+          <table class="week__table modern-table">
+            <thead>
+              <tr>
+                <th class="col-select" data-select-header hidden>Select</th>
+                <th class="col-day" aria-hidden="true"></th>
+                <th class="col-date">Date</th>
+                <th class="col-patient">Patient</th>
+                <th class="col-status">Status</th>
+                <th class="col-procedure">Type</th>
+                <th class="col-grafts">Grafts</th>
+                <th class="col-check">Forms</th>
+                <th class="col-check">Consents</th>
+                <th class="col-consult">Consulted</th>
+                <th class="col-payment">Payment</th>
+                <th class="col-photos">Photos</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
     </section>
   </template>
 
