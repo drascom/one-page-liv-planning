@@ -21,9 +21,13 @@
       <div class="settings-shell settings-shell--patient">
         <aside class="settings-menu" role="tablist" aria-label="Patient sections">
           <div class="settings-menu__group">
-            <p class="settings-menu__label">Bookings</p>
+            <div class="settings-menu__label-row">
+              <p class="settings-menu__label">Procedures</p>
+              <button type="button" class="secondary-btn" id="add-procedure-btn">Add</button>
+            </div>
+            <p id="procedures-status" class="form-status" role="status"></p>
             <div id="patient-bookings-list" class="patient-bookings-sidebar">
-              <!-- Bookings will be injected here -->
+              <!-- Procedures will be injected here -->
             </div>
           </div>
         </aside>
@@ -36,7 +40,8 @@
                 <h2>Patient Details</h2>
               </div>
               <div class="form-actions settings-section__header-actions">
-                <button type="submit" class="primary-btn" form="patient-form">Save Patient</button>
+                <button type="submit" class="primary-btn" form="patient-form">Save Changes</button>
+                <button type="button" class="danger-btn" id="cancel-procedure-btn" hidden>Cancel Procedure</button>
                 <button type="button" class="danger-btn" id="delete-patient-btn" hidden>Delete Patient</button>
               </div>
             </header>
@@ -53,15 +58,6 @@
                     <input id="last-name" name="lastName" type="text" required placeholder="Enter last name" />
                   </label>
                   <label class="form-field">
-                    <span>Procedure Date</span>
-                    <input
-                      id="procedure-date"
-                      name="procedureDate"
-                      type="date"
-                      placeholder="YYYY-MM-DD"
-                    />
-                  </label>
-                  <label class="form-field">
                     <span>Email</span>
                     <input id="email" name="email" type="email" required placeholder="name@example.com" />
                   </label>
@@ -76,6 +72,15 @@
                 </div>
 
                 <div class="form-grid">
+                  <label class="form-field">
+                    <span>Procedure Date</span>
+                    <input
+                      id="procedure-date"
+                      name="procedureDate"
+                      type="date"
+                      placeholder="YYYY-MM-DD"
+                    />
+                  </label>
                   <label class="form-field">
                     <span>Status</span>
                     <select id="status" name="status"></select>
@@ -94,7 +99,7 @@
                   </label>
                 </div>
 
-                <div class="form-grid form-grid--stacked">
+                <div class="form-grid">
                   <label class="form-field">
                     <span>Forms</span>
                     <div id="forms-checklist" class="form-checklist" role="group" aria-label="Forms checklist"></div>
@@ -111,6 +116,9 @@
                     <select id="consultation" name="consultation" multiple size="2" hidden></select>
                   </label>
                 </div>
+
+                <p id="patient-status" class="form-status" role="status"></p>
+                <p id="procedure-form-status" class="form-status" role="status"></p>
                 <span id="form-status" class="form-status" role="status"></span>
               </form>
             </section>

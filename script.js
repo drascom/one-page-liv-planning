@@ -146,9 +146,9 @@ const deleteSelectedBtn = document.getElementById("delete-selected-btn");
 initSessionControls();
 let activePatientContext = loadActivePatientContext();
 let isAdminUser = false;
-const selectedPatientIds = new Set();
+const selectedProcedureIds = new Set();
 let fieldOptionsLoaded = false;
-let normalizedPatients = [];
+let normalizedProcedures = [];
 let filteredMonthlySchedules = [];
 let searchQuery = "";
 
@@ -248,6 +248,15 @@ async function fetchPatientById(patientId) {
   return response.json();
 }
 
+async function fetchProcedures() {
+  const response = await fetch(buildApiUrl("/procedures"));
+  handleUnauthorized(response);
+  if (!response.ok) {
+    throw new Error(`Unable to load procedures (${response.status})`);
+  }
+  return response.json();
+}
+
 function parseMonthMetadata(label) {
   const match = label.match(/^([\p{L}]+)\s+(\d{4})$/u);
   if (!match) {
@@ -310,32 +319,45 @@ function persistActivePatientContext(context) {
   }
 }
 
-function normalizePatientForSchedule(patient) {
-  const date = parseISODate(patient.procedure_date);
-  const scheduleMonthLabel = date ? formatMonthLabelFromDate(date) : patient.month_label;
+function normalizeProcedureForSchedule(procedure, patientLookup = new Map()) {
+  const lookupId = Number.isFinite(Number(procedure.patient_id)) ? Number(procedure.patient_id) : procedure.patient_id;
+  const patient = patientLookup.get(lookupId) || procedure.patient || {};
+  const firstName = patient.first_name || procedure.first_name || "";
+  const lastName = patient.last_name || procedure.last_name || "";
+  const patientId = patient.id ?? lookupId ?? null;
+  const procedureId = procedure.id;
+  const date = parseISODate(procedure.procedure_date);
+  const scheduleMonthLabel = date ? formatMonthLabelFromDate(date) : procedure.month_label;
   const weekMeta = date ? getWeekMetaForDate(date) : null;
-  const scheduleWeekLabel = weekMeta?.label ?? patient.week_label ?? "Week 1";
-  const scheduleWeekRange = weekMeta?.range ?? patient.week_range ?? scheduleMonthLabel;
-  const scheduleWeekOrder = weekMeta?.order ?? patient.week_order ?? 1;
-  const scheduleDayLabel = date ? DAY_FORMATTER.format(date) : patient.day_label;
-  const scheduleProcedureDate = date ? formatLocalISODate(date) : patient.procedure_date;
-  const searchFirst = normalizeSearchText(patient.first_name);
-  const searchLast = normalizeSearchText(patient.last_name);
+  const scheduleWeekLabel = weekMeta?.label ?? procedure.week_label ?? "Week 1";
+  const scheduleWeekRange = weekMeta?.range ?? procedure.week_range ?? scheduleMonthLabel;
+  const scheduleWeekOrder = weekMeta?.order ?? procedure.week_order ?? 1;
+  const scheduleDayLabel = date ? DAY_FORMATTER.format(date) : procedure.day_label;
+  const scheduleProcedureDate = date ? formatLocalISODate(date) : procedure.procedure_date;
+  const searchFirst = normalizeSearchText(firstName);
+  const searchLast = normalizeSearchText(lastName);
   const searchFull = `${searchFirst} ${searchLast}`.trim();
 
   return {
     ...patient,
+    ...procedure,
+    id: patientId ?? procedureId,
+    patientId,
+    procedureId,
+    first_name: firstName,
+    last_name: lastName,
+    patientName: `${firstName} ${lastName}`.trim() || "Patient",
     scheduleMonthLabel,
     scheduleWeekLabel,
     scheduleWeekRange,
     scheduleWeekOrder,
-    scheduleDayLabel: scheduleDayLabel || patient.day_label,
+    scheduleDayLabel: scheduleDayLabel || procedure.day_label,
     scheduleProcedureDate,
-    scheduleSortKey: date ? date.getTime() : patient.day_order ?? 0,
-    consultation: Array.isArray(patient.consultation)
-      ? patient.consultation
-      : patient.consultation
-        ? [patient.consultation]
+    scheduleSortKey: date ? date.getTime() : procedure.day_order ?? 0,
+    consultation: Array.isArray(procedure.consultation)
+      ? procedure.consultation
+      : procedure.consultation
+        ? [procedure.consultation]
         : [],
     searchFirst,
     searchLast,
@@ -358,11 +380,12 @@ function buildWeeksForPatients(patients) {
     }
     const entry = weekMap.get(key);
     entry.days.push({
-      id: patient.id,
+      id: patient.patientId ?? patient.id,
+      procedureId: patient.procedureId ?? patient.id,
       day: patient.scheduleDayLabel,
       sortKey: patient.scheduleSortKey,
       procedureDate: patient.scheduleProcedureDate,
-      patientName: `${patient.first_name} ${patient.last_name}`.trim(),
+      patientName: patient.patientName || `${patient.first_name} ${patient.last_name}`.trim(),
       firstName: patient.first_name,
       lastName: patient.last_name,
       status: patient.status,
@@ -437,10 +460,10 @@ function filterPatientsByName(patients, query) {
 }
 
 function findActivePatientByContext() {
-  if (!activePatientContext?.patientId || !Array.isArray(normalizedPatients)) {
+  if (!activePatientContext?.patientId || !Array.isArray(normalizedProcedures)) {
     return null;
   }
-  return normalizedPatients.find((patient) => patient.id === activePatientContext.patientId) ?? null;
+  return normalizedProcedures.find((patient) => patient.id === activePatientContext.patientId) ?? null;
 }
 
 function clearSearchResults() {
@@ -508,7 +531,7 @@ function applySearchFilter(query) {
     clearSearchResults();
     return;
   }
-  const filteredPatients = filterPatientsByName(normalizedPatients, searchQuery);
+  const filteredPatients = filterPatientsByName(normalizedProcedures, searchQuery);
   filteredMonthlySchedules = buildMonthlySchedules(filteredPatients, { skipNormalize: true });
   if (filteredPatients.length) {
     focusSelectedMonthForPatients(filteredPatients);
@@ -535,7 +558,7 @@ function handleSearchInput(event) {
     return;
   }
   setSearchClearState(true);
-  const matches = filterPatientsByName(normalizedPatients, value);
+  const matches = filterPatientsByName(normalizedProcedures, value);
   renderSearchResults(matches);
 }
 
@@ -554,7 +577,7 @@ function handleSearchSelection(patientId) {
   if (!Number.isFinite(patientId)) {
     return;
   }
-  const match = normalizedPatients.find((patient) => patient.id === patientId);
+  const match = normalizedProcedures.find((patient) => patient.id === patientId);
   if (!match) {
     return;
   }
@@ -567,7 +590,7 @@ function handleSearchSelection(patientId) {
 }
 
 function buildMonthlySchedules(patients, { skipNormalize = false } = {}) {
-  const normalized = skipNormalize ? patients : patients.map(normalizePatientForSchedule);
+  const normalized = skipNormalize ? patients : patients.map(normalizeProcedureForSchedule);
   const monthGroups = new Map();
   normalized.forEach((patient) => {
     if (!monthGroups.has(patient.scheduleMonthLabel)) {
@@ -733,7 +756,7 @@ function updateMonthPatientCount(total) {
 
 function renderSelectedMonth() {
   if (isAdminUser) {
-    selectedPatientIds.clear();
+    selectedProcedureIds.clear();
   }
   const sourceSchedules = searchQuery ? filteredMonthlySchedules : monthlySchedules;
   const selectedLabel = formatMonthLabelFromDate(selectedDate);
@@ -791,7 +814,10 @@ function highlightActivePatientRow() {
   if (!activePatientContext?.patientId || !activePatientContext.shouldReturnToSchedule) {
     return;
   }
-  const row = document.querySelector(`.patient-row[data-patient-id="${activePatientContext.patientId}"]`);
+  const selector = activePatientContext.procedureId
+    ? `.patient-row[data-patient-id="${activePatientContext.patientId}"][data-procedure-id="${activePatientContext.procedureId}"]`
+    : `.patient-row[data-patient-id="${activePatientContext.patientId}"]`;
+  const row = document.querySelector(selector);
   if (!row) {
     return;
   }
@@ -825,7 +851,7 @@ function handleTodayClick() {
   renderSelectedMonth();
 }
 
-function buildDefaultPatientPayload() {
+function buildDefaultPatientPayloads() {
   const monthLabel = formatMonthLabelFromDate(selectedDate);
   const currentMonth = monthlySchedules.find((month) => month.label === monthLabel);
   const existingWeeks = currentMonth?.weeks ?? [];
@@ -838,7 +864,15 @@ function buildDefaultPatientPayload() {
   const defaultProcedure = getDefaultFieldValue("procedure_type", "small");
   const defaultPayment = getDefaultFieldValue("payment", "waiting");
 
-  return {
+  const patientPayload = {
+    first_name: "New",
+    last_name: "Patient",
+    email: "test@example.com",
+    phone: "+44 12345678",
+    city: "London",
+  };
+
+  const procedurePayload = {
     month_label: monthLabel,
     week_label: weekLabel,
     week_range: monthLabel,
@@ -846,11 +880,6 @@ function buildDefaultPatientPayload() {
     day_label: "TBD",
     day_order: 1,
     procedure_date: formatLocalISODate(selectedDate),
-    first_name: "New",
-    last_name: "Patient",
-    email: "test@example.com",
-    phone: "+44 12345678",
-    city: "London",
     status: defaultStatus,
     procedure_type: defaultProcedure,
     grafts: "",
@@ -861,6 +890,8 @@ function buildDefaultPatientPayload() {
     photos: 0,
     photo_files: [],
   };
+
+  return { patientPayload, procedurePayload };
 }
 
 async function handleAddPatientClick() {
@@ -873,38 +904,53 @@ async function handleAddPatientClick() {
     addPatientBtn.textContent = "Creating...";
   }
   try {
-    const payload = buildDefaultPatientPayload();
-    const response = await fetch(buildApiUrl("/patients"), {
+    const { patientPayload, procedurePayload } = buildDefaultPatientPayloads();
+    const patientResponse = await fetch(buildApiUrl("/patients"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(patientPayload),
     });
-    handleUnauthorized(response);
-    if (!response.ok) {
-      throw new Error(`Failed to create patient (${response.status})`);
+    handleUnauthorized(patientResponse);
+    if (!patientResponse.ok) {
+      throw new Error(`Failed to create patient (${patientResponse.status})`);
     }
-    const result = await response.json();
-    const newPatientId = result.id;
+    const patient = await patientResponse.json();
+    const newPatientId = patient.id;
     if (!newPatientId) {
       throw new Error("Missing patient id in response");
     }
-    const patient = await fetchPatientById(newPatientId);
+    const procedureResponse = await fetch(buildApiUrl("/procedures"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ...procedurePayload, patient_id: newPatientId }),
+    });
+    handleUnauthorized(procedureResponse);
+    if (!procedureResponse.ok) {
+      throw new Error(`Failed to create procedure (${procedureResponse.status})`);
+    }
+    const procedure = await procedureResponse.json();
     persistActivePatientContext({
       patientId: patient.id,
       patient: `${patient.first_name} ${patient.last_name}`.trim(),
-      weekLabel: patient.week_label,
-      weekRange: patient.week_range,
-      day: patient.day_label,
-      monthLabel: patient.month_label,
-      procedureDate: patient.procedure_date,
+      weekLabel: procedure?.week_label ?? procedurePayload.week_label,
+      weekRange: procedure?.week_range ?? procedurePayload.week_range,
+      day: procedure?.day_label ?? procedurePayload.day_label,
+      monthLabel: procedure?.month_label ?? procedurePayload.month_label,
+      procedureId: procedure?.id,
+      procedureDate: procedure?.procedure_date ?? procedurePayload.procedure_date,
       capturedAt: new Date().toISOString(),
     });
     const params = new URLSearchParams({
       id: String(patient.id),
       patient: `${patient.first_name} ${patient.last_name}`.trim(),
     });
+    if (procedure?.id) {
+      params.set("procedure", String(procedure.id));
+    }
     window.location.href = `patient.html?${params.toString()}`;
   } catch (error) {
     console.error(error);
@@ -919,7 +965,8 @@ async function handleAddPatientClick() {
 
 function handleRowNavigation(day, week) {
   const payload = {
-    patientId: day.id,
+    patientId: day.patientId ?? day.id,
+    procedureId: day.procedureId ?? null,
     patient: day.patientName,
     weekLabel: week.label,
     weekRange: week.range,
@@ -929,18 +976,21 @@ function handleRowNavigation(day, week) {
     capturedAt: new Date().toISOString(),
   };
   persistActivePatientContext(payload);
-  const params = new URLSearchParams({ patient: day.patientName, id: String(day.id) });
+  const params = new URLSearchParams({ patient: day.patientName, id: String(payload.patientId) });
+  if (payload.procedureId) {
+    params.set("procedure", String(payload.procedureId));
+  }
   window.location.href = `patient.html?${params.toString()}`;
 }
 
-function handleRowSelectionChange(patientId, checked) {
-  if (!isAdminUser || !Number.isFinite(patientId) || !selectAllCheckbox) {
+function handleRowSelectionChange(procedureId, checked) {
+  if (!isAdminUser || !Number.isFinite(procedureId) || !selectAllCheckbox) {
     return;
   }
   if (checked) {
-    selectedPatientIds.add(patientId);
+    selectedProcedureIds.add(procedureId);
   } else {
-    selectedPatientIds.delete(patientId);
+    selectedProcedureIds.delete(procedureId);
   }
   updateSelectionControlsState();
 }
@@ -949,7 +999,7 @@ function updateSelectionControlsState() {
   if (!isAdminUser || (!selectAllCheckbox && !deleteSelectedBtn)) {
     return;
   }
-  const hasSelection = selectedPatientIds.size > 0;
+  const hasSelection = selectedProcedureIds.size > 0;
   if (deleteSelectedBtn) {
     deleteSelectedBtn.hidden = !hasSelection;
     deleteSelectedBtn.disabled = !hasSelection;
@@ -986,26 +1036,26 @@ function handleSelectAllToggle(event) {
   const checkboxes = document.querySelectorAll(".patient-select");
   checkboxes.forEach((checkbox) => {
     checkbox.checked = shouldSelect;
-    const patientId = Number(checkbox.dataset.patientId);
-    if (!Number.isFinite(patientId)) {
+    const procedureId = Number(checkbox.dataset.procedureId);
+    if (!Number.isFinite(procedureId)) {
       return;
     }
     if (shouldSelect) {
-      selectedPatientIds.add(patientId);
+      selectedProcedureIds.add(procedureId);
     } else {
-      selectedPatientIds.delete(patientId);
+      selectedProcedureIds.delete(procedureId);
     }
   });
   updateSelectionControlsState();
 }
 
 async function handleDeleteSelected() {
-  if (!isAdminUser || !selectedPatientIds.size) {
+  if (!isAdminUser || !selectedProcedureIds.size) {
     return;
   }
-  const count = selectedPatientIds.size;
+  const count = selectedProcedureIds.size;
   const confirmation = window.confirm(
-    `Move ${count} selected patient${count === 1 ? "" : "s"} to Deleted Records? You can recover them from Settings.`
+    `Cancel ${count} selected procedure${count === 1 ? "" : "s"}?`
   );
   if (!confirmation) {
     return;
@@ -1015,17 +1065,17 @@ async function handleDeleteSelected() {
     deleteSelectedBtn.textContent = "Removing...";
   }
   try {
-    for (const patientId of selectedPatientIds) {
-      const response = await fetch(buildApiUrl(`/patients/${patientId}`), {
+    for (const procedureId of selectedProcedureIds) {
+      const response = await fetch(buildApiUrl(`/procedures/${procedureId}`), {
         method: "DELETE",
       });
       handleUnauthorized(response);
       if (!response.ok && response.status !== 404) {
         const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.detail || "Failed to move selected patients.");
+        throw new Error(payload.detail || "Failed to cancel selected procedures.");
       }
     }
-    selectedPatientIds.clear();
+    selectedProcedureIds.clear();
     if (selectAllCheckbox) {
       selectAllCheckbox.checked = false;
       selectAllCheckbox.indeterminate = false;
@@ -1033,10 +1083,10 @@ async function handleDeleteSelected() {
     await initializeSchedule();
   } catch (error) {
     console.error(error);
-    alert(error.message || "Unable to move selected patients.");
+    alert(error.message || "Unable to cancel selected procedures.");
   } finally {
     if (deleteSelectedBtn) {
-      deleteSelectedBtn.textContent = "Delete selected";
+      deleteSelectedBtn.textContent = "Cancel selected";
       deleteSelectedBtn.disabled = false;
     }
     updateSelectionControlsState();
@@ -1077,7 +1127,10 @@ function renderWeek(week) {
       row.classList.add("patient-row");
       row.tabIndex = 0;
       row.dataset.patient = day.patientName;
-      row.dataset.patientId = String(day.id);
+      row.dataset.patientId = String(day.patientId ?? day.id);
+      if (day.procedureId) {
+        row.dataset.procedureId = String(day.procedureId);
+      }
       row.setAttribute("aria-label", `Open patient record for ${day.patientName}`);
 
       const cells = [];
@@ -1103,12 +1156,12 @@ function renderWeek(week) {
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
         checkbox.className = "patient-select";
-        checkbox.dataset.patientId = String(day.id);
-        checkbox.checked = selectedPatientIds.has(Number(day.id));
+        checkbox.dataset.procedureId = String(day.procedureId ?? day.id);
+        checkbox.checked = selectedProcedureIds.has(Number(day.procedureId ?? day.id));
         checkbox.setAttribute("aria-label", `Select ${day.patientName}`);
         checkbox.addEventListener("click", (event) => event.stopPropagation());
         checkbox.addEventListener("change", (event) => {
-          handleRowSelectionChange(Number(day.id), event.target.checked);
+          handleRowSelectionChange(Number(day.procedureId ?? day.id), event.target.checked);
         });
         selectCell.appendChild(checkbox);
         cells.push(selectCell);
@@ -1268,6 +1321,11 @@ function updateMonthQueryParam(date) {
 async function initializeSchedule() {
   setScheduleStatus("Loading schedule...");
   activePatientContext = loadActivePatientContext();
+  selectedProcedureIds.clear();
+  if (selectAllCheckbox) {
+    selectAllCheckbox.checked = false;
+    selectAllCheckbox.indeterminate = false;
+  }
   if (activePatientContext?.shouldReturnToSchedule) {
     const targetDate = getDateFromContext(activePatientContext);
     setSelectedDateFromTarget(targetDate);
@@ -1277,8 +1335,10 @@ async function initializeSchedule() {
       await fetchFieldOptions();
       fieldOptionsLoaded = true;
     }
-    const patients = await fetchPatients();
-    normalizedPatients = patients.map(normalizePatientForSchedule);
+    const [patients, procedures] = await Promise.all([fetchPatients(), fetchProcedures()]);
+    const patientLookup = new Map();
+    patients.forEach((patient) => patientLookup.set(Number(patient.id), patient));
+    normalizedProcedures = procedures.map((procedure) => normalizeProcedureForSchedule(procedure, patientLookup));
     const activePatient = findActivePatientByContext();
     if (activePatientContext?.shouldReturnToSchedule) {
       if (activePatient) {
@@ -1294,7 +1354,7 @@ async function initializeSchedule() {
         persistActivePatientContext({ ...activePatientContext, shouldReturnToSchedule: false });
       }
     }
-    monthlySchedules = buildMonthlySchedules(normalizedPatients, { skipNormalize: true });
+    monthlySchedules = buildMonthlySchedules(normalizedProcedures, { skipNormalize: true });
     if (activePatientContext?.shouldReturnToSchedule) {
       const matchingMonth = monthlySchedules.find(
         (month) => month.label === activePatient?.scheduleMonthLabel
@@ -1311,7 +1371,7 @@ async function initializeSchedule() {
     setSearchClearState(false);
     clearSearchResults();
     updateYearOptions(selectedDate.getFullYear());
-    updateTotalPatients(normalizedPatients.length);
+    updateTotalPatients(normalizedProcedures.length);
     renderSelectedMonth();
     highlightActivePatientRow();
   } catch (error) {
