@@ -20,7 +20,7 @@ The frontend uses the base endpoints below directly and no token is required for
 - `GET /procedures/{id}` – Fetch a single procedure.
 - `PUT /procedures/{id}` – Update procedure details (requires a valid `patient_id`).
 - `DELETE /procedures/{id}` – Remove a procedure; purging a patient also cascades and removes related procedures.
-- `POST /api/v1/search-by-meta` – Provide `{ "full_name": "", "date": "", "status": "", "grafts_number": "", "package_type": "" }` to locate a procedure by metadata and receive its id (delete it via `DELETE /procedures/{id}`).
+- `POST /api/v1/procedures/search-by-meta` – Provide `{ "full_name": "", "date": "", "status": "", "grafts_number": "", "package_type": "" }` to locate a procedure by metadata and receive its id (delete it via `DELETE /procedures/{id}`).
 
 ## `/uploads`
 - `POST /uploads/{last_name}?patient_id=ID` – Upload one or more images for the patient. Returns updated `photoFiles`.

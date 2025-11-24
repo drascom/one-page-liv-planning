@@ -313,7 +313,7 @@ def test_search_procedure_by_metadata_and_delete(client: TestClient):
         "grafts_number": "3000",
         "package_type": "small",
     }
-    search = client.post("/search-by-meta", json=search_request)
+    search = client.post("/procedures/search-by-meta", json=search_request)
     assert search.status_code == 200
     body = search.json()
     assert body["success"] is True
@@ -332,6 +332,6 @@ def test_search_procedure_by_metadata_missing_record(client: TestClient):
         "status": "reserved",
         "grafts_number": "9999",
     }
-    result = client.post("/search-by-meta", json=search_request)
+    result = client.post("/procedures/search-by-meta", json=search_request)
     assert result.status_code == 200
     assert result.json()["success"] is False

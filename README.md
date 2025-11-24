@@ -98,7 +98,7 @@ If you are behind nginx proxy manager with ssl certificate than use
 | POST | `/procedures/` | Create a procedure linked to a patient |
 | GET/PUT | `/procedures/{id}` | Fetch or update a procedure |
 | DELETE | `/procedures/{id}` | Delete a procedure |
-| POST | `/api/v1/search-by-meta` | Provide patient name/date metadata to retrieve a matching procedure id (use `DELETE /procedures/{id}` afterward). |
+| POST | `/api/v1/procedures/search-by-meta` | Provide patient name/date metadata to retrieve a matching procedure id (use `DELETE /procedures/{id}` afterward). |
 | GET | `/procedures/search?patient_id=123&procedure_date=2025-02-12` | Return `{ "success": true, "procedure": { ... } }` when a patient has a procedure on the supplied date, or `{ "success": false, "message": "Procedure not found" }` otherwise. |
 | GET | `/patients/{id}/procedures` | Return `{ "success": true, "procedures": [ ... ] }` when the patient has linked procedures or `{ "success": false, "message": "No procedures found for this patient.", "procedures": [] }` |
 | GET/POST/DELETE | `/patients/{id}/photos` | List/create/delete photo metadata (files land in `/uploads`) |
@@ -220,10 +220,10 @@ curl -X POST "http://127.0.0.1:8000/api/v1/procedures" \
 
 ### Find a procedure id by metadata
 
-Administrators can locate a procedure without knowing its id by POSTing to `/api/v1/search-by-meta`. Supply the patient's full name, the procedure date, and optional metadata (status, grafts, package type) to narrow the match:
+Administrators can locate a procedure without knowing its id by POSTing to `/api/v1/procedures/search-by-meta`. Supply the patient's full name, the procedure date, and optional metadata (status, grafts, package type) to narrow the match:
 
 ```bash
-curl -X POST "http://127.0.0.1:8000/api/v1/search-by-meta" \
+curl -X POST "http://127.0.0.1:8000/api/v1/procedures/search-by-meta" \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
