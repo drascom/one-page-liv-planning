@@ -851,6 +851,47 @@ def find_patient_by_name_and_date(first_name: str, last_name: str, procedure_dat
         return None
 
 
+def find_procedure_by_metadata(
+    full_name: str,
+    procedure_date: str,
+    *,
+    status: Optional[str] = None,
+    grafts_number: Optional[str] = None,
+    package_type: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """Locate a single procedure by patient full name, date, and optional metadata."""
+    patient = find_patient_by_full_name(full_name)
+    if not patient:
+        return None
+    normalized_date = _date_only(procedure_date)
+    if not normalized_date:
+        return None
+    clauses = ["patient_id = ?", "procedure_date = ?", "deleted = 0"]
+    params: List[Any] = [patient["id"], normalized_date]
+    if status:
+        clauses.append("LOWER(status) = ?")
+        params.append(status.lower().strip())
+    if grafts_number is not None:
+        clauses.append("grafts = ?")
+        params.append(str(grafts_number).strip())
+    if package_type:
+        clauses.append("LOWER(package_type) = ?")
+        params.append(package_type.lower().strip())
+    where = " AND ".join(clauses)
+    with closing(get_connection()) as conn:
+        cursor = conn.execute(
+            f"""
+            SELECT * FROM procedures
+            WHERE {where}
+            ORDER BY id ASC
+            LIMIT 1
+            """,
+            params,
+        )
+        row = cursor.fetchone()
+        return _row_to_procedure(row) if row else None
+
+
 def list_procedures(
     patient_id: Optional[int] = None,
     *,

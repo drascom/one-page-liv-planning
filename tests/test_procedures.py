@@ -49,6 +49,7 @@ def _create_procedure(client: TestClient, patient_id: int, *, date: str = "2025-
         "procedure_date": date,
         "status": "reserved",
         "procedure_type": "sfue",
+        "package_type": "small",
         "grafts": "",
         "payment": "waiting",
         "consultation": [],
@@ -69,6 +70,7 @@ def test_procedure_crud_and_filtering(client: TestClient):
         "procedure_date": "2025-01-02",
         "status": "reserved",
         "procedure_type": "sfue",
+        "package_type": "small",
         "grafts": "",
         "payment": "waiting",
         "consultation": [],
@@ -122,6 +124,7 @@ def test_procedures_removed_with_patient(client: TestClient):
             "patient_id": patient_id,
             "grafts": "",
             "procedure_type": "sfue",
+            "package_type": "small",
             "status": "scheduled",
             "procedure_date": "2025-01-03",
             "payment": "waiting",
@@ -282,3 +285,53 @@ def test_patient_procedure_list_returns_message_when_empty(client: TestClient):
     assert populated_body["message"] in (None, "")
     assert len(populated_body["procedures"]) == 1
     assert populated_body["procedures"][0]["id"] == procedure_id
+
+
+def test_search_procedure_by_metadata_and_delete(client: TestClient):
+    patient_id = _create_patient(client)
+    payload = {
+        "patient_id": patient_id,
+        "procedure_date": "2025-05-10",
+        "status": "reserved",
+        "procedure_type": "sfue",
+        "package_type": "small",
+        "grafts": "3000",
+        "payment": "waiting",
+        "consultation": [],
+        "forms": [],
+        "consents": [],
+        "photo_files": [],
+    }
+    created = client.post("/procedures", json=payload)
+    assert created.status_code == 201
+    procedure_id = created.json()["id"]
+
+    search_request = {
+        "full_name": "Test Patient",
+        "date": "2025-05-10T00:00:00.000Z",
+        "status": "reserved",
+        "grafts_number": "3000",
+        "package_type": "small",
+    }
+    search = client.post("/search-by-meta", json=search_request)
+    assert search.status_code == 200
+    body = search.json()
+    assert body["success"] is True
+    assert body["procedure_id"] == procedure_id
+
+    deleted = client.delete(f"/procedures/{procedure_id}")
+    assert deleted.status_code == 204
+
+
+def test_search_procedure_by_metadata_missing_record(client: TestClient):
+    patient_id = _create_patient(client)
+    _create_procedure(client, patient_id, date="2025-08-01")
+    search_request = {
+        "full_name": "Test Patient",
+        "date": "2025-09-01T00:00:00.000Z",
+        "status": "reserved",
+        "grafts_number": "9999",
+    }
+    result = client.post("/search-by-meta", json=search_request)
+    assert result.status_code == 200
+    assert result.json()["success"] is False

@@ -415,6 +415,8 @@ const FIELD_DEFAULTS = {
 };
 
 const fieldOptionsContainer = document.getElementById("field-options-container");
+const resetFieldOptionsBtn = document.getElementById("reset-field-options-btn");
+const fieldOptionsStatus = document.getElementById("field-options-status");
 let currentFieldOptions = JSON.parse(JSON.stringify(FIELD_DEFAULTS));
 const optionEditorRefs = new Map();
 
@@ -424,6 +426,18 @@ function escapeHtml(value) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function setFieldOptionsStatus(message, timeout = 4000) {
+  if (!fieldOptionsStatus) return;
+  fieldOptionsStatus.textContent = message;
+  if (message && timeout) {
+    setTimeout(() => {
+      if (fieldOptionsStatus.textContent === message) {
+        fieldOptionsStatus.textContent = "";
+      }
+    }, timeout);
+  }
 }
 
 async function fetchFieldOptionsData() {
@@ -556,6 +570,43 @@ async function saveFieldOptions(field) {
   }
 }
 
+async function resetAllFieldOptions() {
+  if (!resetFieldOptionsBtn) {
+    return;
+  }
+  const confirmed = window.confirm(
+    "Reset every dropdown list to the default values? This will overwrite any custom options."
+  );
+  if (!confirmed) {
+    return;
+  }
+  resetFieldOptionsBtn.disabled = true;
+  setFieldOptionsStatus("Resetting dropdown options...", 0);
+  try {
+    for (const field of Object.keys(FIELD_METADATA)) {
+      const defaults = (FIELD_DEFAULTS[field] ?? []).map((option) => ({ ...option }));
+      const response = await fetch(buildApiUrl(`/field-options/${field}`), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ options: defaults }),
+      });
+      handleUnauthorized(response);
+      if (!response.ok) {
+        throw new Error(`Failed to reset ${field} options`);
+      }
+      const updated = await response.json();
+      currentFieldOptions[field] = updated;
+    }
+    renderFieldOptionForms();
+    setFieldOptionsStatus("Dropdown options restored to defaults.");
+  } catch (error) {
+    console.error(error);
+    setFieldOptionsStatus(error.message || "Unable to reset dropdown options.");
+  } finally {
+    resetFieldOptionsBtn.disabled = false;
+  }
+}
+
 function renderFieldOptionForms() {
   if (!fieldOptionsContainer) return;
   fieldOptionsContainer.innerHTML = "";
@@ -619,6 +670,7 @@ async function initializeFieldOptions() {
 }
 
 purgePatientsBtn?.addEventListener("click", purgeAllPatients);
+resetFieldOptionsBtn?.addEventListener("click", resetAllFieldOptions);
 
 function setPurgeStatus(message) {
   if (!purgePatientsStatus) return;

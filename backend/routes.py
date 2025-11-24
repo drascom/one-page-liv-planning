@@ -42,6 +42,8 @@ from .models import (
     PatientCreate,
     OperationResult,
     Procedure,
+    ProcedureMetadataDeleteRequest,
+    ProcedureMetadataSearchResponse,
     ProcedureCreate,
     ProcedureCreatePayload,
     ProcedureListResponse,
@@ -791,3 +793,20 @@ def search_patients_route(
         surgery_date=surgery_date,
         patient=patient,
     )
+
+
+@search_router.post("/search-by-meta", response_model=ProcedureMetadataSearchResponse)
+def search_procedure_by_metadata(payload: ProcedureMetadataDeleteRequest) -> ProcedureMetadataSearchResponse:
+    """Return a procedure id when metadata matches."""
+    if not payload.full_name or not payload.date:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="full_name and date are required")
+    match = database.find_procedure_by_metadata(
+        payload.full_name,
+        payload.date,
+        status=payload.status,
+        grafts_number=payload.grafts_number,
+        package_type=payload.package_type,
+    )
+    if not match:
+        return ProcedureMetadataSearchResponse(success=False, message="Procedure not found")
+    return ProcedureMetadataSearchResponse(success=True, procedure_id=match["id"])

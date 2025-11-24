@@ -98,6 +98,23 @@ class ProcedureListResponse(BaseModel):
     procedures: List[Procedure] = Field(default_factory=list, description="Procedures linked to the patient")
 
 
+class ProcedureMetadataDeleteRequest(BaseModel):
+    full_name: str = Field(..., description="Patient full name (first and last)")
+    date: str = Field(..., description="Procedure date string (ISO or YYYY-MM-DD)")
+    status: Optional[str] = Field(None, description="Optional workflow status to narrow matching")
+    grafts_number: Optional[str] = Field(None, alias="grafts_number", description="Optional graft count string")
+    package_type: Optional[str] = Field(None, description="Optional package type identifier")
+
+    class Config:
+        populate_by_name = True
+
+
+class ProcedureMetadataSearchResponse(BaseModel):
+    success: bool = Field(..., description="Whether a matching procedure was found")
+    procedure_id: Optional[int] = Field(None, description="Identifier of the deleted procedure")
+    message: Optional[str] = Field(None, description="Additional details about the operation")
+
+
 class PhotoBase(BaseModel):
     """Photo model for patient photos."""
     name: str = Field(..., description="Photo name/description")
