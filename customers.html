@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Customers · Patient Directory</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body class="patient-page app-shell">
+    <div class="app-layout">
+      <nav class="top-nav top-nav--subpage">
+        <div class="top-nav__brand">
+          <a class="top-nav__brand-link" href="/">
+            <span class="top-nav__brand-icon" aria-hidden="true">❖</span>
+            Liv Planner
+          </a>
+          <span class="top-nav__divider" aria-hidden="true">•</span>
+          <span class="top-nav__section">Customers</span>
+        </div>
+        <form class="top-nav__search patient-search" id="patient-search-form" role="search" autocomplete="off">
+          <label class="visually-hidden" for="patient-search">Search patients</label>
+          <span class="search-icon" aria-hidden="true">🔍</span>
+          <input
+            id="patient-search"
+            type="search"
+            name="patientSearch"
+            class="search-input"
+            placeholder="Search by name or surname"
+            enterkeyhint="search"
+          />
+          <button
+            type="button"
+            class="patient-search__clear"
+            id="patient-search-clear"
+            aria-label="Clear search"
+            title="Clear search"
+          >
+            ×
+          </button>
+          <ul class="patient-search__results" id="patient-search-results" role="listbox"></ul>
+        </form>
+        <div class="top-nav__actions">
+          <a class="nav-btn nav-btn--ghost" href="/">Schedule</a>
+          <a class="nav-btn nav-btn--ghost" href="settings.html" data-admin-link hidden>Settings</a>
+          <button type="button" class="nav-btn nav-btn--primary" data-logout-btn>Logout</button>
+        </div>
+      </nav>
+
+      <main class="patient-content customer-content">
+        <section class="patient-card customer-directory">
+          <header class="customer-directory__header">
+            <div>
+              <p class="settings-section__eyebrow">Directory</p>
+              <h1>Patients Directory</h1>
+              <p>Browse every patient, even ones without scheduled procedures.</p>
+            </div>
+            <div class="customer-directory__totals">
+              <span class="customer-directory__totals-count" id="customer-total-count">0</span>
+              <span>Total patients</span>
+            </div>
+          </header>
+
+          <div class="customer-directory__summary-row">
+            <p class="customer-directory__summary">
+              Showing <span id="customer-visible-count">0</span> of <span id="customer-total-inline">0</span> patients
+            </p>
+            <button type="button" class="secondary-btn" id="customer-refresh-btn">Refresh</button>
+          </div>
+
+          <p id="customer-status" class="form-status" role="status"></p>
+
+          <ul id="customer-list" class="customer-list" aria-live="polite"></ul>
+        </section>
+      </main>
+    </div>
+
+    <script src="/app-config.js"></script>
+    <script src="/static/customers.js" type="module"></script>
+  </body>
+</html>

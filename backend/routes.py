@@ -292,8 +292,9 @@ def create_patient(payload: PatientCreate) -> OperationResult:
     """Create a new patient record (personal information only)."""
     patient_payload = _coerce_patient_payload(payload.model_dump())
     record = database.create_patient(patient_payload.model_dump())
-    database.log_api_request("/patients", "POST", patient_payload.model_dump())
-    return OperationResult(success=True, id=record["id"], message="Patient created")
+    result = OperationResult(success=True, id=record["id"], message="Patient created")
+    database.log_api_request("/patients", "POST", patient_payload.model_dump(), result.model_dump())
+    return result
 
 
 @patients_router.put("/{patient_id}", response_model=OperationResult)
@@ -306,8 +307,9 @@ def update_patient(patient_id: int, payload: PatientCreate) -> OperationResult:
     updated = database.update_patient(patient_id, patient_payload.model_dump())
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
-    database.log_api_request(f"/patients/{patient_id}", "PUT", patient_payload.model_dump())
-    return OperationResult(success=True, id=patient_id, message="Patient updated")
+    result = OperationResult(success=True, id=patient_id, message="Patient updated")
+    database.log_api_request(f"/patients/{patient_id}", "PUT", patient_payload.model_dump(), result.model_dump())
+    return result
 
 
 @patients_router.delete("/{patient_id}", status_code=status.HTTP_200_OK)
@@ -316,8 +318,9 @@ def delete_patient_route(patient_id: int, _: dict = Depends(require_admin_user))
     deleted = database.delete_patient(patient_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
-    database.log_api_request(f"/patients/{patient_id}", "DELETE", {"id": patient_id})
-    return JSONResponse({"detail": "Deleted", "id": patient_id})
+    response_payload = {"detail": "Deleted", "id": patient_id}
+    database.log_api_request(f"/patients/{patient_id}", "DELETE", {"id": patient_id}, response_payload)
+    return JSONResponse(response_payload)
 
 
 @patients_router.post("/{patient_id}/recover", response_model=Patient)
@@ -352,7 +355,9 @@ def import_patients(payload: List[PatientCreate]) -> List[Patient]:
         patient_payload = _coerce_patient_payload(record.model_dump())
         created_record = database.create_patient(patient_payload.model_dump())
         created.append(Patient(**created_record))
-    database.log_api_request("/patients/multiple", "POST", [patient.model_dump() for patient in payload])
+    request_payload = [patient.model_dump() for patient in payload]
+    response_payload = [patient.model_dump() for patient in created]
+    database.log_api_request("/patients/multiple", "POST", request_payload, response_payload)
     return created
 
 

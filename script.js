@@ -122,6 +122,7 @@ async function fetchFieldOptions() {
 
 const ACTIVE_PATIENT_KEY = "activePatient";
 const MONTH_QUERY_PARAM = "month";
+const GLOBAL_SEARCH_KEY = "globalSearchQuery";
 const API_BASE_URL =
   window.APP_CONFIG?.backendUrl ??
   `${window.location.protocol}//${window.location.host}`;
@@ -149,6 +150,8 @@ let isAdminUser = false;
 const selectedProcedureIds = new Set();
 let fieldOptionsLoaded = false;
 let normalizedProcedures = [];
+let unscheduledPatients = [];
+let searchablePatients = [];
 let filteredMonthlySchedules = [];
 let searchQuery = "";
 
@@ -328,6 +331,22 @@ function persistActivePatientContext(context) {
   }
 }
 
+function consumeGlobalSearchQuery() {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return "";
+  }
+  try {
+    const query = window.localStorage.getItem(GLOBAL_SEARCH_KEY) || "";
+    if (query) {
+      window.localStorage.removeItem(GLOBAL_SEARCH_KEY);
+    }
+    return query.trim();
+  } catch (error) {
+    console.warn("Unable to read global search query", error);
+    return "";
+  }
+}
+
 function buildScheduleMetadataFromDate(dateValue, fallback = {}) {
   const parsed = parseISODate(dateValue);
   if (!parsed) {
@@ -404,6 +423,32 @@ function normalizeProcedureForSchedule(procedure, patientLookup = new Map()) {
     searchFirst,
     searchLast,
     searchFull,
+  };
+}
+
+function buildUnscheduledSearchEntry(patient) {
+  const firstName = patient.first_name || "";
+  const lastName = patient.last_name || "";
+  const searchFirst = normalizeSearchText(firstName);
+  const searchLast = normalizeSearchText(lastName);
+  return {
+    ...patient,
+    id: patient.id,
+    patientId: patient.id,
+    first_name: firstName,
+    last_name: lastName,
+    patientName: `${firstName} ${lastName}`.trim() || "Patient",
+    scheduleMonthLabel: "No procedure scheduled",
+    scheduleWeekLabel: "Awaiting date",
+    scheduleWeekRange: "Procedure not scheduled",
+    scheduleWeekOrder: Number.MAX_SAFE_INTEGER,
+    scheduleDayLabel: "",
+    scheduleProcedureDate: "",
+    scheduleSortKey: Number.MAX_SAFE_INTEGER,
+    searchFirst,
+    searchLast,
+    searchFull: `${searchFirst} ${searchLast}`.trim(),
+    unscheduled: true,
   };
 }
 
@@ -545,14 +590,59 @@ function setSearchClearState(isActive) {
   }
 }
 
-function renderSearchResults(matches) {
+function getPatientSearchNames(patient) {
+  const first = patient.searchFirst ?? normalizeSearchText(patient.first_name);
+  const last = patient.searchLast ?? normalizeSearchText(patient.last_name);
+  return {
+    first,
+    last,
+    full: `${first} ${last}`.trim(),
+  };
+}
+
+function computeSearchScore(patient, normalizedTerm, parts) {
+  if (!normalizedTerm) {
+    return patient.unscheduled ? 1 : 0;
+  }
+  const { first, last, full } = getPatientSearchNames(patient);
+  if (full === normalizedTerm) return -5;
+  if (parts.length >= 2 && first === parts[0] && last === parts[parts.length - 1]) return -4;
+  if (first === normalizedTerm || last === normalizedTerm) return -3;
+  if (full.startsWith(normalizedTerm)) return -2;
+  if (first.startsWith(parts[0] ?? normalizedTerm) || last.startsWith(parts[0] ?? normalizedTerm)) return -1;
+  if (full.includes(normalizedTerm)) return 0;
+  return patient.unscheduled ? 1 : 0.5;
+}
+
+function sortSearchMatches(matches, query) {
+  const normalized = normalizeSearchText(query);
+  if (!normalized) {
+    return matches;
+  }
+  const parts = normalized.split(/\s+/).filter(Boolean);
+  return [...matches]
+    .map((patient) => ({
+      patient,
+      score: computeSearchScore(patient, normalized, parts),
+    }))
+    .sort((a, b) => a.score - b.score)
+    .map((entry) => entry.patient);
+}
+
+function renderSearchResults(matches, query = "") {
   if (!searchResultsEl) {
     return;
   }
   searchResultsEl.innerHTML = "";
-  matches.slice(0, 8).forEach((patient) => {
+  const sortedMatches = sortSearchMatches(matches, query);
+  sortedMatches.slice(0, 8).forEach((patient) => {
     const item = document.createElement("li");
+    item.className = "patient-search__result";
+    if (patient.unscheduled) {
+      item.classList.add("patient-search__result--unscheduled");
+    }
     item.dataset.patientId = String(patient.id);
+    item.dataset.unscheduled = patient.unscheduled ? "true" : "false";
     item.setAttribute("role", "option");
     item.tabIndex = 0;
     const name = document.createElement("span");
@@ -560,7 +650,9 @@ function renderSearchResults(matches) {
     name.textContent = formatPatientName(patient);
     const meta = document.createElement("span");
     meta.className = "patient-search__result-meta";
-    meta.textContent = patient.scheduleMonthLabel;
+    meta.textContent = patient.unscheduled
+      ? "No procedure scheduled"
+      : patient.scheduleMonthLabel;
     item.append(name, meta);
     item.addEventListener("click", () => handleSearchSelection(Number(patient.id)));
     item.addEventListener("keydown", (event) => {
@@ -586,9 +678,19 @@ function applySearchFilter(query) {
   filteredMonthlySchedules = buildMonthlySchedules(filteredPatients, { skipNormalize: true });
   if (filteredPatients.length) {
     focusSelectedMonthForPatients(filteredPatients);
+    setSearchClearState(true);
+    clearSearchResults();
+    renderSelectedMonth();
+    return;
   }
   setSearchClearState(true);
   renderSelectedMonth();
+  const unscheduledMatches = filterPatientsByName(unscheduledPatients, searchQuery);
+  if (unscheduledMatches.length) {
+    renderSearchResults(unscheduledMatches, searchQuery);
+    return;
+  }
+  clearSearchResults();
 }
 
 function resetSearch() {
@@ -609,8 +711,8 @@ function handleSearchInput(event) {
     return;
   }
   setSearchClearState(true);
-  const matches = filterPatientsByName(normalizedProcedures, value);
-  renderSearchResults(matches);
+  const matches = filterPatientsByName(searchablePatients, value);
+  renderSearchResults(matches, value);
 }
 
 function handleSearchSubmit(event) {
@@ -621,20 +723,38 @@ function handleSearchSubmit(event) {
     return;
   }
   applySearchFilter(query);
-  clearSearchResults();
+}
+
+function openPatientRecord(patient) {
+  if (!patient) {
+    return;
+  }
+  const params = new URLSearchParams({
+    id: String(patient.patientId ?? patient.id),
+    patient: formatPatientName(patient),
+  });
+  if (patient.procedureId && !patient.unscheduled) {
+    params.set("procedure", String(patient.procedureId));
+  }
+  window.location.href = `patient.html?${params.toString()}`;
 }
 
 function handleSearchSelection(patientId) {
   if (!Number.isFinite(patientId)) {
     return;
   }
-  const match = normalizedProcedures.find((patient) => patient.id === patientId);
+  const match = searchablePatients.find((patient) => patient.id === patientId);
   if (!match) {
     return;
   }
   const displayName = formatPatientName(match);
   if (searchInput) {
     searchInput.value = displayName;
+  }
+  if (match.unscheduled) {
+    clearSearchResults();
+    openPatientRecord(match);
+    return;
   }
   applySearchFilter(displayName);
   clearSearchResults();
@@ -835,9 +955,16 @@ function renderSelectedMonth() {
   if (!currentMonth?.weeks?.length) {
     if (searchQuery) {
       const hasAnyMatches = filteredMonthlySchedules.some((month) => month.weeks?.length);
-      const message = hasAnyMatches
+      let message = hasAnyMatches
         ? `No procedures matching "${searchQuery}" in ${selectedLabel}.`
         : `No procedures found matching "${searchQuery}".`;
+      if (!hasAnyMatches) {
+        const unscheduledMatches = filterPatientsByName(unscheduledPatients, searchQuery);
+        if (unscheduledMatches.length) {
+          const noun = unscheduledMatches.length === 1 ? "patient" : "patients";
+          message = `No scheduled procedures matching "${searchQuery}". Select the ${noun} shown above to open the record.`;
+        }
+      }
       setScheduleStatus(message);
       const matchingWeeks = filteredMonthlySchedules.reduce(
         (total, month) => total + (month.weeks?.length ?? 0),
@@ -1286,6 +1413,11 @@ function renderWeek(week) {
       statusCell.appendChild(badge);
       statusCell.classList.add("col-status");
       statusCell.dataset.label = "Status";
+      const mobileType = document.createElement("span");
+      mobileType.className = "mobile-procedure-type";
+      mobileType.textContent =
+        getOptionLabel("procedure_type", day.procedureType) || day.procedureType || "—";
+      statusCell.appendChild(mobileType);
 
       const procedureCell = document.createElement("td");
       procedureCell.textContent =
@@ -1396,6 +1528,7 @@ function updateMonthQueryParam(date) {
 
 async function initializeSchedule() {
   setScheduleStatus("Loading schedule...");
+  const pendingGlobalSearch = consumeGlobalSearchQuery();
   activePatientContext = loadActivePatientContext();
   if (activePatientContext?.shouldReturnToSchedule) {
     const targetDate = getDateFromContext(activePatientContext);
@@ -1412,6 +1545,15 @@ async function initializeSchedule() {
     normalizedProcedures = procedures.map((procedure) =>
       normalizeProcedureForSchedule(procedure, patientLookup)
     );
+    const scheduledIds = new Set(
+      normalizedProcedures
+        .map((entry) => (Number.isFinite(Number(entry.patientId)) ? Number(entry.patientId) : null))
+        .filter((value) => value !== null)
+    );
+    unscheduledPatients = patients
+      .filter((patient) => !scheduledIds.has(Number(patient.id)))
+      .map((patient) => buildUnscheduledSearchEntry(patient));
+    searchablePatients = [...normalizedProcedures, ...unscheduledPatients];
     const activePatient = findActivePatientByContext();
     if (activePatientContext?.shouldReturnToSchedule) {
       if (activePatient) {
@@ -1436,16 +1578,23 @@ async function initializeSchedule() {
         setSelectedDateFromTarget(matchingMonth.date);
       }
     }
-    filteredMonthlySchedules = monthlySchedules;
-    searchQuery = "";
-    if (searchInput) {
-      searchInput.value = "";
-    }
-    setSearchClearState(false);
-    clearSearchResults();
     updateYearOptions(selectedDate.getFullYear());
     updateTotalPatients(normalizedProcedures.length);
-    renderSelectedMonth();
+    if (pendingGlobalSearch) {
+      if (searchInput) {
+        searchInput.value = pendingGlobalSearch;
+      }
+      applySearchFilter(pendingGlobalSearch);
+    } else {
+      filteredMonthlySchedules = monthlySchedules;
+      searchQuery = "";
+      if (searchInput) {
+        searchInput.value = "";
+      }
+      setSearchClearState(false);
+      clearSearchResults();
+      renderSelectedMonth();
+    }
     highlightActivePatientRow();
   } catch (error) {
     console.error(error);

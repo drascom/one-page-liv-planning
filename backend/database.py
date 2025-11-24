@@ -527,10 +527,25 @@ def _create_api_requests(conn: sqlite3.Connection) -> None:
             path TEXT NOT NULL,
             method TEXT NOT NULL,
             payload TEXT,
+            response TEXT,
             created_at TEXT NOT NULL
         )
         """
     )
+    _ensure_api_response_column(conn)
+
+
+def _ensure_api_response_column(conn: sqlite3.Connection) -> None:
+    cursor = conn.execute("PRAGMA table_info(api_requests)")
+    columns = set()
+    for row in cursor.fetchall():
+        try:
+            columns.add(row["name"])
+        except (TypeError, IndexError, KeyError):
+            if len(row) > 1:
+                columns.add(row[1])
+    if "response" not in columns:
+        conn.execute("ALTER TABLE api_requests ADD COLUMN response TEXT")
 
 
 def _row_to_plan(row: sqlite3.Row) -> Dict[str, Any]:
@@ -847,16 +862,22 @@ def list_procedures(
         return [_row_to_procedure(row) for row in cursor.fetchall()]
 
 
-def log_api_request(path: str, method: str, payload: Any) -> None:
+def log_api_request(path: str, method: str, payload: Any, response_payload: Any | None = None) -> None:
     timestamp = datetime.utcnow().isoformat() + "Z"
     try:
         payload_text = json.dumps(payload)
     except Exception:
         payload_text = str(payload)
+    response_text = None
+    if response_payload is not None:
+        try:
+            response_text = json.dumps(response_payload)
+        except Exception:
+            response_text = str(response_payload)
     with closing(get_connection()) as conn:
         conn.execute(
-            "INSERT INTO api_requests (path, method, payload, created_at) VALUES (?, ?, ?, ?)",
-            (path, method, payload_text, timestamp),
+            "INSERT INTO api_requests (path, method, payload, response, created_at) VALUES (?, ?, ?, ?, ?)",
+            (path, method, payload_text, response_text, timestamp),
         )
         conn.commit()
 
@@ -865,7 +886,7 @@ def fetch_api_requests(limit: int = 100) -> List[Dict[str, Any]]:
     safe_limit = max(1, min(limit, 500))
     with closing(get_connection()) as conn:
         cursor = conn.execute(
-            "SELECT id, path, method, payload, created_at FROM api_requests ORDER BY id DESC LIMIT ?",
+            "SELECT id, path, method, payload, response, created_at FROM api_requests ORDER BY id DESC LIMIT ?",
             (safe_limit,),
         )
         rows = cursor.fetchall()
@@ -875,6 +896,7 @@ def fetch_api_requests(limit: int = 100) -> List[Dict[str, Any]]:
                 "path": row["path"],
                 "method": row["method"],
                 "payload": row["payload"],
+                "response": row["response"],
                 "created_at": row["created_at"],
             }
             for row in rows

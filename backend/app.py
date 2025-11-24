@@ -225,6 +225,14 @@ def serve_settings(request: Request):
     return FileResponse(settings.static_root / "settings.html")
 
 
+@app.get("/customers.html", include_in_schema=False)
+@app.get("/customers", include_in_schema=False)
+def serve_customers(request: Request):
+    if not get_current_user(request):
+        return _redirect_to_login(request)
+    return FileResponse(settings.static_root / "customers.html")
+
+
 @app.get("/login", include_in_schema=False)
 def serve_login(request: Request):
     if get_current_user(request):

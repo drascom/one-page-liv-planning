@@ -18,7 +18,32 @@
           <span class="top-nav__divider" aria-hidden="true">•</span>
           <span class="top-nav__section">Patient Record</span>
         </div>
+        <form class="top-nav__search patient-search" id="patient-search-form" role="search" autocomplete="off">
+          <label class="visually-hidden" for="patient-search">Search patients</label>
+          <span class="search-icon" aria-hidden="true">🔍</span>
+          <input
+            id="patient-search"
+            type="search"
+            name="patientSearch"
+            class="search-input"
+            placeholder="Search by name or surname"
+            enterkeyhint="search"
+          />
+          <button
+            type="button"
+            class="patient-search__clear"
+            id="patient-search-clear"
+            aria-label="Clear search"
+            title="Clear search"
+          >
+            ×
+          </button>
+          <ul class="patient-search__results" id="patient-search-results" role="listbox"></ul>
+        </form>
         <div class="top-nav__actions">
+          <a class="nav-btn nav-btn--ghost" href="/">Schedule</a>
+          <a class="nav-btn nav-btn--ghost" href="customers.html">Customers</a>
+          <a class="nav-btn nav-btn--ghost" href="settings.html" data-admin-link hidden>Settings</a>
           <button type="button" class="nav-btn nav-btn--primary" data-logout-btn>Logout</button>
         </div>
       </nav>
@@ -68,7 +93,7 @@
               <p id="patient-status" class="form-status" role="status"></p>
               <div class="card-actions">
                 <button type="submit" class="btn btn-primary primary-btn" form="patient-form">Save Changes</button>
-                <button type="button" class="btn btn-danger danger-btn" id="delete-patient-btn">Delete Patient</button>
+                <button type="button" class="btn btn-danger danger-btn" id="delete-patient-btn" hidden>Delete Patient</button>
               </div>
             </form>
           </section>
@@ -104,7 +129,7 @@
                 <h2>Procedures</h2>
               </div>
               <div class="card-actions">
-                <button type="button" class="btn btn-add secondary-btn" id="add-procedure-btn">Add</button>
+                <button type="button" class="btn btn-add secondary-btn" id="add-procedure-btn" hidden>Add</button>
                 <button type="button" class="btn btn-danger danger-btn" id="cancel-procedure-btn" hidden>Delete Procedure</button>
               </div>
             </header>
@@ -215,6 +240,7 @@
     </div>
 
     <script src="/app-config.js"></script>
+    <script src="/static/nav-search.js" type="module"></script>
     <script src="/static/patient.js" type="module"></script>
   </body>
 </html>

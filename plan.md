@@ -1,3 +1,9 @@
-1. **Schema redesign** – Define the new tables (`patients`, `procedures`, `photos`, `payments`) and their columns. Patients should only store personal details; procedures hold booking metadata; photos contain file info linked to a patient; payments log amounts plus patient relationships. Document the migration approach (drop+recreate or incremental) and note that we are skipping legacy data to match the new API expectations.
-2. **Backend update** – Adjust the models/schemas, database helper functions, and FastAPI routes so they operate on the new tables. Ensure the `patients` endpoints only handle patient info, expose `/procedures` endpoints for booking data, and introduce helpers for photos/payment creation and listing. Update serialization logic (`create_patient`, `list_procedures`, etc.) to match the new schema and expose the new relationships via the API.
-3. **Frontend alignment** – Refresh the frontend to call the new endpoints/payloads: create patients via `/patients` with just personal info, save procedures through the `/procedures` endpoint, upload photos/payments to their new routes, and fix the schedule rendering logic to pull procedure rows rather than assuming they live in the patient row. Ensure status messages and sidebar listings reflect the procedures table.
+1- update consultations field to icons and numbers like forms and consents fields
+2- make date is dynamic change when selected date change in form at settings-tab__title in patients form
+detail no need this logic.
+
+
+8- gelen formlardan hastanin odeyecegi miktari cekip paid kisminda gostereyim
+9- acenta liv acenta want 
+10- add package type as small big
+11- update procedure type as eyebrow woman man beard

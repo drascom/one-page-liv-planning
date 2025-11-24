@@ -216,6 +216,17 @@ tokenList?.addEventListener("click", async (event) => {
 
 refreshApiRequestsBtn?.addEventListener("click", fetchApiRequests);
 
+function formatApiPayload(value) {
+  if (!value) {
+    return "(empty)";
+  }
+  try {
+    return escapeHtml(JSON.stringify(JSON.parse(value), null, 2));
+  } catch {
+    return escapeHtml(String(value));
+  }
+}
+
 function renderApiRequests(requests) {
   if (!apiRequestsList) return;
   if (!requests.length) {
@@ -224,13 +235,8 @@ function renderApiRequests(requests) {
   }
   apiRequestsList.innerHTML = requests
     .map((entry) => {
-      const payload = (() => {
-        try {
-          return JSON.stringify(JSON.parse(entry.payload), null, 2);
-        } catch {
-          return entry.payload;
-        }
-      })();
+      const requestBody = formatApiPayload(entry.payload);
+      const responseBody = formatApiPayload(entry.response);
       return `
         <details class="token-card" data-request-id="${entry.id}">
           <summary>
@@ -239,7 +245,14 @@ function renderApiRequests(requests) {
               <p class="token-created">${new Date(entry.created_at).toLocaleString()}</p>
             </div>
           </summary>
-          <pre class="api-request-payload"><code>${payload || "(empty)"}</code></pre>
+          <div class="api-request__body">
+            <p class="api-request__label">Request Body</p>
+            <pre class="api-request-payload"><code>${requestBody}</code></pre>
+          </div>
+          <div class="api-request__body">
+            <p class="api-request__label">Response</p>
+            <pre class="api-request-payload"><code>${responseBody}</code></pre>
+          </div>
         </details>
       `;
     })

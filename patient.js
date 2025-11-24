@@ -124,10 +124,10 @@ function renderOptionControls() {
   buildConsentsChecklist();
 }
 
-function refreshFormsChecklist() {
-  if (!formsChecklist || !formsSelect) return;
-  const selected = new Set(collectMultiValue(formsSelect));
-  formsChecklist.querySelectorAll(".form-checklist__item").forEach((item) => {
+function refreshChecklistState(container, selectEl) {
+  if (!container || !selectEl) return;
+  const selected = new Set(collectMultiValue(selectEl));
+  container.querySelectorAll(".form-checklist__item").forEach((item) => {
     const value = item.dataset.value;
     const isSelected = selected.has(value);
     item.classList.toggle("is-selected", isSelected);
@@ -137,120 +137,61 @@ function refreshFormsChecklist() {
       icon.textContent = isSelected ? "✓" : "✕";
     }
   });
+}
+
+function buildChecklist(container, selectEl, field) {
+  if (!container || !selectEl) return;
+  container.innerHTML = "";
+  const options = getFieldOptions(field);
+  options.forEach((option, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "form-checklist__item";
+    button.dataset.value = option.value;
+    button.innerHTML = `
+      <span class="form-checklist__meta">
+        <span class="form-checklist__number">${String(index + 1).padStart(2, "0")}</span>
+        <span class="form-checklist__label">${option.label}</span>
+      </span>
+      <span class="form-checklist__icon" aria-hidden="true">✕</span>
+    `;
+    button.addEventListener("click", () => {
+      const current = new Set(collectMultiValue(selectEl));
+      if (current.has(option.value)) {
+        current.delete(option.value);
+      } else {
+        current.add(option.value);
+      }
+      setMultiValue(selectEl, Array.from(current));
+      refreshChecklistState(container, selectEl);
+    });
+    container.appendChild(button);
+  });
+  refreshChecklistState(container, selectEl);
+}
+
+function refreshFormsChecklist() {
+  refreshChecklistState(formsChecklist, formsSelect);
 }
 
 function buildFormsChecklist() {
-  if (!formsChecklist || !formsSelect) return;
-  formsChecklist.innerHTML = "";
-  const options = getFieldOptions("forms");
-  options.forEach((option) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "form-checklist__item";
-    button.dataset.value = option.value;
-    button.innerHTML = `
-      <span class="form-checklist__label">${option.label}</span>
-      <span class="form-checklist__icon" aria-hidden="true">✕</span>
-    `;
-    button.addEventListener("click", () => {
-      const current = new Set(collectMultiValue(formsSelect));
-      if (current.has(option.value)) {
-        current.delete(option.value);
-      } else {
-        current.add(option.value);
-      }
-      setMultiValue(formsSelect, Array.from(current));
-      refreshFormsChecklist();
-    });
-    formsChecklist.appendChild(button);
-  });
-  refreshFormsChecklist();
+  buildChecklist(formsChecklist, formsSelect, "forms");
 }
 
 function refreshConsentsChecklist() {
-  if (!consentsChecklist || !consentsSelect) return;
-  const selected = new Set(collectMultiValue(consentsSelect));
-  consentsChecklist.querySelectorAll(".form-checklist__item").forEach((item) => {
-    const value = item.dataset.value;
-    const isSelected = selected.has(value);
-    item.classList.toggle("is-selected", isSelected);
-    item.setAttribute("aria-pressed", isSelected ? "true" : "false");
-    const icon = item.querySelector(".form-checklist__icon");
-    if (icon) {
-      icon.textContent = isSelected ? "✓" : "✕";
-    }
-  });
+  refreshChecklistState(consentsChecklist, consentsSelect);
 }
 
 function buildConsentsChecklist() {
-  if (!consentsChecklist || !consentsSelect) return;
-  consentsChecklist.innerHTML = "";
-  const options = getFieldOptions("consents");
-  options.forEach((option) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "form-checklist__item";
-    button.dataset.value = option.value;
-    button.innerHTML = `
-      <span class="form-checklist__label">${option.label}</span>
-      <span class="form-checklist__icon" aria-hidden="true">✕</span>
-    `;
-    button.addEventListener("click", () => {
-      const current = new Set(collectMultiValue(consentsSelect));
-      if (current.has(option.value)) {
-        current.delete(option.value);
-      } else {
-        current.add(option.value);
-      }
-      setMultiValue(consentsSelect, Array.from(current));
-      refreshConsentsChecklist();
-    });
-    consentsChecklist.appendChild(button);
-  });
-  refreshConsentsChecklist();
+  buildChecklist(consentsChecklist, consentsSelect, "consents");
 }
 
 function refreshConsultationsChecklist() {
-  if (!consultationsChecklist || !consultationSelect) return;
-  const selected = new Set(collectMultiValue(consultationSelect));
-  consultationsChecklist.querySelectorAll(".form-checklist__item").forEach((item) => {
-    const value = item.dataset.value;
-    const isSelected = selected.has(value);
-    item.classList.toggle("is-selected", isSelected);
-    item.setAttribute("aria-pressed", isSelected ? "true" : "false");
-    const icon = item.querySelector(".form-checklist__icon");
-    if (icon) {
-      icon.textContent = isSelected ? "✓" : "✕";
-    }
-  });
+  refreshChecklistState(consultationsChecklist, consultationSelect);
 }
 
 function buildConsultationsChecklist() {
-  if (!consultationsChecklist || !consultationSelect) return;
-  consultationsChecklist.innerHTML = "";
-  const options = getFieldOptions("consultation");
-  options.forEach((option) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "form-checklist__item";
-    button.dataset.value = option.value;
-    button.innerHTML = `
-      <span class="form-checklist__label">${option.label}</span>
-      <span class="form-checklist__icon" aria-hidden="true">✕</span>
-    `;
-    button.addEventListener("click", () => {
-      const current = new Set(collectMultiValue(consultationSelect));
-      if (current.has(option.value)) {
-        current.delete(option.value);
-      } else {
-        current.add(option.value);
-      }
-      setMultiValue(consultationSelect, Array.from(current));
-      refreshConsultationsChecklist();
-    });
-    consultationsChecklist.appendChild(button);
-  });
-  refreshConsultationsChecklist();
+  buildChecklist(consultationsChecklist, consultationSelect, "consultation");
 }
 
 const patientNameEl = document.getElementById("patient-name");
@@ -262,6 +203,7 @@ const formEl = document.getElementById("patient-form");
 const formStatusEl = document.getElementById("form-status");
 const patientStatusEl = document.getElementById("patient-status");
 const procedureFormStatusEl = document.getElementById("procedure-form-status");
+const settingsLink = document.querySelector("[data-admin-link]");
 const deletePatientBtn = document.getElementById("delete-patient-btn");
 const addProcedureBtn = document.getElementById("add-procedure-btn");
 const cancelProcedureBtn = document.getElementById("cancel-procedure-btn");
@@ -748,6 +690,9 @@ function renderRelatedBookings(entries) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "settings-tab";
+    if (entry.id) {
+      button.dataset.procedureId = String(entry.id);
+    }
     if (entry.id === activeProcedure?.id) {
       button.classList.add("is-active");
     }
@@ -774,6 +719,23 @@ function renderRelatedBookings(entries) {
     });
     bookingListEl.appendChild(button);
   });
+}
+
+function updateActiveProcedureTitle(dateValue) {
+  if (!bookingListEl || !activeProcedure) {
+    return;
+  }
+  const activeButton =
+    (activeProcedure.id &&
+      bookingListEl.querySelector(`.settings-tab[data-procedure-id="${activeProcedure.id}"]`)) ||
+    bookingListEl.querySelector(".settings-tab.is-active");
+  if (!activeButton) {
+    return;
+  }
+  const titleSpan = activeButton.querySelector(".settings-tab__title");
+  if (titleSpan) {
+    titleSpan.textContent = formatBookingDate(dateValue);
+  }
 }
 
 function selectProcedure(procedureId) {
@@ -1113,6 +1075,11 @@ fileInput.addEventListener("change", () => {
   fileInput.value = "";
 });
 
+if (procedureDateInput) {
+  procedureDateInput.addEventListener("input", handleProcedureDateInputChange);
+  procedureDateInput.addEventListener("change", handleProcedureDateInputChange);
+}
+
 if (viewerCloseBtn) {
   viewerCloseBtn.addEventListener("click", closePhotoViewer);
 }
@@ -1153,25 +1120,47 @@ function refreshDeletePatientButtonState() {
   if (!deletePatientBtn) {
     return;
   }
-  deletePatientBtn.hidden = !isAdminUser;
-  deletePatientBtn.disabled = !currentPatient;
+  const shouldHide = !isAdminUser;
+  deletePatientBtn.hidden = shouldHide;
+  deletePatientBtn.disabled = shouldHide || !currentPatient;
 }
 
 function refreshDeleteProcedureButtonState() {
   if (!cancelProcedureBtn) {
     return;
   }
-  cancelProcedureBtn.hidden = !activeProcedure;
-  cancelProcedureBtn.disabled = !activeProcedure;
+  const shouldHide = !isAdminUser || !activeProcedure;
+  cancelProcedureBtn.hidden = shouldHide;
+  cancelProcedureBtn.disabled = shouldHide;
+}
+
+function refreshAddProcedureButtonState() {
+  if (!addProcedureBtn) {
+    return;
+  }
+  const shouldHide = !isAdminUser;
+  addProcedureBtn.hidden = shouldHide;
+  addProcedureBtn.disabled = shouldHide;
 }
 
 function refreshDeleteButtonState() {
   refreshDeletePatientButtonState();
   refreshDeleteProcedureButtonState();
+  refreshAddProcedureButtonState();
+}
+
+function handleProcedureDateInputChange() {
+  if (!activeProcedure || !procedureDateInput) {
+    return;
+  }
+  const nextValue = procedureDateInput.value || "";
+  activeProcedure.procedure_date = nextValue;
+  updateActiveProcedureTitle(nextValue);
+  renderRelatedBookings(patientProcedures);
 }
 
 async function handleDeleteProcedure() {
-  if (!activeProcedure) {
+  if (!activeProcedure || !isAdminUser) {
     return;
   }
   const confirmed = window.confirm(
@@ -1245,7 +1234,12 @@ if (cancelProcedureBtn) {
   cancelProcedureBtn.addEventListener("click", handleDeleteProcedure);
 }
 if (addProcedureBtn) {
-  addProcedureBtn.addEventListener("click", startNewProcedure);
+  addProcedureBtn.addEventListener("click", () => {
+    if (!isAdminUser) {
+      return;
+    }
+    startNewProcedure();
+  });
 }
 
 async function initializePatientPage() {
@@ -1253,6 +1247,9 @@ async function initializePatientPage() {
   renderOptionControls();
   const user = await fetchCurrentUser().catch(() => null);
   isAdminUser = Boolean(user?.is_admin);
+  if (isAdminUser) {
+    settingsLink?.removeAttribute("hidden");
+  }
   refreshDeleteButtonState();
   await fetchPatient();
 }

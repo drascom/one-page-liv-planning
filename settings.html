@@ -19,7 +19,31 @@
         <span class="top-nav__divider" aria-hidden="true">•</span>
         <span class="top-nav__section">Settings</span>
       </div>
+      <form class="top-nav__search patient-search" id="patient-search-form" role="search" autocomplete="off">
+        <label class="visually-hidden" for="patient-search">Search patients</label>
+        <span class="search-icon" aria-hidden="true">🔍</span>
+        <input
+          id="patient-search"
+          type="search"
+          name="patientSearch"
+          class="search-input"
+          placeholder="Search by name or surname"
+          enterkeyhint="search"
+        />
+        <button
+          type="button"
+          class="patient-search__clear"
+          id="patient-search-clear"
+          aria-label="Clear search"
+          title="Clear search"
+        >
+          ×
+        </button>
+        <ul class="patient-search__results" id="patient-search-results" role="listbox"></ul>
+      </form>
       <div class="top-nav__actions">
+        <a class="nav-btn nav-btn--ghost" href="/">Schedule</a>
+        <a class="nav-btn nav-btn--ghost" href="customers.html">Customers</a>
         <button type="button" class="nav-btn nav-btn--primary" data-logout-btn>Logout</button>
       </div>
     </nav>
@@ -227,6 +251,7 @@
   </div>
 
   <script src="/app-config.js"></script>
+  <script src="/static/nav-search.js" type="module"></script>
   <script src="/static/settings.js" type="module"></script>
 </body>
 

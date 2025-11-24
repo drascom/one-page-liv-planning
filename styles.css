@@ -638,8 +638,6 @@ body.app-shell {
 
 .patient-search input {
   width: 100%;
-  border: none;
-  background: transparent;
   color: inherit;
   font-size: 1rem;
   outline: none;
@@ -680,7 +678,8 @@ body.app-shell {
   position: absolute;
   list-style: none;
   padding: 0;
-  margin: 0.4rem 0 0;
+  margin: 0;
+  top: calc(100% + 0.35rem);
   left: 0;
   right: 0;
   background: #ffffff;
@@ -725,6 +724,11 @@ body.app-shell {
 .patient-search__result-meta {
   color: #64748b;
   font-size: 0.9rem;
+}
+
+.patient-search__result--unscheduled .patient-search__result-meta {
+  color: #b45309;
+  font-weight: 600;
 }
 
 .select-all-control {
@@ -1070,6 +1074,10 @@ body.app-shell {
   width: 18%;
 }
 
+.mobile-procedure-type {
+  display: none;
+}
+
 .col-procedure {
   text-align: center;
   width: 11%;
@@ -1162,8 +1170,8 @@ body.app-shell {
 }
 
 .status-reserved {
-  color: #0f172a;
-  background: rgba(14, 165, 233, 0.2);
+  color: #b45309;
+  background: rgba(249, 115, 22, 0.25);
 }
 
 .status-confirmed {
@@ -1307,20 +1315,20 @@ body.app-shell {
 }
 
 .settings-content {
-  width: min(1200px, 98%);
+  width: min(1400px, 96vw);
   margin: 0 auto 3rem;
   padding: 1rem clamp(1rem, 3vw, 2rem) 0;
 }
 
 .settings-shell {
   display: grid;
-  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+  grid-template-columns: minmax(240px, 1fr) minmax(0, 3fr);
   align-items: start;
   gap: 2rem;
 }
 
 .settings-shell--patient {
-  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  grid-template-columns: minmax(260px, 1fr) minmax(0, 3fr);
   gap: 2rem;
 }
 
@@ -1399,7 +1407,7 @@ body.app-shell {
 
 .settings-tab:hover {
   border-color: rgba(248, 250, 252, 0.6);
-  transform: translateX(2px);
+  transform:scale(0.95)
 }
 
 .settings-tab.is-active {
@@ -1534,6 +1542,183 @@ body.app-shell {
   padding: 1.5rem;
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.1);
   border: 1px solid #e2e8f0; */
+}
+
+.customer-content {
+  width: min(1200px, 96%);
+  margin: 0 auto 3rem;
+  padding: 1.5rem clamp(1rem, 3vw, 2rem) 0;
+}
+
+.customer-directory {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.customer-directory__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+}
+
+.customer-directory__totals {
+  text-align: right;
+  color: #475569;
+  font-size: 0.95rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.4rem;
+}
+
+.customer-directory__totals-count {
+  display: block;
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  line-height: 1;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.customer-directory__summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.customer-directory__summary {
+  margin: 0;
+  color: #475569;
+  font-size: 0.95rem;
+}
+
+.customer-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.customer-empty {
+  margin: 0;
+  padding: 1.5rem;
+  border-radius: 14px;
+  border: 1px dashed #cbd5e1;
+  text-align: center;
+  color: #64748b;
+  background: #f8fafc;
+}
+
+.customer-empty--error {
+  color: #b91c1c;
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.customer-card {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+  padding: 1.25rem 1.5rem;
+}
+
+.customer-card__primary {
+  flex: 1;
+  min-width: 220px;
+}
+
+.customer-card__name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0f172a;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.customer-card__name:hover {
+  color: #0ea5e9;
+}
+
+.customer-card__meta {
+  margin: 0.35rem 0 0;
+  color: #475569;
+}
+
+.customer-card__stats {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  min-width: 200px;
+}
+
+.customer-card__stat {
+  text-align: center;
+}
+
+.customer-card__stat-value {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.customer-card__stat-label {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.customer-card__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.75rem;
+  min-width: 180px;
+}
+
+.customer-card__status {
+  margin: 0;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.customer-card__link {
+  width: max-content;
+}
+
+@media (max-width: 720px) {
+  .customer-directory__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .customer-card {
+    flex-direction: column;
+  }
+
+  .customer-card__actions {
+    width: 100%;
+    align-items: flex-start;
+  }
+
+  .customer-card__stats {
+    width: 100%;
+    justify-content: space-between;
+  }
 }
 
 .patient-bookings {
@@ -1690,6 +1875,26 @@ body.app-shell {
   background: #ecfdf3;
 }
 
+.form-checklist__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.form-checklist__number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  min-width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.15);
+  color: #0ea5e9;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
 .form-checklist__label {
   font-weight: 700;
   color: #0f172a;
@@ -1703,6 +1908,11 @@ body.app-shell {
 
 .form-checklist__item.is-selected .form-checklist__icon {
   color: #16a34a;
+}
+
+.form-checklist__item.is-selected .form-checklist__number {
+  background: #16a34a;
+  color: #ffffff;
 }
 
 .form-actions {
@@ -2109,6 +2319,18 @@ body.app-shell {
   font-size: 0.85rem;
   line-height: 1.4;
   margin-top: 0.5rem;
+}
+
+.api-request__body + .api-request__body {
+  margin-top: 1rem;
+}
+
+.api-request__label {
+  margin: 0 0 0.35rem;
+  color: #94a3b8;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .token-test {
@@ -2754,7 +2976,9 @@ body.app-shell {
 
   .col-status {
     margin-top: 0.5rem;
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
     width: 100%;
   }
 
@@ -2789,6 +3013,14 @@ body.app-shell {
     justify-content: space-between;
     gap: 0.75rem;
     width: 100%;
+  }
+
+  .mobile-procedure-type {
+    display: inline-flex;
+    margin-top: 0;
+    font-size: 0.85rem;
+    color: #e2e8f0;
+    font-weight: 600;
   }
 
   .patient-row .col-procedure,
