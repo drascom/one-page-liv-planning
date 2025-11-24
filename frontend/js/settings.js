@@ -383,6 +383,7 @@ const FIELD_DEFAULTS = {
     { value: "eyebrow", label: "Eyebrow" },
   ],
   package_type: [
+    { value: "consultation", label: "Consultation" },
     { value: "small", label: "Small" },
     { value: "big", label: "Big" },
   ],
