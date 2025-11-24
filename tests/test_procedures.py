@@ -109,7 +109,10 @@ def test_procedure_crud_and_filtering(client: TestClient):
     assert details["payment"] == "paid"
 
     deleted = client.delete(f"/procedures/{procedure_id}")
-    assert deleted.status_code == 204
+    assert deleted.status_code == 200
+    delete_body = deleted.json()
+    assert delete_body["success"] is True
+    assert delete_body["id"] == procedure_id
 
     missing = client.get(f"/procedures/{procedure_id}")
     assert missing.status_code == 404
@@ -164,7 +167,10 @@ def test_admin_manages_deleted_procedures(client: TestClient):
     procedure_id = created.json()["id"]
 
     deleted = client.delete(f"/procedures/{procedure_id}")
-    assert deleted.status_code == 204
+    assert deleted.status_code == 200
+    delete_body = deleted.json()
+    assert delete_body["success"] is True
+    assert delete_body["id"] == procedure_id
 
     deleted_list = client.get("/procedures/deleted")
     assert deleted_list.status_code == 200
@@ -180,7 +186,8 @@ def test_admin_manages_deleted_procedures(client: TestClient):
     fetched = client.get(f"/procedures/{procedure_id}")
     assert fetched.status_code == 200
 
-    client.delete(f"/procedures/{procedure_id}")
+    removal = client.delete(f"/procedures/{procedure_id}")
+    assert removal.status_code == 200
     purged = client.delete(f"/procedures/{procedure_id}/purge")
     assert purged.status_code == 204
 
@@ -308,6 +315,7 @@ def test_search_procedure_by_metadata_and_delete(client: TestClient):
 
     search_request = {
         "full_name": "Test Patient",
+        "date": "2025-05-10",
     }
     search = client.post("/procedures/search-by-meta", json=search_request)
     assert search.status_code == 200
@@ -316,7 +324,10 @@ def test_search_procedure_by_metadata_and_delete(client: TestClient):
     assert body["procedure_id"] == procedure_id
 
     deleted = client.delete(f"/procedures/{procedure_id}")
-    assert deleted.status_code == 204
+    assert deleted.status_code == 200
+    delete_body = deleted.json()
+    assert delete_body["success"] is True
+    assert delete_body["id"] == procedure_id
 
 
 def test_search_procedure_by_metadata_missing_record(client: TestClient):
@@ -324,6 +335,7 @@ def test_search_procedure_by_metadata_missing_record(client: TestClient):
     _create_procedure(client, patient_id, date="2025-08-01")
     search_request = {
         "full_name": "Test Patient",
+        "date": "2025-08-02",
     }
     result = client.post("/procedures/search-by-meta", json=search_request)
     assert result.status_code == 200

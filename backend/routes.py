@@ -228,15 +228,19 @@ def update_procedure(patient_id: int, procedure_id: int, payload: ProcedureCreat
     return OperationResult(success=True, id=procedure_id, message="Procedure updated")
 
 
-@patients_router.delete("/{patient_id}/procedures/{procedure_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_procedure(patient_id: int, procedure_id: int) -> Response:
+@patients_router.delete(
+    "/{patient_id}/procedures/{procedure_id}",
+    response_model=OperationResult,
+    status_code=status.HTTP_200_OK,
+)
+def delete_procedure(patient_id: int, procedure_id: int) -> OperationResult:
     procedure = database.fetch_procedure(procedure_id, include_deleted=True)
     if not procedure or procedure["patient_id"] != patient_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
     removed = database.delete_procedure(procedure_id)
     if not removed:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    return OperationResult(success=True, id=procedure_id)
 
 
 @patients_router.get("/{patient_id}/photos", response_model=List[Photo])
@@ -477,11 +481,16 @@ def update_procedure_route(procedure_id: int, payload: ProcedureCreatePayload) -
     return OperationResult(success=True, id=procedure_id, message="Procedure updated")
 
 
-@procedures_router.delete("/{procedure_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_procedure_route(procedure_id: int) -> None:
+@procedures_router.delete(
+    "/{procedure_id}",
+    response_model=OperationResult,
+    status_code=status.HTTP_200_OK,
+)
+def delete_procedure_route(procedure_id: int) -> OperationResult:
     deleted = database.delete_procedure(procedure_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
+    return OperationResult(success=True, id=procedure_id)
 
 
 @procedures_router.post("/search-by-meta", response_model=ProcedureMetadataSearchResponse)
