@@ -272,7 +272,6 @@ DEFAULT_FIELD_OPTIONS: Dict[str, List[Dict[str, str]]] = {
     ],
     "procedure_type": [
         {"value": "sfue", "label": "sFUE"},
-        {"value": "hair", "label": "Hair"},
         {"value": "beard", "label": "Beard"},
         {"value": "woman", "label": "Woman"},
         {"value": "eyebrow", "label": "Eyebrow"},

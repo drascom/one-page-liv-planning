@@ -16,7 +16,6 @@ const DEFAULT_FIELD_OPTIONS = {
   ],
   procedure_type: [
     { value: "sfue", label: "sFUE" },
-    { value: "hair", label: "Hair" },
     { value: "beard", label: "Beard" },
     { value: "woman", label: "Woman" },
     { value: "eyebrow", label: "Eyebrow" },
@@ -1038,7 +1037,7 @@ function handleTodayClick() {
 
 function buildDefaultPatientPayloads() {
   const defaultStatus = getDefaultFieldValue("status", "reserved");
-  const defaultProcedure = getDefaultFieldValue("procedure_type", "hair");
+  const defaultProcedure = getDefaultFieldValue("procedure_type", "sfue");
   const defaultPackageType = getDefaultFieldValue("package_type", "small");
   const defaultPayment = getDefaultFieldValue("payment", "waiting");
   const defaultAgency = getDefaultFieldValue("agency", "liv_hair");

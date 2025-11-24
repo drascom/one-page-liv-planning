@@ -10,7 +10,6 @@ const DEFAULT_FIELD_OPTIONS = {
   ],
   procedure_type: [
     { value: "sfue", label: "sFUE" },
-    { value: "hair", label: "Hair" },
     { value: "beard", label: "Beard" },
     { value: "woman", label: "Woman" },
     { value: "eyebrow", label: "Eyebrow" },
