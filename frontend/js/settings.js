@@ -376,6 +376,7 @@ const FIELD_DEFAULTS = {
     { value: "done", label: "Done" },
   ],
   procedure_type: [
+    { value: "consultation", label: "Consultation" },
     { value: "sfue", label: "sFUE" },
     { value: "beard", label: "Beard" },
     { value: "woman", label: "Woman" },
