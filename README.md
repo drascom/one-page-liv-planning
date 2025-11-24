@@ -80,7 +80,7 @@ If you are behind nginx proxy manager with ssl certificate than use
 
    Replace `my-local-domain.test` with the hostname you access in the browser (defaults to `localhost` if omitted). Browsers will warn about the untrusted cert—you can proceed after trusting it or import it into your system keychain.
 
-8. Build or serve the static frontend: the repository ships with prebuilt `index.html`, `patient.html`, `settings.html`, and `login.html` files under `static/` (served automatically by FastAPI).
+8. Build or serve the static frontend: the repository ships with prebuilt HTML screens under `frontend/html/` plus bundled JS and CSS under `frontend/js/` and `frontend/css/` (served automatically by FastAPI).
 
 ## API reference
 

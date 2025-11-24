@@ -201,28 +201,28 @@ _register_frontend_security_middleware(app)
 def serve_index(request: Request):
     if not get_current_user(request):
         return _redirect_to_login(request)
-    return FileResponse(settings.static_root / "index.html")
+    return FileResponse(settings.html_root / "index.html")
 
 
 @app.get("/index-test.html", include_in_schema=False)
 def serve_index_test(request: Request):
     if not get_current_user(request):
         return _redirect_to_login(request)
-    return FileResponse(settings.static_root / "index-test.html")
+    return FileResponse(settings.html_root / "index-test.html")
 
 
 @app.get("/patient.html", include_in_schema=False)
 def serve_patient(request: Request):
     if not get_current_user(request):
         return _redirect_to_login(request)
-    return FileResponse(settings.static_root / "patient.html")
+    return FileResponse(settings.html_root / "patient.html")
 
 
 @app.get("/settings.html", include_in_schema=False)
 def serve_settings(request: Request):
     if not get_current_user(request):
         return _redirect_to_login(request)
-    return FileResponse(settings.static_root / "settings.html")
+    return FileResponse(settings.html_root / "settings.html")
 
 
 @app.get("/customers.html", include_in_schema=False)
@@ -230,7 +230,7 @@ def serve_settings(request: Request):
 def serve_customers(request: Request):
     if not get_current_user(request):
         return _redirect_to_login(request)
-    return FileResponse(settings.static_root / "customers.html")
+    return FileResponse(settings.html_root / "customers.html")
 
 
 @app.get("/login", include_in_schema=False)
@@ -238,4 +238,4 @@ def serve_login(request: Request):
     if get_current_user(request):
         next_url = request.query_params.get("next") or "/"
         return RedirectResponse(next_url)
-    return FileResponse(settings.static_root / "login.html")
+    return FileResponse(settings.html_root / "login.html")

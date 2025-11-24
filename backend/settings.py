@@ -19,7 +19,8 @@ if ENV_PATH.exists():
 class Settings(BaseModel):
     backend_url: Optional[str] = os.getenv("BACKEND_URL")
     frontend_url: Optional[str] = os.getenv("FRONTEND_URL")
-    static_root: Path = BASE_DIR
+    static_root: Path = BASE_DIR / "frontend"
+    html_root: Path = static_root / "html"
     uploads_root: Path = BASE_DIR / "uploads"
     secret_key: str = os.getenv("APP_SECRET_KEY", "change-me")
     default_admin_password: str = os.getenv("DEFAULT_ADMIN_PASSWORD", "changeme")

@@ -20,8 +20,9 @@ RUN uv sync --no-dev
 # Ensure the virtualenv binaries are on PATH
 ENV PATH="/app/.venv/bin:${PATH}"
 
-# Copy the backend code into the container at /app
+# Copy the backend code and frontend assets into the container at /app
 COPY ./backend /app/backend
+COPY ./frontend /app/frontend
 
 # Make port 8000 available to the world outside this container
 EXPOSE 8000
