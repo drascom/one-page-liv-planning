@@ -802,6 +802,8 @@ def _split_full_name(full_name: str) -> Tuple[str, str]:
 
 def find_patient_by_full_name(full_name: str) -> Optional[Dict[str, Any]]:
     first_name, last_name = _split_full_name(full_name)
+    normalized_first = first_name.lower().strip()
+    normalized_last = last_name.lower().strip()
     with closing(get_connection()) as conn:
         cursor = conn.execute(
             """
@@ -810,7 +812,7 @@ def find_patient_by_full_name(full_name: str) -> Optional[Dict[str, Any]]:
             ORDER BY id ASC
             LIMIT 1
             """,
-            (first_name.lower(), last_name.lower()),
+            (normalized_first, normalized_last),
         )
         row = cursor.fetchone()
         return _row_to_patient(row) if row else None
@@ -853,7 +855,7 @@ def find_patient_by_name_and_date(first_name: str, last_name: str, procedure_dat
 
 def find_procedure_by_metadata(
     full_name: str,
-    procedure_date: str,
+    procedure_date: Optional[str],
     *,
     status: Optional[str] = None,
     grafts_number: Optional[str] = None,
@@ -863,11 +865,12 @@ def find_procedure_by_metadata(
     patient = find_patient_by_full_name(full_name)
     if not patient:
         return None
-    normalized_date = _date_only(procedure_date)
-    if not normalized_date:
-        return None
-    clauses = ["patient_id = ?", "procedure_date = ?", "deleted = 0"]
-    params: List[Any] = [patient["id"], normalized_date]
+    clauses = ["patient_id = ?", "deleted = 0"]
+    params: List[Any] = [patient["id"]]
+    normalized_date = _date_only(procedure_date) if procedure_date else None
+    if normalized_date:
+        clauses.append("procedure_date = ?")
+        params.append(normalized_date)
     if status:
         clauses.append("LOWER(status) = ?")
         params.append(status.lower().strip())

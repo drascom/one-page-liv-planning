@@ -308,10 +308,6 @@ def test_search_procedure_by_metadata_and_delete(client: TestClient):
 
     search_request = {
         "full_name": "Test Patient",
-        "date": "2025-05-10T00:00:00.000Z",
-        "status": "reserved",
-        "grafts_number": "3000",
-        "package_type": "small",
     }
     search = client.post("/procedures/search-by-meta", json=search_request)
     assert search.status_code == 200
@@ -328,9 +324,6 @@ def test_search_procedure_by_metadata_missing_record(client: TestClient):
     _create_procedure(client, patient_id, date="2025-08-01")
     search_request = {
         "full_name": "Test Patient",
-        "date": "2025-09-01T00:00:00.000Z",
-        "status": "reserved",
-        "grafts_number": "9999",
     }
     result = client.post("/procedures/search-by-meta", json=search_request)
     assert result.status_code == 200

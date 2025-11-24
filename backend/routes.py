@@ -487,8 +487,10 @@ def delete_procedure_route(procedure_id: int) -> None:
 @procedures_router.post("/search-by-meta", response_model=ProcedureMetadataSearchResponse)
 def search_procedure_by_metadata(payload: ProcedureMetadataDeleteRequest) -> ProcedureMetadataSearchResponse:
     """Return a procedure id when metadata matches."""
-    if not payload.full_name or not payload.date:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="full_name and date are required")
+    if not payload.full_name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="full_name is required")
+    if not payload.date:
+        return ProcedureMetadataSearchResponse(success=False, message="Procedure date is required for this search")
     match = database.find_procedure_by_metadata(
         payload.full_name,
         payload.date,
