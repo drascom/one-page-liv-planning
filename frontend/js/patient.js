@@ -9,6 +9,7 @@ const DEFAULT_FIELD_OPTIONS = {
     { value: "done", label: "Done" },
   ],
   procedure_type: [
+    { value: "sfue", label: "sFUE" },
     { value: "hair", label: "Hair" },
     { value: "beard", label: "Beard" },
     { value: "woman", label: "Woman" },
@@ -19,8 +20,8 @@ const DEFAULT_FIELD_OPTIONS = {
     { value: "big", label: "Big" },
   ],
   agency: [
-    { value: "liv_hair", label: "Liv Hair" },
     { value: "want_hair", label: "Want Hair" },
+    { value: "liv_hair", label: "Liv Hair" },
   ],
   payment: [
     { value: "waiting", label: "Waiting" },

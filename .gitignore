@@ -5,3 +5,4 @@ uploads/
 .env
 livharleystreethospital-google-drive-client_secret.com
 .gitignore
+plan.md

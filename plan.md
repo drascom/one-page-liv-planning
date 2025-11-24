@@ -11,7 +11,7 @@ perform tasks below and mark as done when it is done
 - [x] update procedure_type predefined options as Hair, Beard, Woman, Eyebrow
 - [x] add agency field and sample options are  liv hair and  want hair
 - for agency field set want hair is default
-
+- for procedure type set sFUE is default
 
 
 dont perform task below this line those are  ideas

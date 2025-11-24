@@ -271,6 +271,7 @@ DEFAULT_FIELD_OPTIONS: Dict[str, List[Dict[str, str]]] = {
         {"value": "done", "label": "Done"},
     ],
     "procedure_type": [
+        {"value": "sfue", "label": "sFUE"},
         {"value": "hair", "label": "Hair"},
         {"value": "beard", "label": "Beard"},
         {"value": "woman", "label": "Woman"},
@@ -281,8 +282,8 @@ DEFAULT_FIELD_OPTIONS: Dict[str, List[Dict[str, str]]] = {
         {"value": "big", "label": "Big"},
     ],
     "agency": [
-        {"value": "liv_hair", "label": "Liv Hair"},
         {"value": "want_hair", "label": "Want Hair"},
+        {"value": "liv_hair", "label": "Liv Hair"},
     ],
     "forms": [
         {"value": "form1", "label": "Form 1"},
@@ -1480,32 +1481,20 @@ def _seed_demo_procedures(conn: sqlite3.Connection, patient_ids: List[int], rng:
     """Create demo procedures in November 2025 for seeded patients."""
     if not patient_ids:
         return
-    status_options = [option["value"] for option in DEFAULT_FIELD_OPTIONS["status"]]
-    type_options = [option["value"] for option in DEFAULT_FIELD_OPTIONS["procedure_type"]]
-    package_options = [option["value"] for option in DEFAULT_FIELD_OPTIONS["package_type"]]
-    agency_options = [option["value"] for option in DEFAULT_FIELD_OPTIONS["agency"]]
-    payment_options = [option["value"] for option in DEFAULT_FIELD_OPTIONS["payment"]]
-    start_date = date(2025, 11, 1)
-    for _ in range(10):
-        scheduled_for = start_date + timedelta(days=rng.randrange(30))
-        conn.execute(
-            """
-            INSERT INTO procedures (
-                patient_id, procedure_date, status, procedure_type, package_type, agency, grafts, payment,
-                consultation, forms, consents, photo_files
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '[]', '[]', '[]', '[]')
-            """,
-            (
-                rng.choice(patient_ids),
-                scheduled_for.isoformat(),
-                rng.choice(status_options),
-                rng.choice(type_options),
-                rng.choice(package_options),
-                rng.choice(agency_options),
-                str(rng.randrange(1500, 3500, 100)),
-                rng.choice(payment_options),
-            ),
-        )
+    patient_id = patient_ids[0]
+    scheduled_for = date(2025, 10, 15).isoformat()
+    conn.execute(
+        """
+        INSERT INTO procedures (
+            patient_id, procedure_date, status, procedure_type, package_type, agency, grafts, payment,
+            consultation, forms, consents, photo_files
+        ) VALUES (?, ?, 'reserved', 'sfue', 'small', 'want_hair', '2500', 'waiting', '[]', '[]', '[]', '[]')
+        """,
+        (
+            patient_id,
+            scheduled_for,
+        ),
+    )
     conn.commit()
 
 
@@ -1516,33 +1505,5 @@ DEMO_PATIENTS: List[Dict[str, Any]] = [
         "email": "ava.wallace@example.com",
         "phone": "+44 7700 900001",
         "city": "London",
-    },
-    {
-        "first_name": "Noah",
-        "last_name": "Patel",
-        "email": "noah.patel@example.com",
-        "phone": "+44 7700 900002",
-        "city": "Manchester",
-    },
-    {
-        "first_name": "Isla",
-        "last_name": "Khan",
-        "email": "isla.khan@example.com",
-        "phone": "+44 7700 900003",
-        "city": "Leeds",
-    },
-    {
-        "first_name": "Leo",
-        "last_name": "Campbell",
-        "email": "leo.campbell@example.com",
-        "phone": "+44 7700 900004",
-        "city": "Bristol",
-    },
-    {
-        "first_name": "Maya",
-        "last_name": "Hughes",
-        "email": "maya.hughes@example.com",
-        "phone": "+44 7700 900005",
-        "city": "Cardiff",
-    },
+    }
 ]
