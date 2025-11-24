@@ -23,6 +23,8 @@ def _table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
 FIELD_OPTION_FIELDS: List[str] = [
     "status",
     "procedure_type",
+    "package_type",
+    "agency",
     "forms",
     "consents",
     "consultation",
@@ -110,6 +112,8 @@ def _reset_procedures_table(conn: sqlite3.Connection) -> None:
         "procedure_date",
         "status",
         "procedure_type",
+        "package_type",
+        "agency",
         "grafts",
         "payment",
         "consultation",
@@ -120,8 +124,18 @@ def _reset_procedures_table(conn: sqlite3.Connection) -> None:
         "created_at",
         "updated_at",
     }
-    if columns and columns == desired:
-        return
+    if columns:
+        missing = desired - columns
+        alterable = {"package_type", "agency"}
+        if not missing:
+            return
+        if missing.issubset(alterable):
+            if "package_type" in missing:
+                conn.execute("ALTER TABLE procedures ADD COLUMN package_type TEXT NOT NULL DEFAULT ''")
+            if "agency" in missing:
+                conn.execute("ALTER TABLE procedures ADD COLUMN agency TEXT NOT NULL DEFAULT ''")
+            conn.commit()
+            return
     conn.execute("DROP TABLE IF EXISTS procedures")
     conn.execute("DROP TABLE IF EXISTS surgeries")
     conn.execute(
@@ -132,6 +146,8 @@ def _reset_procedures_table(conn: sqlite3.Connection) -> None:
             procedure_date TEXT,
             status TEXT NOT NULL,
             procedure_type TEXT NOT NULL,
+            package_type TEXT NOT NULL DEFAULT '',
+            agency TEXT NOT NULL DEFAULT '',
             grafts TEXT NOT NULL DEFAULT '',
             payment TEXT NOT NULL,
             consultation TEXT NOT NULL DEFAULT '[]',
@@ -255,10 +271,18 @@ DEFAULT_FIELD_OPTIONS: Dict[str, List[Dict[str, str]]] = {
         {"value": "done", "label": "Done"},
     ],
     "procedure_type": [
-        {"value": "small", "label": "Small"},
-        {"value": "big", "label": "Big"},
+        {"value": "hair", "label": "Hair"},
         {"value": "beard", "label": "Beard"},
         {"value": "woman", "label": "Woman"},
+        {"value": "eyebrow", "label": "Eyebrow"},
+    ],
+    "package_type": [
+        {"value": "small", "label": "Small"},
+        {"value": "big", "label": "Big"},
+    ],
+    "agency": [
+        {"value": "liv_hair", "label": "Liv Hair"},
+        {"value": "want_hair", "label": "Want Hair"},
     ],
     "forms": [
         {"value": "form1", "label": "Form 1"},
@@ -597,6 +621,8 @@ def _row_to_procedure(row: sqlite3.Row) -> Dict[str, Any]:
         "procedure_date": _date_only(row["procedure_date"]),
         "status": row["status"],
         "procedure_type": row["procedure_type"],
+        "package_type": (row["package_type"] if "package_type" in row.keys() else "") or "",
+        "agency": (row["agency"] if "agency" in row.keys() else "") or "",
         "grafts": row["grafts"],
         "payment": row["payment"],
         "consultation": _deserialize_consultation(row["consultation"]),
@@ -928,6 +954,8 @@ def _serialize_procedure_payload(data: Dict[str, Any]) -> Dict[str, Any]:
         "procedure_date": _date_only(data.get("procedure_date")),
         "status": data.get("status", ""),
         "procedure_type": data.get("procedure_type", ""),
+        "package_type": data.get("package_type") or "",
+        "agency": data.get("agency") or "",
         "grafts": data.get("grafts", ""),
         "payment": (data.get("payment") or ""),
         "consultation": json.dumps(consultation_list),
@@ -1089,15 +1117,17 @@ def create_procedure(patient_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
         cursor = conn.execute(
             """
             INSERT INTO procedures (
-                patient_id, procedure_date, status, procedure_type, grafts, payment,
+                patient_id, procedure_date, status, procedure_type, package_type, agency, grafts, payment,
                 consultation, forms, consents, photo_files
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 patient_id,
                 payload["procedure_date"],
                 payload["status"],
                 payload["procedure_type"],
+                payload["package_type"],
+                payload["agency"],
                 payload["grafts"],
                 payload["payment"],
                 payload["consultation"],
@@ -1125,6 +1155,8 @@ def update_procedure(procedure_id: int, data: Dict[str, Any]) -> Optional[Dict[s
                 procedure_date = ?,
                 status = ?,
                 procedure_type = ?,
+                package_type = ?,
+                agency = ?,
                 grafts = ?,
                 payment = ?,
                 consultation = ?,
@@ -1138,6 +1170,8 @@ def update_procedure(procedure_id: int, data: Dict[str, Any]) -> Optional[Dict[s
                 payload["procedure_date"],
                 payload["status"],
                 payload["procedure_type"],
+                payload["package_type"],
+                payload["agency"],
                 payload["grafts"],
                 payload["payment"],
                 payload["consultation"],
@@ -1448,6 +1482,8 @@ def _seed_demo_procedures(conn: sqlite3.Connection, patient_ids: List[int], rng:
         return
     status_options = [option["value"] for option in DEFAULT_FIELD_OPTIONS["status"]]
     type_options = [option["value"] for option in DEFAULT_FIELD_OPTIONS["procedure_type"]]
+    package_options = [option["value"] for option in DEFAULT_FIELD_OPTIONS["package_type"]]
+    agency_options = [option["value"] for option in DEFAULT_FIELD_OPTIONS["agency"]]
     payment_options = [option["value"] for option in DEFAULT_FIELD_OPTIONS["payment"]]
     start_date = date(2025, 11, 1)
     for _ in range(10):
@@ -1455,15 +1491,17 @@ def _seed_demo_procedures(conn: sqlite3.Connection, patient_ids: List[int], rng:
         conn.execute(
             """
             INSERT INTO procedures (
-                patient_id, procedure_date, status, procedure_type, grafts, payment,
+                patient_id, procedure_date, status, procedure_type, package_type, agency, grafts, payment,
                 consultation, forms, consents, photo_files
-            ) VALUES (?, ?, ?, ?, ?, ?, '[]', '[]', '[]', '[]')
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '[]', '[]', '[]', '[]')
             """,
             (
                 rng.choice(patient_ids),
                 scheduled_for.isoformat(),
                 rng.choice(status_options),
                 rng.choice(type_options),
+                rng.choice(package_options),
+                rng.choice(agency_options),
                 str(rng.randrange(1500, 3500, 100)),
                 rng.choice(payment_options),
             ),

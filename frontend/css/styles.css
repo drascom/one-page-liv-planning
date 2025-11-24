@@ -781,24 +781,6 @@ body.app-shell {
   justify-content: flex-end;
 }
 
-.month-controls__year {
-  display: flex;
-  flex-direction: column;
-}
-
-.year-select {
-  border: 1px solid #bae6fd;
-  border-radius: 8px;
-  background: #e0f2fe;
-  color: #0f172a;
-  padding: 0.45rem 0.9rem;
-  font-size: 1rem;
-  font-weight: 600;
-  appearance: none;
-  min-width: 6rem;
-  box-shadow: inset 0 0 0 1px rgba(148, 197, 233, 0.4);
-}
-
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -1391,9 +1373,6 @@ body.app-shell {
   transition: border 0.2s ease, background 0.2s ease, transform 0.15s ease;
 }
 
-.settings-tab + .settings-tab {
-  margin-top: 0.65rem;
-}
 
 .settings-tab__title {
   font-size: 1rem;
@@ -1554,6 +1533,8 @@ body.app-shell {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  padding: 1.5rem clamp(1rem, 3vw, 2rem) 0;
+
 }
 
 .customer-directory__header {
@@ -2749,11 +2730,6 @@ body.app-shell {
     font-size: 1rem;
   }
 
-  .year-select {
-    font-size: 1rem;
-    padding: 0.4rem 1rem 0.4rem 0.75rem;
-  }
-
   .hero__controls-row {
     flex-direction: column;
     align-items: stretch;
@@ -2824,23 +2800,8 @@ body.app-shell {
     grid-column: 3 / 4;
   }
 
-  .month-controls__year {
-    grid-column: 2 / 3;
-    width: 100%;
-    display: flex;
-    justify-content: center;
-  }
-
-  .month-controls__year select {
-    width: 100%;
-  }
-
   #month-today {
     grid-column: 1 / -1;
-    width: 100%;
-  }
-
-  .year-select {
     width: 100%;
   }
 }

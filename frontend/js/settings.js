@@ -27,6 +27,7 @@ const deletedProceduresList = document.getElementById("deleted-procedure-list");
 const deletedProceduresStatus = document.getElementById("deleted-procedures-status");
 const refreshDeletedProceduresBtn = document.getElementById("refresh-deleted-procedures-btn");
 let deletedProceduresCache = [];
+const adminCustomerLinks = document.querySelectorAll("[data-admin-customers]");
 
 initSessionControls();
 
@@ -329,6 +330,18 @@ const FIELD_METADATA = {
     min: 1,
     placeholder: "e.g. Minor Procedure",
   },
+  package_type: {
+    title: "Package Types",
+    description: "Controls the package dropdown on the patient form.",
+    min: 1,
+    placeholder: "e.g. Small",
+  },
+  agency: {
+    title: "Agencies",
+    description: "Track referral agencies for each procedure.",
+    min: 1,
+    placeholder: "e.g. Liv Hair",
+  },
   forms: {
     title: "Forms",
     description: "Checklist requirements for each patient.",
@@ -363,10 +376,18 @@ const FIELD_DEFAULTS = {
     { value: "done", label: "Done" },
   ],
   procedure_type: [
-    { value: "small", label: "Small" },
-    { value: "big", label: "Big" },
+    { value: "hair", label: "Hair" },
     { value: "beard", label: "Beard" },
     { value: "woman", label: "Woman" },
+    { value: "eyebrow", label: "Eyebrow" },
+  ],
+  package_type: [
+    { value: "small", label: "Small" },
+    { value: "big", label: "Big" },
+  ],
+  agency: [
+    { value: "liv_hair", label: "Liv Hair" },
+    { value: "want_hair", label: "Want Hair" },
   ],
   payment: [
     { value: "waiting", label: "Waiting" },
@@ -1217,6 +1238,7 @@ async function initializeSettingsPage() {
   if (!currentUser) {
     return;
   }
+  adminCustomerLinks.forEach((link) => link.removeAttribute("hidden"));
   initializeSettingsTabs();
   initializeFieldOptions();
   if (recoverAllBtn) {

@@ -42,23 +42,13 @@
         </form>
         <div class="top-nav__actions">
           <a class="nav-btn nav-btn--ghost" href="/">Schedule</a>
-          <a class="nav-btn nav-btn--ghost" href="customers.html">Customers</a>
+          <a class="nav-btn nav-btn--ghost" href="customers.html" data-admin-customers hidden>Customers</a>
           <a class="nav-btn nav-btn--ghost" href="settings.html" data-admin-link hidden>Settings</a>
           <button type="button" class="nav-btn nav-btn--primary" data-logout-btn>Logout</button>
         </div>
       </nav>
 
-      <section class="subpage-hero subpage-hero--patient">
-        <div class="subpage-hero__details">
-          <p class="subpage-hero__eyebrow">Patient Profile</p>
-          <h1 id="patient-name">Patient Record</h1>
-          <div class="subpage-hero__meta">
-            <span id="patient-week"></span>
-            <span id="patient-city"></span>
-          </div>
-        </div>
-      </section>
-
+  
     <main class="main-content patient-content new-patient-layout">
       <section class="patient-grid two-column-section">
         <div class="patient-left-column patient-column">
@@ -66,7 +56,7 @@
             <header class="card-header patient-panel__header">
               <div>
                 <p class="settings-section__eyebrow">Patient Details</p>
-                <h2>Patient Details</h2>
+                <h2 id="patient-name">Patient Record</h2>
               </div>
             </header>
             <form id="patient-form" class="patient-form form-layout">
@@ -157,12 +147,20 @@
                   <select id="procedure-type" name="procedureType"></select>
                 </div>
                 <div class="form-group">
+                  <label for="package-type">Package Type</label>
+                  <select id="package-type" name="packageType"></select>
+                </div>
+                <div class="form-group">
                   <label for="grafts">Grafts</label>
                   <input id="grafts" name="grafts" type="text" inputmode="numeric" value="2500" placeholder="e.g. 2500" />
                 </div>
                 <div class="form-group">
                   <label for="payment">Payment</label>
                   <select id="payment" name="payment"></select>
+                </div>
+                <div class="form-group">
+                  <label for="agency">Agency</label>
+                  <select id="agency" name="agency"></select>
                 </div>
               </div>
               <p id="procedure-form-status" class="form-status" role="status"></p>

@@ -75,7 +75,13 @@ audit_router = APIRouter(prefix="/api-requests", tags=["api requests"])
 
 settings = get_settings()
 UPLOAD_ROOT = settings.uploads_root
-REQUIRED_MIN_OPTION_COUNTS: Dict[str, int] = {"status": 1, "procedure_type": 1, "payment": 1}
+REQUIRED_MIN_OPTION_COUNTS: Dict[str, int] = {
+    "status": 1,
+    "procedure_type": 1,
+    "package_type": 1,
+    "agency": 1,
+    "payment": 1,
+}
 
 
 def _coerce_patient_payload(data: dict) -> PatientCreate:

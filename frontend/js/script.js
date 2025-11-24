@@ -15,10 +15,18 @@ const DEFAULT_FIELD_OPTIONS = {
     { value: "done", label: "Done" },
   ],
   procedure_type: [
-    { value: "small", label: "Small" },
-    { value: "big", label: "Big" },
+    { value: "hair", label: "Hair" },
     { value: "beard", label: "Beard" },
     { value: "woman", label: "Woman" },
+    { value: "eyebrow", label: "Eyebrow" },
+  ],
+  package_type: [
+    { value: "small", label: "Small" },
+    { value: "big", label: "Big" },
+  ],
+  agency: [
+    { value: "liv_hair", label: "Liv Hair" },
+    { value: "want_hair", label: "Want Hair" },
   ],
   payment: [
     { value: "waiting", label: "Waiting" },
@@ -136,10 +144,10 @@ const monthPatientCount = document.getElementById("month-patient-count");
 const totalPatientCount = document.getElementById("total-patient-count");
 const monthPrevBtn = document.getElementById("month-prev");
 const monthNextBtn = document.getElementById("month-next");
-const yearSelect = document.getElementById("year-select");
 const todayButton = document.getElementById("month-today");
 const addPatientBtn = document.getElementById("add-patient-btn");
 const settingsLink = document.querySelector("[data-admin-link]");
+const adminCustomerLinks = document.querySelectorAll("[data-admin-customers]");
 const adminTools = document.querySelector("[data-admin-tools]");
 const selectAllCheckbox = document.getElementById("select-all-patients");
 const deleteSelectedBtn = document.getElementById("delete-selected-btn");
@@ -218,6 +226,11 @@ async function initializeAdminControls() {
   }
   if (isAdminUser) {
     settingsLink?.removeAttribute("hidden");
+    adminCustomerLinks.forEach((link) => link.removeAttribute("hidden"));
+    if (addPatientBtn) {
+      addPatientBtn.hidden = false;
+      addPatientBtn.disabled = false;
+    }
     if (adminTools) {
       adminTools.hidden = false;
     }
@@ -228,6 +241,11 @@ async function initializeAdminControls() {
     }
   } else {
     settingsLink?.remove();
+    adminCustomerLinks.forEach((link) => link.remove());
+    if (addPatientBtn) {
+      addPatientBtn.hidden = true;
+      addPatientBtn.disabled = true;
+    }
     adminTools?.remove();
   }
   updateSelectionControlsState();
@@ -629,13 +647,36 @@ function sortSearchMatches(matches, query) {
     .map((entry) => entry.patient);
 }
 
+function getSearchResultIdentifier(patient) {
+  const candidate = Number(patient.patientId ?? patient.id);
+  if (Number.isFinite(candidate)) {
+    return `patient-${candidate}`;
+  }
+  if (patient.patientId || patient.id) {
+    return `patient-${patient.patientId || patient.id}`;
+  }
+  return null;
+}
+
 function renderSearchResults(matches, query = "") {
   if (!searchResultsEl) {
     return;
   }
   searchResultsEl.innerHTML = "";
   const sortedMatches = sortSearchMatches(matches, query);
-  sortedMatches.slice(0, 8).forEach((patient) => {
+  const seenPatients = new Set();
+  const uniqueMatches = [];
+  sortedMatches.forEach((patient) => {
+    const identifier = getSearchResultIdentifier(patient);
+    if (identifier && seenPatients.has(identifier)) {
+      return;
+    }
+    if (identifier) {
+      seenPatients.add(identifier);
+    }
+    uniqueMatches.push(patient);
+  });
+  uniqueMatches.slice(0, 8).forEach((patient) => {
     const item = document.createElement("li");
     item.className = "patient-search__result";
     if (patient.unscheduled) {
@@ -825,18 +866,6 @@ function formatPhotos(value) {
   return value > 0 ? String(value) : "None";
 }
 
-function formatConsultation(value) {
-  const list = Array.isArray(value)
-    ? value
-    : value
-      ? [value]
-      : [];
-  if (!list.length) {
-    return "—";
-  }
-  return list.map((entry) => getOptionLabel("consultation", entry)).join(", ");
-}
-
 function formatMonthLabelFromDate(date) {
   return MONTH_FORMATTER.format(new Date(date.getFullYear(), date.getMonth(), 1));
 }
@@ -892,24 +921,9 @@ function getWeekMetaForDate(date) {
   };
 }
 
-function updateYearOptions(centerYear = selectedDate.getFullYear()) {
-  if (!yearSelect) {
-    return;
-  }
-  const span = 5;
-  const years = [];
-  for (let year = centerYear - span; year <= centerYear + span; year += 1) {
-    years.push(year);
-  }
-  yearSelect.innerHTML = years.map((year) => `<option value="${year}">${year}</option>`).join("");
-}
-
 function updateControlState() {
   if (todayButton) {
     todayButton.disabled = false;
-  }
-  if (yearSelect) {
-    yearSelect.disabled = false;
   }
 }
 
@@ -939,17 +953,6 @@ function renderSelectedMonth() {
     monthDisplay.textContent = selectedLabel;
   }
   const currentMonth = sourceSchedules.find((month) => month.label === selectedLabel);
-
-  if (yearSelect) {
-    const selectedYear = selectedDate.getFullYear();
-    const optionExists = Array.from(yearSelect.options).some(
-      (option) => Number(option.value) === selectedYear
-    );
-    if (!optionExists) {
-      updateYearOptions(selectedYear);
-    }
-    yearSelect.value = String(selectedYear);
-  }
 
   scheduleEl.innerHTML = "";
   if (!currentMonth?.weeks?.length) {
@@ -1026,15 +1029,6 @@ function handleNextMonth() {
   renderSelectedMonth();
 }
 
-function handleYearChange(event) {
-  const selectedYear = Number(event.target.value);
-  if (!Number.isFinite(selectedYear)) {
-    return;
-  }
-  selectedDate = new Date(selectedYear, selectedDate.getMonth(), 1);
-  renderSelectedMonth();
-}
-
 function handleTodayClick() {
   const today = new Date();
   selectedDate = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -1043,8 +1037,10 @@ function handleTodayClick() {
 
 function buildDefaultPatientPayloads() {
   const defaultStatus = getDefaultFieldValue("status", "reserved");
-  const defaultProcedure = getDefaultFieldValue("procedure_type", "small");
+  const defaultProcedure = getDefaultFieldValue("procedure_type", "hair");
+  const defaultPackageType = getDefaultFieldValue("package_type", "small");
   const defaultPayment = getDefaultFieldValue("payment", "waiting");
+  const defaultAgency = getDefaultFieldValue("agency", "liv_hair");
 
   const patientPayload = {
     first_name: "New",
@@ -1058,8 +1054,10 @@ function buildDefaultPatientPayloads() {
     procedure_date: formatLocalISODate(selectedDate),
     status: defaultStatus,
     procedure_type: defaultProcedure,
+    package_type: defaultPackageType,
     grafts: "",
     payment: defaultPayment,
+    agency: defaultAgency,
     consultation: [],
     forms: [],
     consents: [],
@@ -1071,7 +1069,7 @@ function buildDefaultPatientPayloads() {
 }
 
 async function handleAddPatientClick() {
-  if (isCreatingPatient) {
+  if (!isAdminUser || isCreatingPatient) {
     return;
   }
   isCreatingPatient = true;
@@ -1432,12 +1430,19 @@ function renderWeek(week) {
 
       const formsComplete = hasCompletedChecklist("forms", day.forms);
       const consentsComplete = hasCompletedChecklist("consents", day.consents);
+      const consultationComplete = hasCompletedChecklist("consultation", day.consultation);
       const formsCell = createCheckCell(formsComplete, "Forms", formatChecklistCount("forms", day.forms));
-      const consentsCell = createCheckCell(consentsComplete, "Consents", formatChecklistCount("consents", day.consents));
-      const consultationCell = document.createElement("td");
-      consultationCell.textContent = formatConsultation(day.consultation);
+      const consentsCell = createCheckCell(
+        consentsComplete,
+        "Consents",
+        formatChecklistCount("consents", day.consents)
+      );
+      const consultationCell = createCheckCell(
+        consultationComplete,
+        "Consulted",
+        formatChecklistCount("consultation", day.consultation)
+      );
       consultationCell.classList.add("col-consult");
-      consultationCell.dataset.label = "Consulted";
 
       const paymentCell = document.createElement("td");
       paymentCell.textContent = getOptionLabel("payment", day.payment) || day.payment;
@@ -1484,9 +1489,6 @@ if (monthPrevBtn) {
 }
 if (monthNextBtn) {
   monthNextBtn.addEventListener("click", handleNextMonth);
-}
-if (yearSelect) {
-  yearSelect.addEventListener("change", handleYearChange);
 }
 if (todayButton) {
   todayButton.addEventListener("click", handleTodayClick);
@@ -1578,7 +1580,6 @@ async function initializeSchedule() {
         setSelectedDateFromTarget(matchingMonth.date);
       }
     }
-    updateYearOptions(selectedDate.getFullYear());
     updateTotalPatients(normalizedProcedures.length);
     if (pendingGlobalSearch) {
       if (searchInput) {

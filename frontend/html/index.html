@@ -38,7 +38,7 @@
         <ul class="patient-search__results" id="patient-search-results" role="listbox"></ul>
       </form>
       <div class="top-nav__actions">
-        <a class="nav-btn nav-btn--ghost" href="customers.html">Customers</a>
+        <a class="nav-btn nav-btn--ghost" href="customers.html" data-admin-customers hidden>Customers</a>
         <a class="nav-btn nav-btn--ghost" href="settings.html" data-admin-link hidden>Settings</a>
         <button type="button" class="nav-btn nav-btn--primary" data-logout-btn>Logout</button>
       </div>
@@ -55,15 +55,13 @@
           <div class="current-date-display" id="current-month-label">Loading...</div>
         </div>
         <div class="controls-bar__secondary">
-          <label class="visually-hidden" for="year-select">Select year</label>
-          <select id="year-select" class="year-select" aria-label="Select year"></select>
           <div class="controls-bar__badges">
             <span class="control-badge" id="calendar-month-patients"></span>
             <span class="control-badge">
               Total: <span id="total-patient-count"></span>
             </span>
           </div>
-          <button type="button" class="add-btn" id="add-patient-btn">
+          <button type="button" class="add-btn" id="add-patient-btn" hidden>
             <span aria-hidden="true">＋</span>
             Add Patient
           </button>
@@ -99,7 +97,7 @@
                 <th class="col-grafts">Grafts</th>
                 <th class="col-check">Forms</th>
                 <th class="col-check">Consents</th>
-                <th class="col-consult">Consulted</th>
+                <th class="col-check col-consult">Consulted</th>
                 <th class="col-payment">Payment</th>
                 <th class="col-photos">Photos</th>
               </tr>

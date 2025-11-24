@@ -164,7 +164,7 @@ curl -X POST "http://127.0.0.1:8000/api/v1/procedures" \
   -d '{
     "patient_id": 4,
     "procedure_date": "2025-01-02",
-    "procedure_type": "small",
+    "procedure_type": "hair",
     "status": "reserved",
     "grafts": "",
     "payment": "waiting",
@@ -207,7 +207,7 @@ curl -X POST "http://127.0.0.1:8000/api/v1/procedures" \
   -d '{
     "patient_id": 123,
     "procedure_date": "2025-02-12",
-    "procedure_type": "small",
+    "procedure_type": "hair",
     "status": "reserved",
     "grafts": "",
     "payment": "waiting",
@@ -285,7 +285,7 @@ curl -X PUT "http://127.0.0.1:8000/api/v1/procedures/456" \
   -d '{
     "patient_id": 123,
     "procedure_date": "2025-02-12",
-    "procedure_type": "small",
+    "procedure_type": "hair",
     "status": "confirmed",
     "grafts": "",
     "payment": "paid",

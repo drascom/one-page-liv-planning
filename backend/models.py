@@ -56,6 +56,8 @@ class ProcedureBase(BaseModel):
     procedure_date: str = Field(..., description="ISO date for the scheduled procedure")
     status: str = Field(..., description="Procedure workflow status")
     procedure_type: str = Field(..., description="Buckets used to filter procedures")
+    package_type: Optional[str] = Field(None, description="Package/bundle selection for the procedure")
+    agency: Optional[str] = Field(None, description="Agency or referral source for the procedure")
     grafts: str = Field(..., description="Number of grafts or imported numeric detail")
     payment: Optional[str] = Field(None, description="Payment collection status")
     consultation: List[str] = Field(default_factory=list, description="Consultations recorded for the procedure")
@@ -253,10 +255,10 @@ class UserRoleUpdate(BaseModel):
 
 # Legacy Procedure models - kept for backward compatibility with procedure_bookings table
 class ProcedureType(str, Enum):
-    SMALL = "small"
-    BIG = "big"
+    HAIR = "hair"
     BEARD = "beard"
     WOMAN = "woman"
+    EYEBROW = "eyebrow"
 
 
 class ProcedureStatus(str, Enum):

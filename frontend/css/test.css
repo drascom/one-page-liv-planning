@@ -101,7 +101,7 @@ body {
 /* Main Content Layout */
 .main-content {
     flex-grow: 1;
-    padding: 2rem;
+    padding: 1.3rem;
     max-width: 1300px;
     margin: 0 auto;
     width: 100%;

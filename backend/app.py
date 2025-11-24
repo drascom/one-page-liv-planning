@@ -204,13 +204,6 @@ def serve_index(request: Request):
     return FileResponse(settings.html_root / "index.html")
 
 
-@app.get("/index-test.html", include_in_schema=False)
-def serve_index_test(request: Request):
-    if not get_current_user(request):
-        return _redirect_to_login(request)
-    return FileResponse(settings.html_root / "index-test.html")
-
-
 @app.get("/patient.html", include_in_schema=False)
 def serve_patient(request: Request):
     if not get_current_user(request):

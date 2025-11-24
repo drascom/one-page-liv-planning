@@ -9,11 +9,18 @@ const DEFAULT_FIELD_OPTIONS = {
     { value: "done", label: "Done" },
   ],
   procedure_type: [
-    { value: "small", label: "Small" },
-    { value: "big", label: "Big" },
-    { value: "consultation", label: "Consultation" },
+    { value: "hair", label: "Hair" },
     { value: "beard", label: "Beard" },
     { value: "woman", label: "Woman" },
+    { value: "eyebrow", label: "Eyebrow" },
+  ],
+  package_type: [
+    { value: "small", label: "Small" },
+    { value: "big", label: "Big" },
+  ],
+  agency: [
+    { value: "liv_hair", label: "Liv Hair" },
+    { value: "want_hair", label: "Want Hair" },
   ],
   payment: [
     { value: "waiting", label: "Waiting" },
@@ -115,7 +122,9 @@ function populateSelectOptions(selectEl, field, { multiple = false } = {}) {
 function renderOptionControls() {
   populateSelectOptions(statusSelect, "status");
   populateSelectOptions(procedureSelect, "procedure_type");
+  populateSelectOptions(packageTypeSelect, "package_type");
   populateSelectOptions(paymentSelect, "payment");
+  populateSelectOptions(agencySelect, "agency");
   populateSelectOptions(consultationSelect, "consultation", { multiple: true });
   buildConsultationsChecklist();
   populateSelectOptions(formsSelect, "forms", { multiple: true });
@@ -204,6 +213,7 @@ const formStatusEl = document.getElementById("form-status");
 const patientStatusEl = document.getElementById("patient-status");
 const procedureFormStatusEl = document.getElementById("procedure-form-status");
 const settingsLink = document.querySelector("[data-admin-link]");
+const adminCustomerLinks = document.querySelectorAll("[data-admin-customers]");
 const deletePatientBtn = document.getElementById("delete-patient-btn");
 const addProcedureBtn = document.getElementById("add-procedure-btn");
 const cancelProcedureBtn = document.getElementById("cancel-procedure-btn");
@@ -216,8 +226,10 @@ const phoneInput = document.getElementById("phone");
 const cityInput = document.getElementById("city");
 const statusSelect = document.getElementById("status");
 const procedureSelect = document.getElementById("procedure-type");
+const packageTypeSelect = document.getElementById("package-type");
 const graftsInput = document.getElementById("grafts");
 const paymentSelect = document.getElementById("payment");
+const agencySelect = document.getElementById("agency");
 const consultationSelect = document.getElementById("consultation");
 const consultationsChecklist = document.getElementById("consultations-checklist");
 const formsSelect = document.getElementById("forms");
@@ -328,8 +340,14 @@ function clearProcedureForm() {
   procedureDateInput.value = "";
   statusSelect.value = getFieldOptions("status")[0]?.value || "";
   procedureSelect.value = getFieldOptions("procedure_type")[0]?.value || "";
+  if (packageTypeSelect) {
+    packageTypeSelect.value = getFieldOptions("package_type")[0]?.value || "";
+  }
   graftsInput.value = "";
   paymentSelect.value = getFieldOptions("payment")[0]?.value || "";
+  if (agencySelect) {
+    agencySelect.value = getFieldOptions("agency")[0]?.value || "";
+  }
   setMultiValue(consultationSelect, []);
   refreshConsultationsChecklist();
   setMultiValue(formsSelect, []);
@@ -350,8 +368,14 @@ function populateProcedureForm(procedure) {
   procedureDateInput.value = procedure.procedure_date || "";
   statusSelect.value = procedure.status || getFieldOptions("status")[0]?.value || "";
   procedureSelect.value = procedure.procedure_type || getFieldOptions("procedure_type")[0]?.value || "";
+  if (packageTypeSelect) {
+    packageTypeSelect.value = procedure.package_type || getFieldOptions("package_type")[0]?.value || "";
+  }
   graftsInput.value = procedure.grafts || "";
   paymentSelect.value = procedure.payment || getFieldOptions("payment")[0]?.value || "";
+  if (agencySelect) {
+    agencySelect.value = procedure.agency || getFieldOptions("agency")[0]?.value || "";
+  }
   if (consultationSelect) {
     const selectedConsultations = Array.isArray(procedure.consultation)
       ? procedure.consultation
@@ -721,14 +745,24 @@ function renderRelatedBookings(entries) {
   });
 }
 
+function getActiveProcedureButton() {
+  if (!bookingListEl) {
+    return null;
+  }
+  if (activeProcedure?.id) {
+    const button = bookingListEl.querySelector(`.settings-tab[data-procedure-id="${activeProcedure.id}"]`);
+    if (button) {
+      return button;
+    }
+  }
+  return bookingListEl.querySelector(".settings-tab.is-active");
+}
+
 function updateActiveProcedureTitle(dateValue) {
-  if (!bookingListEl || !activeProcedure) {
+  if (!bookingListEl) {
     return;
   }
-  const activeButton =
-    (activeProcedure.id &&
-      bookingListEl.querySelector(`.settings-tab[data-procedure-id="${activeProcedure.id}"]`)) ||
-    bookingListEl.querySelector(".settings-tab.is-active");
+  const activeButton = getActiveProcedureButton();
   if (!activeButton) {
     return;
   }
@@ -887,8 +921,10 @@ function buildProcedurePayloadFromForm() {
     procedure_date: procedureDateInput.value || base.procedure_date || "",
     status: statusSelect.value,
     procedure_type: procedureSelect.value,
+    package_type: packageTypeSelect?.value || "",
     grafts: graftsInput.value.trim(),
     payment: paymentSelect.value,
+    agency: agencySelect?.value || "",
     consultation: collectMultiValue(consultationSelect),
     forms: collectMultiValue(formsSelect),
     consents: collectMultiValue(consentsSelect),
@@ -1150,13 +1186,27 @@ function refreshDeleteButtonState() {
 }
 
 function handleProcedureDateInputChange() {
-  if (!activeProcedure || !procedureDateInput) {
+  if (!procedureDateInput) {
     return;
   }
   const nextValue = procedureDateInput.value || "";
-  activeProcedure.procedure_date = nextValue;
+  if (!activeProcedure) {
+    const activeButton = getActiveProcedureButton();
+    const fallbackId = activeButton ? Number(activeButton.dataset.procedureId) : null;
+    if (Number.isFinite(fallbackId)) {
+      const fallback = patientProcedures.find((procedure) => procedure.id === fallbackId);
+      if (fallback) {
+        activeProcedure = fallback;
+      }
+    }
+  }
+  if (activeProcedure) {
+    activeProcedure.procedure_date = nextValue;
+  }
   updateActiveProcedureTitle(nextValue);
-  renderRelatedBookings(patientProcedures);
+  if (activeProcedure) {
+    renderRelatedBookings(patientProcedures);
+  }
 }
 
 async function handleDeleteProcedure() {
@@ -1249,6 +1299,9 @@ async function initializePatientPage() {
   isAdminUser = Boolean(user?.is_admin);
   if (isAdminUser) {
     settingsLink?.removeAttribute("hidden");
+    adminCustomerLinks.forEach((link) => link.removeAttribute("hidden"));
+  } else {
+    adminCustomerLinks.forEach((link) => link.remove());
   }
   refreshDeleteButtonState();
   await fetchPatient();
