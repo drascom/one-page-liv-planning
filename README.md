@@ -94,7 +94,7 @@ If you are behind nginx proxy manager with ssl certificate than use
 | POST | `/patients/` | Create a patient |
 | GET/PUT | `/patients/{id}` | Fetch or update a patient record |
 | DELETE | `/patients/{id}` | Delete a patient (admin session only) |
-| GET | `/procedures/` | List procedures (filter by `patient_id` when needed) |
+| GET | `/procedures/` | List procedures (filter by `patient_id` when needed) or include a JSON body with `procedure_id` to return that single record while reusing the collection route. |
 | POST | `/procedures/` | Create a procedure linked to a patient |
 | GET/PUT | `/procedures/{id}` | Fetch or update a procedure |
 | DELETE | `/procedures/{id}` | Delete a procedure |
@@ -114,6 +114,15 @@ If you are behind nginx proxy manager with ssl certificate than use
 | GET | `/api/v1/search?full_name=name%20Surname` | External-only endpoint that finds a patient by full name and returns `{ "success": true, "patient": { ... } }` (with `id`/`surgery_date` for backwards compatibility) or `{ "success": false, "message": "Patient record not found" }`. |
 
 **Trailing slash:** The collection routes under `/api/v1` (for example `/patients/` and `/procedures/`) are registered with FastAPI's trailing-slash path. Requests that omit the slash (`/patients` without `/`) return a `307 Temporary Redirect`, so include the trailing slash in HTTP clients to reach the handler directly.
+
+When calling `GET /api/v1/procedures/`, you may optionally send a JSON body such as `{ "procedure_id": 1063 }`. When the body contains `procedure_id`, the endpoint returns only that procedure (still wrapped in the usual array) while other clients keep calling the route with an empty body to enumerate every record.
+
+```bash
+curl -X GET "http://127.0.0.1:8000/api/v1/procedures/" \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"procedure_id": 1063}'
+```
 
 ### Sample patient requests
 
