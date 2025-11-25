@@ -100,7 +100,6 @@ If you are behind nginx proxy manager with ssl certificate than use
 | DELETE | `/procedures/{id}` | Delete a procedure |
 | POST | `/api/v1/procedures/search-by-meta` | Provide patient name/date metadata to retrieve a matching procedure id (use `DELETE /procedures/{id}` afterward). |
 | GET | `/procedures/search` | Provide `procedure_id` to fetch a procedure directly, or supply `patient_id` (optionally `procedure_date=YYYY-MM-DD`) to locate a patient's procedure. Returns `{ "success": true, "procedure": { ... } }` or `{ "success": false, "message": "Procedure not found" }`. |
-| GET | `/patients/{id}/procedures` | Return `{ "success": true, "procedures": [ ... ] }` when the patient has linked procedures or `{ "success": false, "message": "No procedures found for this patient.", "procedures": [] }` |
 | GET/POST/DELETE | `/patients/{id}/photos` | List/create/delete photo metadata (files land in `/uploads`) |
 | GET/POST/DELETE | `/patients/{id}/payments` | Manage patient payments |
 | POST | `/uploads/{last_name}` | Upload photos for a patient |
@@ -114,12 +113,14 @@ If you are behind nginx proxy manager with ssl certificate than use
 | GET/POST/DELETE | `/api-tokens` | Manage integration tokens scoped to the current admin user |
 | GET | `/api/v1/search?full_name=name%20Surname` | External-only endpoint that finds a patient by full name and returns `{ "success": true, "patient": { ... } }` (with `id`/`surgery_date` for backwards compatibility) or `{ "success": false, "message": "Patient record not found" }`. |
 
+**Trailing slash:** The collection routes under `/api/v1` (for example `/patients/` and `/procedures/`) are registered with FastAPI's trailing-slash path. Requests that omit the slash (`/patients` without `/`) return a `307 Temporary Redirect`, so include the trailing slash in HTTP clients to reach the handler directly.
+
 ### Sample patient requests
 
 Create a patient (internal session cookie example):
 
 ```bash
-curl -X POST "http://127.0.0.1:8000/api/v1/patients" \
+curl -X POST "http://127.0.0.1:8000/api/v1/patients/" \
   -H "Authorization: Bearer SfTcDiRknE4NcRnlm50TEeH9zR6SkgQvjYA6kV0RRj32PnsF" \
   -H "Content-Type: application/json" \
   -d '{
@@ -159,7 +160,7 @@ Patient updates return `200 OK` with `{ "success": true, "id": 123, "message": "
 Create a procedure for an existing patient (only `patient_id`, `procedure_date`, `procedure_type`, `status`, and `grafts` are required; the other fields are optional and default to empty values):
 
 ```bash
-curl -X POST "http://127.0.0.1:8000/api/v1/procedures" \
+curl -X POST "http://127.0.0.1:8000/api/v1/procedures/" \
   -H "Authorization: Bearer SfTcDiRknE4NcRnlm50TEeH9zR6SkgQvjYA6kV0RRj32PnsF" \
   -H "Content-Type: application/json" \
   -d '{
@@ -187,7 +188,7 @@ The snippets below show how to call the `/api/v1` endpoints directly using the A
 Create a patient via the token-protected API:
 
 ```bash
-curl -X POST "http://127.0.0.1:8000/api/v1/patients" \
+curl -X POST "http://127.0.0.1:8000/api/v1/patients/" \
   -H "Authorization: Bearer f1iUbTg7yfh1cdncn2SWcq3t1eiQZZQUHmVZS3jPIrOiquyx" \
   -H "Content-Type: application/json" \
   -d '{
@@ -213,7 +214,7 @@ Replace the example token (`YOUR_API_TOKEN`) with an API token generated from **
 2. **Create a patient** — _Required JSON fields: `first_name`, `last_name`, `email`, `phone`, `city`._
 
    ```bash
-   curl -X POST "http://127.0.0.1:8000/api/v1/patients" \
+   curl -X POST "http://127.0.0.1:8000/api/v1/patients/" \
      -H "Authorization: Bearer YOUR_API_TOKEN" \
      -H "Content-Type: application/json" \
      -d '{
@@ -254,10 +255,10 @@ Replace the example token (`YOUR_API_TOKEN`) with an API token generated from **
 
 5. **Create a procedure** — _Required JSON fields: `patient_id`, `procedure_date`, `procedure_type`, `status`, `grafts`. Optional fields: `package_type`, `agency`, `payment`, `consultation`, `forms`, `consents`, `photo_files`. The API accepts json arrays for the list fields and plain strings for the others._
 
-   ```bash
-   curl -X POST "http://127.0.0.1:8000/api/v1/procedures" \
-     -H "Authorization: Bearer YOUR_API_TOKEN" \
-     -H "Content-Type: application/json" \
+  ```bash
+  curl -X POST "http://127.0.0.1:8000/api/v1/procedures/" \
+    -H "Authorization: Bearer YOUR_API_TOKEN" \
+    -H "Content-Type: application/json" \
      -d '{
        "patient_id": 123,
        "procedure_date": "2025-01-02",
@@ -297,7 +298,7 @@ Replace the example token (`YOUR_API_TOKEN`) with an API token generated from **
 Create a procedure linked to the new patient (replace `123` with the patient id returned above). Just like the admin example above, only `patient_id`, `procedure_date`, `procedure_type`, `status`, and `grafts` are required:
 
 ```bash
-curl -X POST "http://127.0.0.1:8000/api/v1/procedures" \
+curl -X POST "http://127.0.0.1:8000/api/v1/procedures/" \
   -H "Authorization: Bearer f1iUbTg7yfh1cdncn2SWcq3t1eiQZZQUHmVZS3jPIrOiquyx" \
   -H "Content-Type: application/json" \
   -d '{
@@ -331,19 +332,6 @@ curl -X POST "http://127.0.0.1:8000/api/v1/procedures/search-by-meta" \
 ```
 
 The response includes `{ "success": true, "procedure_id": 42 }` when a matching record is found (you can then call `DELETE /procedures/42`), or `{ "success": false, "message": "Procedure not found" }` when no match exists.
-```
-
-List all procedures for a patient (the API now includes a friendly message when none exist):
-
-```bash
-curl -X GET "http://127.0.0.1:8000/api/v1/patients/123/procedures" \
-  -H "Authorization: Bearer f1iUbTg7yfh1cdncn2SWcq3t1eiQZZQUHmVZS3jPIrOiquyx"
-```
-
-Sample empty response:
-
-```json
-{ "success": false, "message": "No procedures found for this patient.", "procedures": [] }
 ```
 
 Check whether a patient already has a procedure scheduled on a specific date:
