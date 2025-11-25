@@ -467,29 +467,8 @@ def import_patients(payload: List[PatientCreate]) -> List[Patient]:
 
 
 @procedures_router.get("/", response_model=List[Procedure])
-async def list_procedures_route(
-    request: Request,
-    patient_id: Optional[int] = Query(None),
-) -> List[Procedure]:
+def list_procedures_route(patient_id: Optional[int] = Query(None)) -> List[Procedure]:
     """Return every stored procedure, optionally filtered by patient."""
-    procedure_id: Optional[int] = None
-    body_bytes = await request.body()
-    if body_bytes:
-        try:
-            payload = json.loads(body_bytes)
-        except json.JSONDecodeError:
-            payload = {}
-        if isinstance(payload, dict):
-            procedure_id = payload.get("procedure_id")
-
-    if procedure_id is not None:
-        record = database.fetch_procedure(procedure_id)
-        if not record:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found"
-            )
-        return [Procedure(**record)]
-
     records = database.list_procedures(patient_id=patient_id)
     return [Procedure(**record) for record in records]
 
