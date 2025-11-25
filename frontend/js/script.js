@@ -152,7 +152,7 @@ const adminCustomerLinks = document.querySelectorAll("[data-admin-customers]");
 const adminTools = document.querySelector("[data-admin-tools]");
 const selectAllCheckbox = document.getElementById("select-all-patients");
 const deleteSelectedBtn = document.getElementById("delete-selected-btn");
-const toastContainer = document.getElementById("toast-container");
+const connectionIndicator = document.getElementById("connection-indicator");
 const activityFeedEl = document.getElementById("activity-feed");
 const activityStatusEl = document.getElementById("activity-connection-status");
 const conflictBanner = document.getElementById("conflict-banner");
@@ -185,7 +185,7 @@ if (searchClearBtn) {
 }
 
 renderActivityFeed();
-setActivityStatus("Offline");
+setActivityStatus("Offline", "offline");
 
 (async function bootstrap() {
   await initializeAdminControls();
@@ -232,23 +232,6 @@ function setScheduleStatus(message) {
   paragraph.className = "schedule__status";
   paragraph.textContent = message;
   scheduleEl.appendChild(paragraph);
-}
-
-function showToast(message, variant = "info") {
-  if (!toastContainer) {
-    return;
-  }
-  const toast = document.createElement("div");
-  toast.className = `toast toast--${variant}`;
-  toast.textContent = message;
-  toastContainer.appendChild(toast);
-  const removeToast = () => {
-    if (toast.parentElement) {
-      toast.parentElement.removeChild(toast);
-    }
-  };
-  toast.addEventListener("click", removeToast);
-  setTimeout(removeToast, 4500);
 }
 
 function formatActivityTime(value) {
@@ -383,9 +366,19 @@ function renderActivityFeed() {
   });
 }
 
-function setActivityStatus(text) {
+function updateConnectionIndicator(state) {
+  if (!connectionIndicator) {
+    return;
+  }
+  connectionIndicator.classList.toggle("connection-indicator--live", state === "live");
+}
+
+function setActivityStatus(text, connectionState) {
   if (activityStatusEl) {
     activityStatusEl.textContent = text;
+  }
+  if (typeof connectionState === "string") {
+    updateConnectionIndicator(connectionState);
   }
 }
 
@@ -1954,16 +1947,15 @@ function initializeRealtimeChannel() {
     realtimeSocket = new WebSocket(wsUrl);
   } catch (error) {
     console.error("Unable to open realtime channel", error);
-    setActivityStatus("Offline");
+    setActivityStatus("Offline", "offline");
     return;
   }
   realtimeConnectionState = "connecting";
-  setActivityStatus("Connecting…");
+  setActivityStatus("Connecting…", "offline");
   realtimeSocket.addEventListener("open", () => {
     realtimeConnectionState = "open";
     realtimeRetryDelay = 0;
-    setActivityStatus("Live");
-    showToast("Live updates connected", "success");
+    setActivityStatus("Live", "live");
   });
   realtimeSocket.addEventListener("message", (event) => {
     try {
@@ -1975,7 +1967,7 @@ function initializeRealtimeChannel() {
   });
   realtimeSocket.addEventListener("close", () => {
     realtimeConnectionState = "closed";
-    setActivityStatus("Reconnecting…");
+    setActivityStatus("Reconnecting…", "offline");
     scheduleRealtimeReconnect();
   });
   realtimeSocket.addEventListener("error", (error) => {
@@ -2011,9 +2003,6 @@ function handleRealtimeMessage(payload) {
     renderActivityFeed();
     return;
   }
-  const variant =
-    payload.action === "deleted" ? "warning" : payload.action === "created" ? "success" : "info";
-  showToast(payload.summary || "Schedule updated", variant);
   addActivityEvent(payload);
   if (payload.entity === "procedure") {
     handleProcedureRealtimeEvent(payload);
