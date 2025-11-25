@@ -121,7 +121,11 @@ async def _emit_patient_event(action: str, patient: dict, request: Request) -> N
         action=action,
         entity_id=patient.get("id"),
         summary=summary,
-        data={"patient_id": patient.get("id"), "deleted": patient.get("deleted", False)},
+        data={
+            "patient_id": patient.get("id"),
+            "deleted": patient.get("deleted", False),
+            "patient_name": _patient_label(patient),
+        },
     )
 
 
@@ -147,6 +151,7 @@ async def _emit_procedure_event(
             "patient_id": procedure.get("patient_id"),
             "procedure_date": procedure.get("procedure_date"),
             "deleted": bool(procedure.get("deleted")),
+            "patient_name": _patient_label(patient_record),
         },
     )
 

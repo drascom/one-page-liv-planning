@@ -288,6 +288,13 @@ body.app-shell {
   color: #0f172a;
 }
 
+.activity-entry__link {
+  color: #1d4ed8;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .activity-entry__actor {
   font-size: 0.85rem;
   color: #475569;

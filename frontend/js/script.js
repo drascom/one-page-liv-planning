@@ -259,6 +259,78 @@ function formatActivityTime(value) {
   return TIME_FORMATTER.format(date);
 }
 
+function handleActivityNavigation(payload = {}) {
+  const normalizedPatientId = Number(payload.patientId);
+  if (!Number.isFinite(normalizedPatientId)) {
+    return;
+  }
+  const patientName = payload.patientName || "";
+  const procedureId = Number(payload.procedureId);
+  const procedureDate = payload.procedureDate || "";
+  const metadata = buildScheduleMetadataFromDate(procedureDate);
+  const context = {
+    patientId: normalizedPatientId,
+    patient: patientName,
+    weekLabel: metadata.weekLabel,
+    weekRange: metadata.weekRange || metadata.monthLabel || "",
+    day: metadata.dayLabel,
+    monthLabel: metadata.monthLabel,
+    procedureDate,
+    procedureId: Number.isFinite(procedureId) ? procedureId : null,
+    capturedAt: new Date().toISOString(),
+  };
+  persistActivePatientContext(context);
+  const params = new URLSearchParams();
+  params.set("id", String(context.patientId));
+  if (context.patient) {
+    params.set("patient", context.patient);
+  }
+  if (context.procedureId) {
+    params.set("procedure", String(context.procedureId));
+  }
+  window.location.href = `patient.html?${params.toString()}`;
+}
+
+function createActivityLink(text, onClick) {
+  const link = document.createElement("a");
+  link.href = "#";
+  link.className = "activity-entry__link";
+  link.textContent = text;
+  link.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onClick();
+  });
+  return link;
+}
+
+function appendDescriptorWithProcedureLink(container, descriptor, navigationPayload) {
+  if (!descriptor) {
+    return;
+  }
+  const keyword = "procedure";
+  const keywordIndex = navigationPayload.procedureId
+    ? descriptor.toLowerCase().indexOf(keyword)
+    : -1;
+  if (keywordIndex >= 0) {
+    const before = descriptor.slice(0, keywordIndex);
+    const keywordText = descriptor.slice(keywordIndex, keywordIndex + keyword.length);
+    const after = descriptor.slice(keywordIndex + keyword.length);
+    if (before) {
+      container.appendChild(document.createTextNode(before));
+    }
+    const procedureLink = createActivityLink(keywordText, () =>
+      handleActivityNavigation(navigationPayload)
+    );
+    container.appendChild(procedureLink);
+    if (after) {
+      container.appendChild(document.createTextNode(after));
+    }
+    return;
+  }
+  container.appendChild(document.createTextNode(descriptor));
+}
+
 function renderActivityFeed() {
   if (!activityFeedEl) {
     return;
@@ -271,14 +343,34 @@ function renderActivityFeed() {
     activityFeedEl.appendChild(placeholder);
     return;
   }
-  activityEvents.slice(0, 12).forEach((event) => {
+  activityEvents.slice(0, 10).forEach((event) => {
     const item = document.createElement("li");
     item.className = "activity-entry";
     const meta = document.createElement("div");
     meta.className = "activity-entry__meta";
+    const summaryText = event.summary || "Schedule updated";
+    const patientIdValue = Number(event.data?.patient_id);
+    const procedureIdValue = Number(event.data?.procedure_id);
+    const navigationPayload = {
+      patientId: Number.isFinite(patientIdValue) ? patientIdValue : null,
+      patientName: event.data?.patient_name || "",
+      procedureId: Number.isFinite(procedureIdValue) ? procedureIdValue : null,
+      procedureDate: event.data?.procedure_date || "",
+    };
     const summary = document.createElement("div");
     summary.className = "activity-entry__summary";
-    summary.textContent = event.summary || "Schedule updated";
+    const hasPatientContext =
+      Number.isFinite(navigationPayload.patientId) && navigationPayload.patientName;
+    if (hasPatientContext) {
+      const patientLink = createActivityLink(navigationPayload.patientName, () =>
+        handleActivityNavigation(navigationPayload)
+      );
+      summary.appendChild(patientLink);
+      const descriptor = summaryText.slice(navigationPayload.patientName.length);
+      appendDescriptorWithProcedureLink(summary, descriptor, navigationPayload);
+    } else {
+      summary.textContent = summaryText;
+    }
     const actor = document.createElement("div");
     actor.className = "activity-entry__actor";
     actor.textContent = `by ${event.actor || "Another user"}`;
@@ -302,8 +394,8 @@ function addActivityEvent(event) {
     return;
   }
   activityEvents.unshift(event);
-  if (activityEvents.length > 20) {
-    activityEvents.length = 20;
+  if (activityEvents.length > 10) {
+    activityEvents.length = 10;
   }
   renderActivityFeed();
 }
@@ -1915,7 +2007,7 @@ function handleRealtimeMessage(payload) {
     return;
   }
   if (payload.type === "activity.sync" && Array.isArray(payload.items)) {
-    activityEvents = payload.items;
+    activityEvents = payload.items.slice(0, 10);
     renderActivityFeed();
     return;
   }
