@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections import deque
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
@@ -9,7 +10,10 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
 
+from . import database
+
 realtime_router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 def _utc_now_iso() -> str:
@@ -28,6 +32,10 @@ class RealtimeHub:
         await websocket.accept()
         async with self._lock:
             self._connections.add(websocket)
+            if not self._history:
+                stored_events = database.list_activity_events(self._history.maxlen)
+                for event in reversed(stored_events):
+                    self._history.appendleft(event)
         await websocket.send_json({"type": "activity.sync", "items": list(self._history)})
 
     async def disconnect(self, websocket: WebSocket) -> None:
@@ -85,6 +93,10 @@ async def publish_event(
         "timestamp": _utc_now_iso(),
         "actor": _format_actor(request),
     }
+    try:
+        database.record_activity_event(event)
+    except Exception:
+        logger.exception("Unable to persist activity event")
     await hub.broadcast(event)
 
 

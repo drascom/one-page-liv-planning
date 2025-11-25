@@ -33,6 +33,7 @@ from .auth import (
     verify_password,
 )
 from .models import (
+    ActivityEvent,
     ApiToken,
     ApiTokenCreate,
     FieldOption,
@@ -933,6 +934,13 @@ def delete_patient_photo(patient_id: int, file: str) -> dict[str, object]:
 def verify_api_connection(_: ApiToken = Depends(require_api_token)) -> dict[str, str]:
     """Confirm that an API token is valid for integrations."""
     return {"detail": "API token verified"}
+
+
+@status_router.get("/activity-feed", response_model=List[ActivityEvent])
+def list_activity_feed() -> List[ActivityEvent]:
+    """Return the latest activity events for the live feed."""
+    records = database.list_activity_events()
+    return [ActivityEvent(**record) for record in records]
 
 
 @search_router.get("/search", response_model=PatientSearchResult)

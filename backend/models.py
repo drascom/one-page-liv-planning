@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from enum import Enum
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field
 
@@ -229,6 +229,24 @@ class ApiToken(ApiTokenBase):
 class OperationResult(BaseModel):
     success: bool = Field(..., description="Whether the operation succeeded")
     id: int = Field(..., description="Identifier of the affected record")
+
+
+class ActivityEvent(BaseModel):
+    id: str = Field(..., description="Event identifier (UUID)")
+    entity: str = Field(..., description="Entity type represented by the event")
+    action: str = Field(..., description="Action that occurred (created, updated, deleted)")
+    type: str = Field(..., description="Composite type identifier (entity.action)")
+    entityId: Union[str, int, None] = Field(
+        None,
+        alias="entityId",
+        description="Identifier for the entity that was affected",
+    )
+    summary: str = Field(..., description="Readable summary of the change")
+    data: Dict[str, Any] = Field(default_factory=dict, description="Additional structured metadata")
+    actor: str = Field(..., description="Actor who triggered the change")
+    timestamp: str = Field(..., description="ISO timestamp for when the change occurred")
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class DeletedProcedureRecord(BaseModel):

@@ -321,6 +321,7 @@ def init_db() -> None:
         _create_users(conn)
         _create_api_tokens(conn)
         _create_api_requests(conn)
+        _create_activity_feed_table(conn)
         _ensure_procedure_booking_updated_at_trigger(conn)
         _ensure_api_token_user_column(conn)
         _ensure_field_options(conn)
@@ -557,6 +558,27 @@ def _create_api_requests(conn: sqlite3.Connection) -> None:
         """
     )
     _ensure_api_response_column(conn)
+
+
+def _create_activity_feed_table(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS activity_feed (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_id TEXT NOT NULL UNIQUE,
+            entity TEXT NOT NULL,
+            action TEXT NOT NULL,
+            entity_identifier TEXT,
+            summary TEXT NOT NULL,
+            data TEXT NOT NULL,
+            actor TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_activity_feed_created_at ON activity_feed(created_at DESC, id DESC)"
+    )
 
 
 def _ensure_api_response_column(conn: sqlite3.Connection) -> None:
@@ -973,6 +995,92 @@ def fetch_api_requests(limit: int = 100) -> List[Dict[str, Any]]:
             }
             for row in rows
         ]
+
+
+def record_activity_event(event: Dict[str, Any], limit: int = 10) -> None:
+    """Persist an activity event and prune older rows to keep the table small."""
+    payload_data = event.get("data") or {}
+    entity_identifier = event.get("entityId")
+    with closing(get_connection()) as conn:
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO activity_feed (
+                event_id,
+                entity,
+                action,
+                entity_identifier,
+                summary,
+                data,
+                actor,
+                created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                event.get("id"),
+                event.get("entity"),
+                event.get("action"),
+                str(entity_identifier) if entity_identifier is not None else None,
+                event.get("summary"),
+                json.dumps(payload_data),
+                event.get("actor", "Another user"),
+                event.get("timestamp"),
+            ),
+        )
+        conn.execute(
+            """
+            DELETE FROM activity_feed
+            WHERE id NOT IN (
+                SELECT id FROM activity_feed
+                ORDER BY datetime(created_at) DESC, id DESC
+                LIMIT ?
+            )
+            """,
+            (max(1, limit),),
+        )
+        conn.commit()
+
+
+def list_activity_events(limit: int = 10) -> List[Dict[str, Any]]:
+    safe_limit = max(1, min(limit, 50))
+    with closing(get_connection()) as conn:
+        cursor = conn.execute(
+            """
+            SELECT
+                event_id,
+                entity,
+                action,
+                entity_identifier,
+                summary,
+                data,
+                actor,
+                created_at
+            FROM activity_feed
+            ORDER BY datetime(created_at) DESC, id DESC
+            LIMIT ?
+            """,
+            (safe_limit,),
+        )
+        rows = cursor.fetchall()
+    events: List[Dict[str, Any]] = []
+    for row in rows:
+        try:
+            payload = json.loads(row["data"]) if row["data"] else {}
+        except json.JSONDecodeError:
+            payload = {}
+        event = {
+            "id": row["event_id"],
+            "entity": row["entity"],
+            "action": row["action"],
+            "type": f"{row['entity']}.{row['action']}",
+            "entityId": row["entity_identifier"],
+            "summary": row["summary"],
+            "data": payload,
+            "actor": row["actor"],
+            "timestamp": row["created_at"],
+        }
+        events.append(event)
+    return events
 
 
 def _serialize_patient_payload(data: Dict[str, Any]) -> Dict[str, Any]:
