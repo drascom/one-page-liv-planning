@@ -45,6 +45,15 @@
     </nav>
 
     <main class="main-container">
+      <section class="realtime-banner" id="conflict-banner" hidden>
+        <div class="realtime-banner__content">
+          <div class="realtime-banner__text" id="conflict-message"></div>
+          <div class="realtime-banner__actions">
+            <button type="button" class="banner-btn" id="conflict-refresh-btn">Refresh</button>
+            <button type="button" class="banner-btn banner-btn--ghost" id="conflict-dismiss-btn">Dismiss</button>
+          </div>
+        </div>
+      </section>
       <section class="controls-bar">
         <div class="controls-bar__primary">
           <div class="date-nav-group" aria-label="Month navigation">
@@ -70,6 +79,17 @@
 
       <section class="schedule-section">
         <div class="schedule__board" id="schedule"></div>
+      </section>
+
+      <section class="activity-panel" aria-live="polite">
+        <div class="activity-panel__header">
+          <div>
+            <h2>Live activity</h2>
+            <p>Changes from other teammates and integrations appear here.</p>
+          </div>
+          <span class="activity-panel__status" id="activity-connection-status">Connecting…</span>
+        </div>
+        <ol class="activity-feed" id="activity-feed" role="list"></ol>
       </section>
     </main>
   </div>
@@ -108,6 +128,8 @@
       </div>
     </section>
   </template>
+
+  <div class="toast-container" id="toast-container" aria-live="assertive" aria-atomic="true"></div>
 
   <script src="/app-config.js"></script>
   <script src="/static/js/script.js" type="module"></script>

@@ -166,6 +166,192 @@ body.app-shell {
   gap: 2rem;
 }
 
+.realtime-banner {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 1rem;
+  padding: 1rem 1.5rem;
+  box-shadow: 0 10px 20px rgba(251, 146, 60, 0.15);
+}
+
+.realtime-banner[hidden] {
+  display: none !important;
+}
+
+.realtime-banner__content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.realtime-banner__text {
+  font-weight: 600;
+  color: #9a3412;
+}
+
+.realtime-banner__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.banner-btn {
+  border-radius: 999px;
+  border: 1px solid #c2410c;
+  background: #c2410c;
+  color: #fff7ed;
+  padding: 0.4rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.banner-btn--ghost {
+  background: transparent;
+  color: #c2410c;
+}
+
+.schedule-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.activity-panel {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 1.25rem;
+  padding: 1.25rem;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.activity-panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.activity-panel__header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.activity-panel__header p {
+  margin: 0.15rem 0 0;
+  color: #6b7280;
+}
+
+.activity-panel__status {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.activity-feed {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.activity-feed__placeholder {
+  color: #94a3b8;
+  font-style: italic;
+  padding: 0.5rem 0;
+}
+
+.activity-entry {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border-radius: 0.85rem;
+  border: 1px solid #f1f5f9;
+  background: #f8fafc;
+}
+
+.activity-entry__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.activity-entry__summary {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.activity-entry__actor {
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.activity-entry__time {
+  white-space: nowrap;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.toast-container {
+  position: fixed;
+  top: 1.5rem;
+  right: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  z-index: 50;
+  pointer-events: none;
+}
+
+.toast {
+  min-width: 260px;
+  max-width: 360px;
+  border-radius: 0.85rem;
+  padding: 0.85rem 1.1rem;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+  background: #0f172a;
+  color: #ffffff;
+  font-weight: 600;
+  opacity: 0;
+  transform: translateY(-10px);
+  animation: toast-in 0.25s ease forwards;
+  pointer-events: auto;
+}
+
+.toast--info {
+  background: #0f172a;
+}
+
+.toast--success {
+  background: #15803d;
+}
+
+.toast--warning {
+  background: #9a3412;
+}
+
+.toast--error {
+  background: #b91c1c;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .controls-bar {
   background: #ffffff;
   border: 1px solid #e5e7eb;
@@ -991,6 +1177,23 @@ body.app-shell {
 .week__table tbody tr.patient-row.patient-row--active {
   background: #e0f2fe;
   box-shadow: inset 0 0 0 2px #0284c7;
+}
+
+.week__table tbody tr.patient-row.patient-row--pulse {
+  animation: pulse-row 1.6s ease;
+}
+
+@keyframes pulse-row {
+  0% {
+    box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(14, 165, 233, 0);
+    background: #ecfeff;
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(14, 165, 233, 0);
+  }
 }
 
 .week__table tbody tr.patient-row:hover {

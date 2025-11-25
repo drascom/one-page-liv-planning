@@ -61,6 +61,7 @@ from .models import (
     WeeklyPlan,
     WeeklyPlanCreate,
 )
+from .realtime import publish_event
 from .settings import get_settings
 
 router = APIRouter(prefix="/plans", tags=["plans"])
@@ -86,6 +87,70 @@ REQUIRED_MIN_OPTION_COUNTS: Dict[str, int] = {
 }
 
 
+def _patient_label(patient: Optional[dict]) -> str:
+    if not patient:
+        return "Patient"
+    first = (patient.get("first_name") or "").strip()
+    last = (patient.get("last_name") or "").strip()
+    name = f"{first} {last}".strip()
+    return name or f"Patient #{patient.get('id')}"
+
+
+def _procedure_summary(action: str, procedure: dict, patient: Optional[dict]) -> str:
+    patient_name = _patient_label(patient)
+    procedure_date = procedure.get("procedure_date") or "unscheduled date"
+    action_map = {
+        "created": "scheduled",
+        "updated": "updated",
+        "deleted": "removed",
+    }
+    verb = action_map.get(action, action)
+    return f"{patient_name} procedure on {procedure_date} {verb}"
+
+
+async def _emit_patient_event(action: str, patient: dict, request: Request) -> None:
+    summary_map = {
+        "created": f"{_patient_label(patient)} was added",
+        "updated": f"{_patient_label(patient)} was updated",
+        "deleted": f"{_patient_label(patient)} was deleted",
+    }
+    summary = summary_map.get(action, f"{_patient_label(patient)} changed")
+    await publish_event(
+        request,
+        entity="patient",
+        action=action,
+        entity_id=patient.get("id"),
+        summary=summary,
+        data={"patient_id": patient.get("id"), "deleted": patient.get("deleted", False)},
+    )
+
+
+async def _emit_procedure_event(
+    action: str,
+    procedure: dict,
+    request: Request,
+    patient: Optional[dict] = None,
+) -> None:
+    patient_record = patient or database.fetch_patient(
+        procedure.get("patient_id"),
+        include_deleted=True,
+    )
+    summary = _procedure_summary(action, procedure, patient_record)
+    await publish_event(
+        request,
+        entity="procedure",
+        action=action,
+        entity_id=procedure.get("id"),
+        summary=summary,
+        data={
+            "procedure_id": procedure.get("id"),
+            "patient_id": procedure.get("patient_id"),
+            "procedure_date": procedure.get("procedure_date"),
+            "deleted": bool(procedure.get("deleted")),
+        },
+    )
+
+
 def _coerce_patient_payload(data: dict) -> PatientCreate:
     """Validate and normalize patient payloads (personal details only)."""
     try:
@@ -108,6 +173,7 @@ def _authorization_header_token(header_value: Optional[str]) -> Optional[str]:
 
 
 def require_api_token(
+    request: Request,
     authorization: Optional[str] = Header(None, convert_underscores=False),
 ) -> ApiToken:
     token_value = _authorization_header_token(authorization)
@@ -116,7 +182,9 @@ def require_api_token(
     record = database.get_api_token_by_value(token_value)
     if not record:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API token")
-    return ApiToken(**record)
+    token = ApiToken(**record)
+    request.state.api_token = token
+    return token
 
 
 @router.get("/", response_model=List[WeeklyPlan])
@@ -201,11 +269,14 @@ def list_procedures(patient_id: int, include_deleted: bool = False) -> Procedure
 
 
 @patients_router.post("/{patient_id}/procedures", response_model=OperationResult, status_code=status.HTTP_201_CREATED)
-def create_procedure(patient_id: int, payload: ProcedureCreate) -> OperationResult:
+async def create_procedure(patient_id: int, payload: ProcedureCreate, request: Request) -> OperationResult:
     patient = database.fetch_patient(patient_id)
     if not patient:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     created = database.create_procedure(patient_id, payload.model_dump())
+    procedure_record = database.fetch_procedure(created["id"])
+    if procedure_record:
+        await _emit_procedure_event("created", procedure_record, request, patient=patient)
     return OperationResult(success=True, id=created["id"], message="Procedure created")
 
 
@@ -218,13 +289,21 @@ def get_procedure(patient_id: int, procedure_id: int, include_deleted: bool = Fa
 
 
 @patients_router.put("/{patient_id}/procedures/{procedure_id}", response_model=OperationResult)
-def update_procedure(patient_id: int, procedure_id: int, payload: ProcedureCreate) -> OperationResult:
+async def update_procedure(
+    patient_id: int,
+    procedure_id: int,
+    payload: ProcedureCreate,
+    request: Request,
+) -> OperationResult:
     procedure = database.fetch_procedure(procedure_id, include_deleted=True)
     if not procedure or procedure["patient_id"] != patient_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
     updated = database.update_procedure(procedure_id, payload.model_dump())
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
+    refreshed = database.fetch_procedure(procedure_id)
+    if refreshed:
+        await _emit_procedure_event("updated", refreshed, request)
     return OperationResult(success=True, id=procedure_id, message="Procedure updated")
 
 
@@ -233,13 +312,14 @@ def update_procedure(patient_id: int, procedure_id: int, payload: ProcedureCreat
     response_model=OperationResult,
     status_code=status.HTTP_200_OK,
 )
-def delete_procedure(patient_id: int, procedure_id: int) -> OperationResult:
+async def delete_procedure(patient_id: int, procedure_id: int, request: Request) -> OperationResult:
     procedure = database.fetch_procedure(procedure_id, include_deleted=True)
     if not procedure or procedure["patient_id"] != patient_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
     removed = database.delete_procedure(procedure_id)
     if not removed:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
+    await _emit_procedure_event("deleted", procedure, request)
     return OperationResult(success=True, id=procedure_id)
 
 
@@ -300,17 +380,18 @@ def delete_patient_payment(patient_id: int, payment_id: int) -> None:
 
 
 @patients_router.post("/", response_model=OperationResult, status_code=status.HTTP_201_CREATED)
-def create_patient(payload: PatientCreate) -> OperationResult:
+async def create_patient(payload: PatientCreate, request: Request) -> OperationResult:
     """Create a new patient record (personal information only)."""
     patient_payload = _coerce_patient_payload(payload.model_dump())
     record = database.create_patient(patient_payload.model_dump())
     result = OperationResult(success=True, id=record["id"], message="Patient created")
     database.log_api_request("/patients", "POST", patient_payload.model_dump(), result.model_dump())
+    await _emit_patient_event("created", record, request)
     return result
 
 
 @patients_router.put("/{patient_id}", response_model=OperationResult)
-def update_patient(patient_id: int, payload: PatientCreate) -> OperationResult:
+async def update_patient(patient_id: int, payload: PatientCreate, request: Request) -> OperationResult:
     """Update the patient record identified by ``patient_id``."""
     existing = database.fetch_patient(patient_id)
     if not existing:
@@ -321,17 +402,29 @@ def update_patient(patient_id: int, payload: PatientCreate) -> OperationResult:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     result = OperationResult(success=True, id=patient_id, message="Patient updated")
     database.log_api_request(f"/patients/{patient_id}", "PUT", patient_payload.model_dump(), result.model_dump())
+    refreshed = database.fetch_patient(patient_id)
+    if refreshed:
+        await _emit_patient_event("updated", refreshed, request)
     return result
 
 
 @patients_router.delete("/{patient_id}", status_code=status.HTTP_200_OK)
-def delete_patient_route(patient_id: int, _: dict = Depends(require_admin_user)) -> JSONResponse:
+async def delete_patient_route(
+    patient_id: int,
+    request: Request,
+    _: dict = Depends(require_admin_user),
+) -> JSONResponse:
     """Soft delete the patient record (admin only)."""
+    record = database.fetch_patient(patient_id)
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     deleted = database.delete_patient(patient_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     response_payload = {"detail": "Deleted", "id": patient_id}
     database.log_api_request(f"/patients/{patient_id}", "DELETE", {"id": patient_id}, response_payload)
+    record["deleted"] = True
+    await _emit_patient_event("deleted", record, request)
     return JSONResponse(response_payload)
 
 
@@ -381,12 +474,15 @@ def list_procedures_route(patient_id: Optional[int] = Query(None)) -> List[Proce
 
 
 @procedures_router.post("/", response_model=OperationResult, status_code=status.HTTP_201_CREATED)
-def create_procedure_route(payload: ProcedureCreatePayload) -> OperationResult:
+async def create_procedure_route(payload: ProcedureCreatePayload, request: Request) -> OperationResult:
     """Create a procedure and link it to a patient."""
     patient = database.fetch_patient(payload.patient_id)
     if not patient:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     created = database.create_procedure(payload.patient_id, payload.model_dump(exclude={"patient_id"}))
+    procedure_record = database.fetch_procedure(created["id"])
+    if procedure_record:
+        await _emit_procedure_event("created", procedure_record, request, patient=patient)
     return OperationResult(success=True, id=created["id"], message="Procedure created")
 
 
@@ -472,12 +568,22 @@ def fetch_procedure_route(procedure_id: int) -> Procedure:
 
 
 @procedures_router.put("/{procedure_id}", response_model=OperationResult)
-def update_procedure_route(procedure_id: int, payload: ProcedureCreatePayload) -> OperationResult:
+async def update_procedure_route(
+    procedure_id: int,
+    payload: ProcedureCreatePayload,
+    request: Request,
+) -> OperationResult:
     if not database.fetch_patient(payload.patient_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    existing = database.fetch_procedure(procedure_id, include_deleted=True)
+    if not existing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
     updated = database.update_procedure(procedure_id, payload.model_dump(exclude={"patient_id"}))
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
+    refreshed = database.fetch_procedure(procedure_id)
+    if refreshed:
+        await _emit_procedure_event("updated", refreshed, request)
     return OperationResult(success=True, id=procedure_id, message="Procedure updated")
 
 
@@ -486,10 +592,14 @@ def update_procedure_route(procedure_id: int, payload: ProcedureCreatePayload) -
     response_model=OperationResult,
     status_code=status.HTTP_200_OK,
 )
-def delete_procedure_route(procedure_id: int) -> OperationResult:
+async def delete_procedure_route(procedure_id: int, request: Request) -> OperationResult:
+    procedure = database.fetch_procedure(procedure_id, include_deleted=True)
+    if not procedure:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
     deleted = database.delete_procedure(procedure_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
+    await _emit_procedure_event("deleted", procedure, request)
     return OperationResult(success=True, id=procedure_id)
 
 

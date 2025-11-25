@@ -137,6 +137,7 @@ const API_BASE_URL =
 const MONTH_FORMATTER = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" });
 const DAY_FORMATTER = new Intl.DateTimeFormat("en-US", { weekday: "short" });
 const DAY_NAME_FORMATTER = new Intl.DateTimeFormat("en-US", { weekday: "long" });
+const TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
 
 const monthDisplay = document.getElementById("current-month-label");
 const weekCount = document.getElementById("week-count");
@@ -151,6 +152,13 @@ const adminCustomerLinks = document.querySelectorAll("[data-admin-customers]");
 const adminTools = document.querySelector("[data-admin-tools]");
 const selectAllCheckbox = document.getElementById("select-all-patients");
 const deleteSelectedBtn = document.getElementById("delete-selected-btn");
+const toastContainer = document.getElementById("toast-container");
+const activityFeedEl = document.getElementById("activity-feed");
+const activityStatusEl = document.getElementById("activity-connection-status");
+const conflictBanner = document.getElementById("conflict-banner");
+const conflictMessageEl = document.getElementById("conflict-message");
+const conflictRefreshBtn = document.getElementById("conflict-refresh-btn");
+const conflictDismissBtn = document.getElementById("conflict-dismiss-btn");
 
 initSessionControls();
 let activePatientContext = loadActivePatientContext();
@@ -162,14 +170,27 @@ let unscheduledPatients = [];
 let searchablePatients = [];
 let filteredMonthlySchedules = [];
 let searchQuery = "";
+let patientRecords = [];
+let procedureRecords = [];
+let activityEvents = [];
+let realtimeSocket = null;
+let realtimeReconnectTimer = null;
+let realtimeConnectionState = "idle";
+let conflictActionCallback = null;
+let realtimeRetryDelay = 0;
+let shouldPreserveSelections = false;
 
 if (searchClearBtn) {
   searchClearBtn.hidden = true;
 }
 
+renderActivityFeed();
+setActivityStatus("Offline");
+
 (async function bootstrap() {
   await initializeAdminControls();
   await initializeSchedule();
+  initializeRealtimeChannel();
 })();
 
 function parseMonthParam(param) {
@@ -213,8 +234,109 @@ function setScheduleStatus(message) {
   scheduleEl.appendChild(paragraph);
 }
 
+function showToast(message, variant = "info") {
+  if (!toastContainer) {
+    return;
+  }
+  const toast = document.createElement("div");
+  toast.className = `toast toast--${variant}`;
+  toast.textContent = message;
+  toastContainer.appendChild(toast);
+  const removeToast = () => {
+    if (toast.parentElement) {
+      toast.parentElement.removeChild(toast);
+    }
+  };
+  toast.addEventListener("click", removeToast);
+  setTimeout(removeToast, 4500);
+}
+
+function formatActivityTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "just now";
+  }
+  return TIME_FORMATTER.format(date);
+}
+
+function renderActivityFeed() {
+  if (!activityFeedEl) {
+    return;
+  }
+  activityFeedEl.innerHTML = "";
+  if (!activityEvents.length) {
+    const placeholder = document.createElement("li");
+    placeholder.className = "activity-feed__placeholder";
+    placeholder.textContent = "Waiting for activity…";
+    activityFeedEl.appendChild(placeholder);
+    return;
+  }
+  activityEvents.slice(0, 12).forEach((event) => {
+    const item = document.createElement("li");
+    item.className = "activity-entry";
+    const meta = document.createElement("div");
+    meta.className = "activity-entry__meta";
+    const summary = document.createElement("div");
+    summary.className = "activity-entry__summary";
+    summary.textContent = event.summary || "Schedule updated";
+    const actor = document.createElement("div");
+    actor.className = "activity-entry__actor";
+    actor.textContent = `by ${event.actor || "Another user"}`;
+    meta.append(summary, actor);
+    const time = document.createElement("span");
+    time.className = "activity-entry__time";
+    time.textContent = formatActivityTime(event.timestamp);
+    item.append(meta, time);
+    activityFeedEl.appendChild(item);
+  });
+}
+
+function setActivityStatus(text) {
+  if (activityStatusEl) {
+    activityStatusEl.textContent = text;
+  }
+}
+
+function addActivityEvent(event) {
+  if (!event) {
+    return;
+  }
+  activityEvents.unshift(event);
+  if (activityEvents.length > 20) {
+    activityEvents.length = 20;
+  }
+  renderActivityFeed();
+}
+
+function showConflictNotice(message, actionCallback = null) {
+  if (!conflictBanner || !conflictMessageEl) {
+    return;
+  }
+  conflictActionCallback = actionCallback;
+  conflictMessageEl.textContent = message;
+  conflictBanner.hidden = false;
+}
+
+function hideConflictNotice() {
+  if (conflictBanner) {
+    conflictBanner.hidden = true;
+  }
+  conflictActionCallback = null;
+}
+
 function buildApiUrl(path) {
   return new URL(path, API_BASE_URL).toString();
+}
+
+function buildWebSocketUrl(path) {
+  try {
+    const apiUrl = new URL(API_BASE_URL);
+    const protocol = apiUrl.protocol === "https:" ? "wss:" : "ws:";
+    return `${protocol}//${apiUrl.host}${path}`;
+  } catch (_error) {
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    return `${protocol}//${window.location.host}${path}`;
+  }
 }
 
 async function initializeAdminControls() {
@@ -823,6 +945,80 @@ function buildMonthlySchedules(patients, { skipNormalize = false } = {}) {
     .sort((a, b) => (a.timestamp ?? Number.MAX_SAFE_INTEGER) - (b.timestamp ?? Number.MAX_SAFE_INTEGER));
 }
 
+function rebuildScheduleCollections() {
+  const patientLookup = new Map();
+  patientRecords.forEach((patient) => {
+    patientLookup.set(Number(patient.id), patient);
+  });
+  normalizedProcedures = procedureRecords.map((procedure) =>
+    normalizeProcedureForSchedule(procedure, patientLookup)
+  );
+  monthlySchedules = buildMonthlySchedules(normalizedProcedures, { skipNormalize: true });
+  const scheduledIds = new Set(
+    normalizedProcedures
+      .map((entry) => (Number.isFinite(Number(entry.patientId)) ? Number(entry.patientId) : null))
+      .filter((value) => value !== null)
+  );
+  unscheduledPatients = patientRecords
+    .filter((patient) => !scheduledIds.has(Number(patient.id)))
+    .map((patient) => buildUnscheduledSearchEntry(patient));
+  searchablePatients = [...normalizedProcedures, ...unscheduledPatients];
+  updateTotalPatients(normalizedProcedures.length);
+}
+
+function refreshScheduleView({ preserveSearch = false, preserveSelections = false } = {}) {
+  rebuildScheduleCollections();
+  shouldPreserveSelections = preserveSelections;
+  if (preserveSearch && searchQuery) {
+    applySearchFilter(searchQuery);
+  } else {
+    filteredMonthlySchedules = monthlySchedules;
+    renderSelectedMonth();
+  }
+}
+
+function upsertPatientRecord(record) {
+  if (!record || typeof record !== "object") {
+    return;
+  }
+  const id = Number(record.id);
+  if (!Number.isFinite(id)) {
+    return;
+  }
+  const index = patientRecords.findIndex((patient) => Number(patient.id) === id);
+  if (index >= 0) {
+    patientRecords[index] = { ...patientRecords[index], ...record };
+  } else {
+    patientRecords.push(record);
+  }
+}
+
+function removePatientRecordById(patientId) {
+  const normalizedId = Number(patientId);
+  patientRecords = patientRecords.filter((patient) => Number(patient.id) !== normalizedId);
+}
+
+function upsertProcedureRecord(record) {
+  if (!record || typeof record !== "object") {
+    return;
+  }
+  const id = Number(record.id);
+  if (!Number.isFinite(id)) {
+    return;
+  }
+  const index = procedureRecords.findIndex((procedure) => Number(procedure.id) === id);
+  if (index >= 0) {
+    procedureRecords[index] = { ...procedureRecords[index], ...record };
+  } else {
+    procedureRecords.push(record);
+  }
+}
+
+function removeProcedureRecordById(procedureId) {
+  const normalizedId = Number(procedureId);
+  procedureRecords = procedureRecords.filter((procedure) => Number(procedure.id) !== normalizedId);
+}
+
 function summarizeChecklist(field, values) {
   const optionValues = new Set(getFieldOptionValues(field));
   const selectedValues = new Set(Array.isArray(values) ? values : []);
@@ -944,7 +1140,7 @@ function updateMonthPatientCount(total) {
 }
 
 function renderSelectedMonth() {
-  if (isAdminUser) {
+  if (isAdminUser && !shouldPreserveSelections) {
     selectedProcedureIds.clear();
   }
   const sourceSchedules = searchQuery ? filteredMonthlySchedules : monthlySchedules;
@@ -1001,6 +1197,24 @@ function renderSelectedMonth() {
   updateMonthQueryParam(selectedDate);
   updateControlState();
   updateSelectionControlsState();
+  shouldPreserveSelections = false;
+}
+
+function highlightProcedureRow(procedureId) {
+  if (!Number.isFinite(procedureId)) {
+    return;
+  }
+  requestAnimationFrame(() => {
+    const selector = `.patient-row[data-procedure-id="${procedureId}"]`;
+    const row = document.querySelector(selector);
+    if (!row) {
+      return;
+    }
+    row.classList.add("patient-row--pulse");
+    setTimeout(() => {
+      row.classList.remove("patient-row--pulse");
+    }, 1800);
+  });
 }
 
 function highlightActivePatientRow() {
@@ -1513,6 +1727,16 @@ if (searchInput) {
 if (searchClearBtn) {
   searchClearBtn.addEventListener("click", resetSearch);
 }
+if (conflictRefreshBtn) {
+  conflictRefreshBtn.addEventListener("click", () => {
+    if (typeof conflictActionCallback === "function") {
+      conflictActionCallback();
+    }
+  });
+}
+if (conflictDismissBtn) {
+  conflictDismissBtn.addEventListener("click", hideConflictNotice);
+}
 
 function updateMonthQueryParam(date) {
   if (typeof window === "undefined") {
@@ -1542,20 +1766,9 @@ async function initializeSchedule() {
       fieldOptionsLoaded = true;
     }
     const [patients, procedures] = await Promise.all([fetchPatients(), fetchProcedures()]);
-    const patientLookup = new Map();
-    patients.forEach((patient) => patientLookup.set(Number(patient.id), patient));
-    normalizedProcedures = procedures.map((procedure) =>
-      normalizeProcedureForSchedule(procedure, patientLookup)
-    );
-    const scheduledIds = new Set(
-      normalizedProcedures
-        .map((entry) => (Number.isFinite(Number(entry.patientId)) ? Number(entry.patientId) : null))
-        .filter((value) => value !== null)
-    );
-    unscheduledPatients = patients
-      .filter((patient) => !scheduledIds.has(Number(patient.id)))
-      .map((patient) => buildUnscheduledSearchEntry(patient));
-    searchablePatients = [...normalizedProcedures, ...unscheduledPatients];
+    patientRecords = patients;
+    procedureRecords = procedures;
+    rebuildScheduleCollections();
     const activePatient = findActivePatientByContext();
     if (activePatientContext?.shouldReturnToSchedule) {
       if (activePatient) {
@@ -1580,7 +1793,6 @@ async function initializeSchedule() {
         setSelectedDateFromTarget(matchingMonth.date);
       }
     }
-    updateTotalPatients(normalizedProcedures.length);
     if (pendingGlobalSearch) {
       if (searchInput) {
         searchInput.value = pendingGlobalSearch;
@@ -1608,4 +1820,177 @@ async function initializeSchedule() {
     }
     updateControlState();
   }
+}
+
+function initializeRealtimeChannel() {
+  if (typeof window === "undefined") {
+    return;
+  }
+  if (realtimeSocket) {
+    try {
+      realtimeSocket.close();
+    } catch (_error) {
+      // ignore
+    }
+    realtimeSocket = null;
+  }
+  const wsUrl = buildWebSocketUrl("/ws/updates");
+  try {
+    realtimeSocket = new WebSocket(wsUrl);
+  } catch (error) {
+    console.error("Unable to open realtime channel", error);
+    setActivityStatus("Offline");
+    return;
+  }
+  realtimeConnectionState = "connecting";
+  setActivityStatus("Connecting…");
+  realtimeSocket.addEventListener("open", () => {
+    realtimeConnectionState = "open";
+    realtimeRetryDelay = 0;
+    setActivityStatus("Live");
+    showToast("Live updates connected", "success");
+  });
+  realtimeSocket.addEventListener("message", (event) => {
+    try {
+      const payload = JSON.parse(event.data);
+      handleRealtimeMessage(payload);
+    } catch (error) {
+      console.error("Unable to parse realtime payload", error);
+    }
+  });
+  realtimeSocket.addEventListener("close", () => {
+    realtimeConnectionState = "closed";
+    setActivityStatus("Reconnecting…");
+    scheduleRealtimeReconnect();
+  });
+  realtimeSocket.addEventListener("error", (error) => {
+    console.error("Realtime channel error", error);
+    if (realtimeSocket) {
+      try {
+        realtimeSocket.close();
+      } catch (_closeError) {
+        // already closed
+      }
+    }
+  });
+}
+
+function scheduleRealtimeReconnect() {
+  if (realtimeReconnectTimer) {
+    return;
+  }
+  const baseDelay = realtimeRetryDelay || 2000;
+  realtimeRetryDelay = Math.min(baseDelay * 1.5, 15000);
+  realtimeReconnectTimer = setTimeout(() => {
+    realtimeReconnectTimer = null;
+    initializeRealtimeChannel();
+  }, realtimeRetryDelay);
+}
+
+function handleRealtimeMessage(payload) {
+  if (!payload) {
+    return;
+  }
+  if (payload.type === "activity.sync" && Array.isArray(payload.items)) {
+    activityEvents = payload.items;
+    renderActivityFeed();
+    return;
+  }
+  const variant =
+    payload.action === "deleted" ? "warning" : payload.action === "created" ? "success" : "info";
+  showToast(payload.summary || "Schedule updated", variant);
+  addActivityEvent(payload);
+  if (payload.entity === "procedure") {
+    handleProcedureRealtimeEvent(payload);
+  } else if (payload.entity === "patient") {
+    handlePatientRealtimeEvent(payload);
+  }
+}
+
+async function handleProcedureRealtimeEvent(payload) {
+  const dataId = payload?.data?.procedure_id ?? payload.entityId;
+  const procedureId = Number(dataId);
+  if (!Number.isFinite(procedureId)) {
+    return;
+  }
+  const preserveSelections = isAdminUser && selectedProcedureIds.size > 0;
+  const wasSelected = selectedProcedureIds.has(procedureId);
+  if (payload.action === "deleted") {
+    removeProcedureRecordById(procedureId);
+    refreshScheduleView({ preserveSearch: true, preserveSelections });
+    handleProcedureConflict(procedureId, payload.summary, { deleted: true, wasSelected });
+    return;
+  }
+  try {
+    await fetchAndStoreProcedure(procedureId);
+    refreshScheduleView({ preserveSearch: true, preserveSelections });
+    highlightProcedureRow(procedureId);
+    handleProcedureConflict(procedureId, payload.summary, { wasSelected });
+  } catch (error) {
+    console.error("Unable to sync procedure", error);
+  }
+}
+
+async function handlePatientRealtimeEvent(payload) {
+  const dataId = payload?.data?.patient_id ?? payload.entityId;
+  const patientId = Number(dataId);
+  if (!Number.isFinite(patientId)) {
+    return;
+  }
+  const preserveSelections = isAdminUser && selectedProcedureIds.size > 0;
+  if (payload.action === "deleted") {
+    removePatientRecordById(patientId);
+    procedureRecords = procedureRecords.filter(
+      (procedure) => Number(procedure.patient_id) !== patientId
+    );
+    refreshScheduleView({ preserveSearch: true, preserveSelections });
+    return;
+  }
+  try {
+    const patient = await fetchPatientById(patientId);
+    upsertPatientRecord(patient);
+    refreshScheduleView({ preserveSearch: true, preserveSelections });
+  } catch (error) {
+    console.error("Unable to sync patient", error);
+  }
+}
+
+async function fetchAndStoreProcedure(procedureId) {
+  const procedure = await fetchProcedureById(procedureId);
+  upsertProcedureRecord(procedure);
+  const patientId = Number(procedure.patient_id);
+  if (Number.isFinite(patientId)) {
+    const existing = patientRecords.find((patient) => Number(patient.id) === patientId);
+    if (!existing) {
+      const patient = await fetchPatientById(patientId);
+      upsertPatientRecord(patient);
+    }
+  }
+}
+
+function handleProcedureConflict(procedureId, summary, { deleted = false, wasSelected = false } = {}) {
+  const isSelected = wasSelected || selectedProcedureIds.has(procedureId);
+  if (!isSelected) {
+    return;
+  }
+  const message = deleted
+    ? `${summary}. A selected procedure was removed elsewhere.`
+    : `${summary}. A procedure you selected was updated elsewhere.`;
+  const action = deleted
+    ? () => {
+        selectedProcedureIds.delete(procedureId);
+        hideConflictNotice();
+        refreshScheduleView({ preserveSearch: true, preserveSelections: true });
+      }
+    : async () => {
+        hideConflictNotice();
+        try {
+          await fetchAndStoreProcedure(procedureId);
+          refreshScheduleView({ preserveSearch: true, preserveSelections: true });
+          highlightProcedureRow(procedureId);
+        } catch (error) {
+          console.error("Unable to refresh conflicting procedure", error);
+        }
+      };
+  showConflictNotice(message, action);
 }

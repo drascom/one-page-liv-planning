@@ -23,6 +23,7 @@ from .routes import (
     status_router,
     upload_router,
 )
+from .realtime import realtime_router
 from .settings import get_settings
 
 def _resolve_allowed_origins() -> list[str]:
@@ -128,6 +129,7 @@ def create_app() -> FastAPI:
     api.include_router(audit_router, dependencies=auth_dependency)
     api.include_router(upload_router, dependencies=auth_dependency, include_in_schema=False)
     api.include_router(field_options_router, dependencies=auth_dependency, include_in_schema=False)
+    api.include_router(realtime_router, include_in_schema=False)
     for protected_router in (
         plans_router,
         patients_router,
@@ -173,6 +175,7 @@ app.include_router(api_tokens_router, dependencies=auth_dependency)
 app.include_router(audit_router, dependencies=auth_dependency)
 app.include_router(upload_router, dependencies=auth_dependency, include_in_schema=False)
 app.include_router(field_options_router, dependencies=auth_dependency, include_in_schema=False)
+app.include_router(realtime_router, include_in_schema=False)
 for protected_router in (
     plans_router,
     patients_router,

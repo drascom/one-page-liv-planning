@@ -78,6 +78,7 @@ def require_current_user(request: Request) -> dict:
     record = get_current_user(request)
     if not record:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    request.state.current_user = record
     return record
 
 
