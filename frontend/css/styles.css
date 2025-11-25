@@ -71,6 +71,7 @@ body.app-shell {
 }
 
 .connection-indicator--live {
+  background: #22c55e;
   animation: indicator-blink 1s linear infinite;
 }
 
