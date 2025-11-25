@@ -966,8 +966,30 @@ function rebuildScheduleCollections() {
   updateTotalPatients(normalizedProcedures.length);
 }
 
+function ensureSelectedMonthHasEntries(sourceSchedules = monthlySchedules) {
+  if (!Array.isArray(sourceSchedules) || !sourceSchedules.length) {
+    return null;
+  }
+  const selectedLabel = formatMonthLabelFromDate(selectedDate);
+  const existing = sourceSchedules.find((month) => month.label === selectedLabel);
+  if (existing) {
+    return existing;
+  }
+  const fallback = sourceSchedules[0];
+  if (fallback?.date instanceof Date && !Number.isNaN(fallback.date.getTime())) {
+    selectedDate = new Date(fallback.date.getFullYear(), fallback.date.getMonth(), 1);
+    return fallback;
+  }
+  const meta = parseMonthMetadata(fallback.label);
+  if (meta?.date) {
+    selectedDate = new Date(meta.date.getFullYear(), meta.date.getMonth(), 1);
+  }
+  return fallback;
+}
+
 function refreshScheduleView({ preserveSearch = false, preserveSelections = false } = {}) {
   rebuildScheduleCollections();
+  ensureSelectedMonthHasEntries();
   shouldPreserveSelections = preserveSelections;
   if (preserveSearch && searchQuery) {
     applySearchFilter(searchQuery);
@@ -1785,6 +1807,7 @@ async function initializeSchedule() {
       }
     }
     monthlySchedules = buildMonthlySchedules(normalizedProcedures, { skipNormalize: true });
+    ensureSelectedMonthHasEntries();
     if (activePatientContext?.shouldReturnToSchedule) {
       const matchingMonth = monthlySchedules.find(
         (month) => month.label === activePatient?.scheduleMonthLabel
