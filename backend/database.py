@@ -854,27 +854,29 @@ def find_patient_by_name_and_date(first_name: str, last_name: str, procedure_dat
 
 
 def find_procedure_by_metadata(
-    full_name: str,
+    patient_id: Optional[int],
     procedure_date: Optional[str],
     *,
     status: Optional[str] = None,
     grafts_number: Optional[str] = None,
     package_type: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
-    """Locate a single procedure by patient full name, date, and optional metadata."""
-    patient = find_patient_by_full_name(full_name)
-    if not patient:
-        return None
-    clauses = ["patient_id = ?", "deleted = 0"]
-    params: List[Any] = [patient["id"]]
+    """Locate a single procedure by optional patient/date/status metadata."""
+    clauses = ["deleted = 0"]
+    params: List[Any] = []
+    if patient_id is not None:
+        clauses.append("patient_id = ?")
+        params.append(patient_id)
     normalized_date = _date_only(procedure_date) if procedure_date else None
+    if procedure_date and not normalized_date:
+        raise ValueError("date is invalid")
     if normalized_date:
         clauses.append("procedure_date = ?")
         params.append(normalized_date)
     if status:
         clauses.append("LOWER(status) = ?")
         params.append(status.lower().strip())
-    if grafts_number is not None:
+    if grafts_number:
         clauses.append("grafts = ?")
         params.append(str(grafts_number).strip())
     if package_type:

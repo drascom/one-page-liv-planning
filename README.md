@@ -99,7 +99,7 @@ If you are behind nginx proxy manager with ssl certificate than use
 | GET/PUT | `/procedures/{id}` | Fetch or update a procedure |
 | DELETE | `/procedures/{id}` | Delete a procedure |
 | POST | `/api/v1/procedures/search-by-meta` | Provide patient name/date metadata to retrieve a matching procedure id (use `DELETE /procedures/{id}` afterward). |
-| GET | `/procedures/search?patient_id=123&procedure_date=2025-02-12` | Return `{ "success": true, "procedure": { ... } }` when a patient has a procedure on the supplied date, or `{ "success": false, "message": "Procedure not found" }` otherwise. |
+| GET | `/procedures/search` | Provide `procedure_id` to fetch a procedure directly, or supply `patient_id` (optionally `procedure_date=YYYY-MM-DD`) to locate a patient's procedure. Returns `{ "success": true, "procedure": { ... } }` or `{ "success": false, "message": "Procedure not found" }`. |
 | GET | `/patients/{id}/procedures` | Return `{ "success": true, "procedures": [ ... ] }` when the patient has linked procedures or `{ "success": false, "message": "No procedures found for this patient.", "procedures": [] }` |
 | GET/POST/DELETE | `/patients/{id}/photos` | List/create/delete photo metadata (files land in `/uploads`) |
 | GET/POST/DELETE | `/patients/{id}/payments` | Manage patient payments |
@@ -199,6 +199,101 @@ curl -X POST "http://127.0.0.1:8000/api/v1/patients" \
   }'
 ```
 
+## API request samples
+
+Replace the example token (`YOUR_API_TOKEN`) with an API token generated from **Settings → API Tokens** and adjust the host if your backend is on a different origin.
+
+1. **Search for a patient (external lookup)** — _Required query parameters: `full_name` (or legacy `name`+`surname`)._
+
+   ```bash
+   curl "http://127.0.0.1:8000/api/v1/search?full_name=Jane%20Doe" \
+     -H "Authorization: Bearer YOUR_API_TOKEN"
+   ```
+
+2. **Create a patient** — _Required JSON fields: `first_name`, `last_name`, `email`, `phone`, `city`._
+
+   ```bash
+   curl -X POST "http://127.0.0.1:8000/api/v1/patients" \
+     -H "Authorization: Bearer YOUR_API_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "first_name": "Jane",
+       "last_name": "Doe",
+       "email": "jane.doe@example.com",
+       "phone": "+1-555-123-4567",
+       "city": "Los Angeles"
+     }'
+   ```
+
+3. **Update a patient** — _Required path parameter: `patient_id`. Required JSON fields are the same as creation (`first_name`, `last_name`, `email`, `phone`, `city`)._
+
+   ```bash
+   curl -X PUT "http://127.0.0.1:8000/api/v1/patients/123" \
+     -H "Authorization: Bearer YOUR_API_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "first_name": "Jane",
+       "last_name": "Doe",
+       "email": "jane.doe@example.com",
+       "phone": "+1-555-765-4321",
+       "city": "Los Angeles"
+     }'
+   ```
+
+4. **Search for a procedure (id or patient/date)** — _Option A: provide `procedure_id` to fetch a specific procedure. Option B: provide `patient_id` and optionally `procedure_date` (YYYY-MM-DD). When the date is omitted, the earliest procedure for that patient is returned._
+
+   ```bash
+   curl "http://127.0.0.1:8000/api/v1/procedures/search?patient_id=123&procedure_date=2025-01-02" \
+     -H "Authorization: Bearer YOUR_API_TOKEN"
+   ```
+
+   ```bash
+   curl "http://127.0.0.1:8000/api/v1/procedures/search?procedure_id=456" \
+     -H "Authorization: Bearer YOUR_API_TOKEN"
+   ```
+
+5. **Create a procedure** — _Required JSON fields: `patient_id`, `procedure_date`, `procedure_type`, `status`, `grafts`. Optional fields: `package_type`, `agency`, `payment`, `consultation`, `forms`, `consents`, `photo_files`. The API accepts json arrays for the list fields and plain strings for the others._
+
+   ```bash
+   curl -X POST "http://127.0.0.1:8000/api/v1/procedures" \
+     -H "Authorization: Bearer YOUR_API_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "patient_id": 123,
+       "procedure_date": "2025-01-02",
+       "status": "reserved",
+       "procedure_type": "sfue",
+       "package_type": "small",
+       "grafts": "3000",
+       "payment": "waiting",
+       "consultation": [],
+       "forms": [],
+       "consents": [],
+       "photo_files": []
+     }'
+   ```
+
+6. **Update a procedure** — _Required path parameter: `procedure_id`. Required JSON body matches creation (`patient_id`, `procedure_date`, `procedure_type`, `status`, `grafts`). Include any subset of optional fields (`package_type`, `agency`, `payment`, `consultation`, `forms`, `consents`, `photo_files`) when you need to update them._
+
+   ```bash
+   curl -X PUT "http://127.0.0.1:8000/api/v1/procedures/456" \
+     -H "Authorization: Bearer YOUR_API_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "patient_id": 123,
+       "procedure_date": "2025-01-03",
+       "status": "confirmed",
+       "procedure_type": "sfue",
+       "package_type": "small",
+       "grafts": "3200",
+       "payment": "paid",
+       "consultation": ["consultation1"],
+       "forms": [],
+       "consents": [],
+       "photo_files": []
+     }'
+   ```
+
 Create a procedure linked to the new patient (replace `123` with the patient id returned above). Just like the admin example above, only `patient_id`, `procedure_date`, `procedure_type`, `status`, and `grafts` are required:
 
 ```bash
@@ -218,9 +313,9 @@ curl -X POST "http://127.0.0.1:8000/api/v1/procedures" \
     "photo_files": []
   }'
 
-### Find a procedure id by metadata
+### Find a procedure id by metadata _(All fields optional; provide any combination of `full_name`, `date`, `status`, `grafts_number`, `package_type` to narrow the search)._
 
-Administrators can locate a procedure without knowing its id by POSTing to `/api/v1/procedures/search-by-meta`. Supply the patient's full name, the procedure date, and optional metadata (status, grafts, package type) to narrow the match:
+Administrators can locate a procedure without knowing its id by POSTing to `/api/v1/procedures/search-by-meta`. The request body is flexible and you may send any subset of the supported keys (`full_name`, `date`, `status`, `grafts_number`, `package_type`). Supplying more fields reduces the chance of multiple matches:
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/api/v1/procedures/search-by-meta" \
@@ -334,3 +429,17 @@ All HTTP APIs include interactive docs at `http://127.0.0.1:8000/docs` once the 
 
 **External integrations:** Every route above is mirrored under `/api/v1/*` and requires an API token created in the Settings → API Tokens UI. Send it in the `Authorization: Bearer <token>` header (requests without this header are rejected). The `/api/v1/search` helper is specifically designed for lightweight patient lookups from outside systems—you can pass `full_name=name%20Surname` (preferred) or continue using the legacy `name` and optional `surname` parameters. The response includes the full patient payload when found (along with `id` and `surgery_date` for backwards compatibility), sets `success: false` with `message: "Patient record not found"` when no match exists, and returns `success: false` with `message: "Name is missing"` when no name parameters are supplied so you can spot empty requests.
 <!--  -->
+7. **Search by metadata (flexible match)** — _All fields are optional (`full_name`, `date`, `status`, `grafts_number`, `package_type`) and can be supplied in any combination to narrow the match. This endpoint is designed for integrations that only know partial patient details._
+
+   ```bash
+   curl -X POST "http://127.0.0.1:8000/api/v1/procedures/search-by-meta" \
+     -H "Authorization: Bearer YOUR_API_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "full_name": "Jane Doe",
+       "date": "2025-01-02",
+       "status": "reserved",
+       "grafts_number": "3000",
+       "package_type": "small"
+     }'
+   ```

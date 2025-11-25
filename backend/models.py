@@ -99,7 +99,7 @@ class ProcedureListResponse(BaseModel):
 
 
 class ProcedureMetadataDeleteRequest(BaseModel):
-    full_name: str = Field(..., description="Patient full name (first and last)")
+    full_name: Optional[str] = Field(None, description="Patient full name (first and last)")
     date: Optional[str] = Field(None, description="Procedure date string (ISO or YYYY-MM-DD)")
     status: Optional[str] = Field(None, description="Optional workflow status to narrow matching")
     grafts_number: Optional[str] = Field(None, alias="grafts_number", description="Optional graft count string")

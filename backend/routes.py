@@ -488,23 +488,47 @@ async def create_procedure_route(payload: ProcedureCreatePayload, request: Reque
 
 @procedures_router.get("/search", response_model=ProcedureSearchResult)
 def search_procedure_route(
-    patient_id: int = Query(..., description="Patient identifier to search"),
+    patient_id: Optional[int] = Query(
+        None, description="Patient identifier to search (required when procedure_id is omitted)"
+    ),
+    procedure_id: Optional[int] = Query(
+        None, description="Direct procedure identifier (optional when patient_id is supplied)"
+    ),
     procedure_date: Optional[str] = Query(None, description="ISO procedure date (YYYY-MM-DD) to match"),
     include_deleted: bool = Query(False, description="Include deleted procedures in the search"),
 ) -> ProcedureSearchResult:
+    if procedure_id is None and patient_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Provide procedure_id or patient_id to search.",
+        )
+    if procedure_id is not None:
+        record = database.fetch_procedure(procedure_id, include_deleted=include_deleted)
+        if not record:
+            return ProcedureSearchResult(success=False, message="Procedure not found")
+        if patient_id is not None and record["patient_id"] != patient_id:
+            return ProcedureSearchResult(success=False, message="Procedure does not belong to this patient")
+        return ProcedureSearchResult(success=True, procedure=Procedure(**record))
+    assert patient_id is not None
     patient = database.fetch_patient(patient_id, include_deleted=True)
     if not patient:
         return ProcedureSearchResult(success=False, message="Patient record not found")
-    if not procedure_date:
-        return ProcedureSearchResult(success=False, message="procedure_date is missing")
-    try:
-        record = database.find_procedure_by_patient_and_date(
+    record = None
+    if procedure_date:
+        try:
+            record = database.find_procedure_by_patient_and_date(
+                patient_id,
+                procedure_date,
+                include_deleted=include_deleted,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    else:
+        procedures = database.list_procedures_for_patient(
             patient_id,
-            procedure_date,
             include_deleted=include_deleted,
         )
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        record = procedures[0] if procedures else None
     if not record:
         return ProcedureSearchResult(success=False, message="Procedure not found")
     return ProcedureSearchResult(success=True, procedure=Procedure(**record))
@@ -606,17 +630,34 @@ async def delete_procedure_route(procedure_id: int, request: Request) -> Operati
 @procedures_router.post("/search-by-meta", response_model=ProcedureMetadataSearchResponse)
 def search_procedure_by_metadata(payload: ProcedureMetadataDeleteRequest) -> ProcedureMetadataSearchResponse:
     """Return a procedure id when metadata matches."""
-    if not payload.full_name:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="full_name is required")
-    if not payload.date:
-        return ProcedureMetadataSearchResponse(success=False, message="Procedure date is required for this search")
-    match = database.find_procedure_by_metadata(
-        payload.full_name,
-        payload.date,
-        status=payload.status,
-        grafts_number=payload.grafts_number,
-        package_type=payload.package_type,
-    )
+    provided_filters = [
+        (payload.full_name or "").strip(),
+        (payload.date or "").strip(),
+        (payload.status or "").strip(),
+        (payload.grafts_number or "").strip(),
+        (payload.package_type or "").strip(),
+    ]
+    if not any(filter_value for filter_value in provided_filters):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Provide at least one search field (full_name, date, status, grafts_number, or package_type).",
+        )
+    patient_id = None
+    if payload.full_name:
+        patient = database.find_patient_by_full_name(payload.full_name)
+        if not patient:
+            return ProcedureMetadataSearchResponse(success=False, message="Patient record not found")
+        patient_id = patient["id"]
+    try:
+        match = database.find_procedure_by_metadata(
+            patient_id,
+            payload.date,
+            status=payload.status,
+            grafts_number=payload.grafts_number,
+            package_type=payload.package_type,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     if not match:
         return ProcedureMetadataSearchResponse(success=False, message="Procedure not found")
     return ProcedureMetadataSearchResponse(success=True, procedure_id=match["id"])

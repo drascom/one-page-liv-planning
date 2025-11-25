@@ -248,13 +248,32 @@ def test_procedure_search_returns_success_and_message(client: TestClient):
     assert created.status_code == 201
     procedure_id = created.json()["id"]
 
-    match = client.get(
-        f"/procedures/search?patient_id={patient_id}&procedure_date=2025-04-05"
-    )
+    missing_params = client.get("/procedures/search")
+    assert missing_params.status_code == 400
+
+    match = client.get(f"/procedures/search?patient_id={patient_id}&procedure_date=2025-04-05")
     assert match.status_code == 200
     body = match.json()
     assert body["success"] is True
     assert body["procedure"]["id"] == procedure_id
+
+    fallback = client.get(f"/procedures/search?patient_id={patient_id}")
+    assert fallback.status_code == 200
+    fallback_body = fallback.json()
+    assert fallback_body["success"] is True
+    assert fallback_body["procedure"]["id"] == procedure_id
+
+    direct = client.get(f"/procedures/search?procedure_id={procedure_id}")
+    assert direct.status_code == 200
+    direct_body = direct.json()
+    assert direct_body["success"] is True
+    assert direct_body["procedure"]["id"] == procedure_id
+
+    mismatch = client.get(f"/procedures/search?patient_id=999999&procedure_id={procedure_id}")
+    assert mismatch.status_code == 200
+    mismatch_body = mismatch.json()
+    assert mismatch_body["success"] is False
+    assert mismatch_body["message"] == "Procedure does not belong to this patient"
 
     missing = client.get(
         f"/procedures/search?patient_id={patient_id}&procedure_date=2025-04-06"
@@ -315,13 +334,23 @@ def test_search_procedure_by_metadata_and_delete(client: TestClient):
 
     search_request = {
         "full_name": "Test Patient",
-        "date": "2025-05-10",
     }
     search = client.post("/procedures/search-by-meta", json=search_request)
     assert search.status_code == 200
     body = search.json()
     assert body["success"] is True
     assert body["procedure_id"] == procedure_id
+
+    status_only_request = {
+        "status": "reserved",
+        "date": "2025-05-10",
+        "package_type": "small",
+    }
+    status_search = client.post("/procedures/search-by-meta", json=status_only_request)
+    assert status_search.status_code == 200
+    status_body = status_search.json()
+    assert status_body["success"] is True
+    assert status_body["procedure_id"] == procedure_id
 
     deleted = client.delete(f"/procedures/{procedure_id}")
     assert deleted.status_code == 200
@@ -334,9 +363,14 @@ def test_search_procedure_by_metadata_missing_record(client: TestClient):
     patient_id = _create_patient(client)
     _create_procedure(client, patient_id, date="2025-08-01")
     search_request = {
-        "full_name": "Test Patient",
         "date": "2025-08-02",
     }
     result = client.post("/procedures/search-by-meta", json=search_request)
     assert result.status_code == 200
     assert result.json()["success"] is False
+
+
+def test_search_procedure_by_metadata_requires_filters(client: TestClient):
+    response = client.post("/procedures/search-by-meta", json={})
+    assert response.status_code == 400
+    assert "Provide at least one search field" in response.json()["detail"]
