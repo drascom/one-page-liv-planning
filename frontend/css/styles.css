@@ -284,9 +284,6 @@ body.app-shell {
   list-style: none;
   padding: 0;
   margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
 }
 
 .activity-feed__placeholder {
@@ -295,14 +292,32 @@ body.app-shell {
   padding: 0.5rem 0;
 }
 
-.activity-entry {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.9rem 1rem;
-  border-radius: 0.85rem;
-  border: 1px solid #f1f5f9;
-  background: #f8fafc;
+.activity-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.activity-table tbody tr {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.activity-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.activity-cell {
+  padding: 0.75rem 0.5rem;
+  vertical-align: top;
+}
+
+.activity-cell--summary {
+  width: 80%;
+}
+
+.activity-cell--time {
+  width: 20%;
+  text-align: right;
 }
 
 .activity-entry__meta {

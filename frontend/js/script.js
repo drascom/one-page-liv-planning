@@ -131,6 +131,7 @@ async function fetchFieldOptions() {
 const ACTIVE_PATIENT_KEY = "activePatient";
 const MONTH_QUERY_PARAM = "month";
 const GLOBAL_SEARCH_KEY = "globalSearchQuery";
+const ACTIVITY_FEED_KEY = "liveActivityFeed";
 const API_BASE_URL =
   window.APP_CONFIG?.backendUrl ??
   `${window.location.protocol}//${window.location.host}`;
@@ -172,7 +173,7 @@ let filteredMonthlySchedules = [];
 let searchQuery = "";
 let patientRecords = [];
 let procedureRecords = [];
-let activityEvents = [];
+let activityEvents = loadActivityFeed();
 let realtimeSocket = null;
 let realtimeReconnectTimer = null;
 let realtimeConnectionState = "idle";
@@ -326,11 +327,16 @@ function renderActivityFeed() {
     activityFeedEl.appendChild(placeholder);
     return;
   }
+  const table = document.createElement("table");
+  table.className = "activity-table";
+  const tbody = document.createElement("tbody");
   activityEvents.slice(0, 10).forEach((event) => {
-    const item = document.createElement("li");
-    item.className = "activity-entry";
-    const meta = document.createElement("div");
-    meta.className = "activity-entry__meta";
+    const row = document.createElement("tr");
+    row.className = "activity-row";
+    const summaryCell = document.createElement("td");
+    summaryCell.className = "activity-cell activity-cell--summary";
+    const summaryWrapper = document.createElement("div");
+    summaryWrapper.className = "activity-entry__meta";
     const summaryText = event.summary || "Schedule updated";
     const patientIdValue = Number(event.data?.patient_id);
     const procedureIdValue = Number(event.data?.procedure_id);
@@ -357,13 +363,21 @@ function renderActivityFeed() {
     const actor = document.createElement("div");
     actor.className = "activity-entry__actor";
     actor.textContent = `by ${event.actor || "Another user"}`;
-    meta.append(summary, actor);
+    summaryWrapper.append(summary, actor);
+    summaryCell.appendChild(summaryWrapper);
+
+    const timeCell = document.createElement("td");
+    timeCell.className = "activity-cell activity-cell--time";
     const time = document.createElement("span");
     time.className = "activity-entry__time";
     time.textContent = formatActivityTime(event.timestamp);
-    item.append(meta, time);
-    activityFeedEl.appendChild(item);
+    timeCell.appendChild(time);
+
+    row.append(summaryCell, timeCell);
+    tbody.appendChild(row);
   });
+  table.appendChild(tbody);
+  activityFeedEl.appendChild(table);
 }
 
 function updateConnectionIndicator(state) {
@@ -390,6 +404,7 @@ function addActivityEvent(event) {
   if (activityEvents.length > 10) {
     activityEvents.length = 10;
   }
+  persistActivityFeed(activityEvents);
   renderActivityFeed();
 }
 
@@ -541,6 +556,34 @@ function loadActivePatientContext() {
   } catch (error) {
     console.warn("Unable to parse active patient context", error);
     return null;
+  }
+}
+
+function loadActivityFeed() {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return [];
+  }
+  try {
+    const raw = localStorage.getItem(ACTIVITY_FEED_KEY);
+    if (!raw) {
+      return [];
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.slice(0, 10) : [];
+  } catch (error) {
+    console.warn("Unable to load activity feed", error);
+    return [];
+  }
+}
+
+function persistActivityFeed(events) {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
+  try {
+    localStorage.setItem(ACTIVITY_FEED_KEY, JSON.stringify(events.slice(0, 10)));
+  } catch (error) {
+    console.warn("Unable to persist activity feed", error);
   }
 }
 
@@ -2000,6 +2043,7 @@ function handleRealtimeMessage(payload) {
   }
   if (payload.type === "activity.sync" && Array.isArray(payload.items)) {
     activityEvents = payload.items.slice(0, 10);
+    persistActivityFeed(activityEvents);
     renderActivityFeed();
     return;
   }
