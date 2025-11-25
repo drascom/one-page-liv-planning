@@ -619,6 +619,20 @@ def _deserialize_consultation(value: Optional[str]) -> List[str]:
     return []
 
 
+def _deserialize_json_list(value: Optional[str]) -> List[str]:
+    if not value:
+        return []
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return [value] if isinstance(value, str) else []
+    if isinstance(parsed, list):
+        return [str(item) for item in parsed]
+    if isinstance(parsed, str):
+        return [parsed]
+    return []
+
+
 def _row_to_patient(row: sqlite3.Row) -> Dict[str, Any]:
     """Convert a patient row to a dictionary (personal info only)."""
     return {
@@ -637,6 +651,9 @@ def _row_to_patient(row: sqlite3.Row) -> Dict[str, Any]:
 
 def _row_to_procedure(row: sqlite3.Row) -> Dict[str, Any]:
     """Convert a procedure row to a dictionary."""
+    forms = _deserialize_json_list(row["forms"])
+    consents = _deserialize_json_list(row["consents"])
+    photo_files = _deserialize_json_list(row["photo_files"])
     return {
         "id": row["id"],
         "patient_id": row["patient_id"],
@@ -648,12 +665,12 @@ def _row_to_procedure(row: sqlite3.Row) -> Dict[str, Any]:
         "grafts": row["grafts"],
         "payment": row["payment"],
         "consultation": _deserialize_consultation(row["consultation"]),
-        "forms": json.loads(row["forms"]) if row["forms"] else [],
-        "consents": json.loads(row["consents"]) if row["consents"] else [],
-        "photo_files": json.loads(row["photo_files"]) if row["photo_files"] else [],
+        "forms": forms,
+        "consents": consents,
+        "photo_files": photo_files,
         "photos": row["photo_count"]
         if "photo_count" in row.keys() and row["photo_count"] is not None
-        else len(json.loads(row["photo_files"])) if row["photo_files"] else 0,
+        else len(photo_files),
         "deleted": bool(row["deleted"]),
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
