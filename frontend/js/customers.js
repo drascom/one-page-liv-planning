@@ -24,6 +24,8 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
 
 let allCustomers = [];
 let filteredCustomers = [];
+let isAdminUser = false;
+let hasCustomerData = false;
 
 initSessionControls();
 
@@ -32,14 +34,29 @@ if (searchResultsEl) {
   searchResultsEl.innerHTML = "";
 }
 
+function setStatus(message, { isError = false } = {}) {
+  if (!statusEl) return;
+  statusEl.textContent = message ?? "";
+  if (isError) {
+    statusEl.classList.add("form-status--danger");
+  } else {
+    statusEl.classList.remove("form-status--danger");
+  }
+}
+
 async function ensureAdminLinkVisibility() {
   try {
     const user = await fetchCurrentUser();
-    if (user?.is_admin) {
+    isAdminUser = Boolean(user?.is_admin);
+    if (isAdminUser) {
       adminLink?.removeAttribute("hidden");
+    }
+    if (isAdminUser && hasCustomerData) {
+      renderCustomers(filteredCustomers);
     }
   } catch (_error) {
     // Ignore – non-admins simply won't see the link.
+    isAdminUser = false;
   }
 }
 
@@ -126,6 +143,11 @@ function renderCustomers(customers) {
           <div class="customer-card__actions">
             <p class="customer-card__status">${customer.nextProcedureLabel}</p>
             <a class="secondary-btn customer-card__link" href="patient.html?id=${customer.id}">Open</a>
+            ${
+              isAdminUser
+                ? `<button type="button" class="danger-btn customer-card__delete-btn" data-delete-patient="${customer.id}">Delete</button>`
+                : ""
+            }
           </div>
         </li>
       `
@@ -180,10 +202,80 @@ function handleSearchSubmit(event) {
   handleSearchInput();
 }
 
-async function loadCustomers() {
-  if (statusEl) {
-    statusEl.textContent = "Loading patients...";
+function updateCustomerTotals() {
+  const total = allCustomers.length;
+  if (totalCountEl) {
+    totalCountEl.textContent = String(total);
   }
+  if (totalInlineEl) {
+    totalInlineEl.textContent = String(total);
+  }
+}
+
+function getCustomerLabel(patientId) {
+  const record = allCustomers.find((customer) => Number(customer.id) === patientId);
+  if (!record) {
+    return `patient #${patientId}`;
+  }
+  const nameParts = [record.first_name, record.last_name]
+    .map((part) => (part || "").trim())
+    .filter(Boolean);
+  return nameParts.length ? nameParts.join(" ") : `patient #${patientId}`;
+}
+
+function removeCustomerFromState(patientId) {
+  allCustomers = allCustomers.filter((customer) => Number(customer.id) !== patientId);
+  filteredCustomers = filteredCustomers.filter((customer) => Number(customer.id) !== patientId);
+  updateCustomerTotals();
+  renderCustomers(filteredCustomers);
+}
+
+async function deletePatientRecord(patientId) {
+  const response = await fetch(buildApiUrl(`/patients/${patientId}/purge`), { method: "DELETE" });
+  handleUnauthorized(response);
+  if (!response.ok) {
+    let message = `Unable to delete patient #${patientId}`;
+    try {
+      const errorPayload = await response.json();
+      if (errorPayload?.detail) {
+        message = errorPayload.detail;
+      }
+    } catch (_jsonError) {
+      // Ignore JSON parse issues for empty bodies
+    }
+    throw new Error(message);
+  }
+}
+
+async function handleCustomerDelete(button, patientId) {
+  if (!isAdminUser) return;
+  const patientLabel = getCustomerLabel(patientId);
+  const confirmed = window.confirm(
+    `Delete ${patientLabel}? This also removes all associated procedures and files.`
+  );
+  if (!confirmed) {
+    return;
+  }
+  const originalLabel = button.textContent;
+  button.disabled = true;
+  button.textContent = "Deleting...";
+  try {
+    await deletePatientRecord(patientId);
+    removeCustomerFromState(patientId);
+    setStatus(`${patientLabel} was deleted.`);
+  } catch (error) {
+    console.error(error);
+    setStatus(error.message || "Unable to delete patient.", { isError: true });
+  } finally {
+    if (button.isConnected) {
+      button.disabled = false;
+      button.textContent = originalLabel;
+    }
+  }
+}
+
+async function loadCustomers() {
+  setStatus("Loading patients...");
   if (refreshBtn) {
     refreshBtn.disabled = true;
   }
@@ -200,7 +292,14 @@ async function loadCustomers() {
       }
       proceduresByPatient.get(patientId).push(procedure);
     });
-    allCustomers = patients
+    const normalizedPatients = patients.map((patient) => {
+      const numericId = Number(patient.id);
+      return {
+        ...patient,
+        id: Number.isFinite(numericId) ? numericId : patient.id,
+      };
+    });
+    allCustomers = normalizedPatients
       .map((patient) => buildCustomerEntry(patient, proceduresByPatient))
       .sort((a, b) => {
         const lastCompare = a.last_name.localeCompare(b.last_name);
@@ -208,21 +307,14 @@ async function loadCustomers() {
         return a.first_name.localeCompare(b.first_name);
       });
     filteredCustomers = [...allCustomers];
-    if (totalCountEl) {
-      totalCountEl.textContent = String(allCustomers.length);
-    }
-    if (totalInlineEl) {
-      totalInlineEl.textContent = String(allCustomers.length);
-    }
-    if (statusEl) {
-      statusEl.textContent = "";
-    }
+    hasCustomerData = true;
+    updateCustomerTotals();
+    setStatus("");
     renderCustomers(filteredCustomers);
   } catch (error) {
     console.error(error);
-    if (statusEl) {
-      statusEl.textContent = error.message || "Unable to load patients.";
-    }
+    hasCustomerData = false;
+    setStatus(error.message || "Unable to load patients.", { isError: true });
     if (listEl) {
       listEl.innerHTML =
         '<li class="customer-empty customer-empty--error">Unable to load patients. Try refreshing.</li>';
@@ -251,6 +343,23 @@ searchClearBtn?.addEventListener("click", resetSearch);
 
 refreshBtn?.addEventListener("click", () => {
   loadCustomers();
+});
+
+listEl?.addEventListener("click", (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+  const deleteButton = target.closest("[data-delete-patient]");
+  if (!deleteButton || !(deleteButton instanceof HTMLButtonElement)) {
+    return;
+  }
+  const patientId = Number(deleteButton.dataset.deletePatient);
+  if (!Number.isFinite(patientId)) {
+    return;
+  }
+  event.preventDefault();
+  handleCustomerDelete(deleteButton, patientId);
 });
 
 ensureAdminLinkVisibility();
