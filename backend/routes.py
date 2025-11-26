@@ -678,7 +678,16 @@ def search_procedure_by_metadata(payload: ProcedureMetadataDeleteRequest) -> Pro
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     if not match:
         return ProcedureMetadataSearchResponse(success=False, message="Procedure not found")
-    return ProcedureMetadataSearchResponse(success=True, procedure_id=match["id"])
+    return ProcedureMetadataSearchResponse(
+        success=True,
+        procedure_id=match["id"],
+        procedure_date=match.get("procedure_date"),
+        status=match.get("status"),
+        procedure_type=match.get("procedure_type"),
+        package_type=match.get("package_type"),
+        agency=match.get("agency"),
+        grafts=match.get("grafts"),
+    )
 
 
 @audit_router.get("/", response_model=List[dict])

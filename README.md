@@ -98,7 +98,7 @@ If you are behind nginx proxy manager with ssl certificate than use
 | POST | `/procedures/` | Create a procedure linked to a patient |
 | GET/PUT | `/procedures/{id}` | Fetch or update a procedure |
 | DELETE | `/procedures/{id}` | Delete a procedure |
-| POST | `/api/v1/procedures/search-by-meta` | Provide patient name/date metadata to retrieve a matching procedure id (use `DELETE /procedures/{id}` afterward). |
+| POST | `/api/v1/procedures/search-by-meta` | Provide patient name/date metadata to retrieve a matching procedure id plus the procedure metadata (use `DELETE /procedures/{id}` afterward). |
 | GET | `/procedures/search` | Provide `procedure_id` to fetch a procedure directly, or supply `patient_id` (optionally `procedure_date=YYYY-MM-DD`) to locate a patient's procedure. Returns `{ "success": true, "procedure": { ... } }` or `{ "success": false, "message": "Procedure not found" }`. |
 | GET/POST/DELETE | `/patients/{id}/photos` | List/create/delete photo metadata (files land in `/uploads`) |
 | GET/POST/DELETE | `/patients/{id}/payments` | Manage patient payments |
@@ -333,7 +333,7 @@ curl -X POST "http://127.0.0.1:8000/api/v1/procedures/search-by-meta" \
   }'
 ```
 
-The response includes `{ "success": true, "procedure_id": 42 }` when a matching record is found (you can then call `DELETE /procedures/42`), or `{ "success": false, "message": "Procedure not found" }` when no match exists.
+The response includes the matching metadata when a record is found (e.g. `{ "success": true, "procedure_id": 42, "procedure_date": "2025-05-10", "status": "reserved", "procedure_type": "sfue", ... }`), or `{ "success": false, "message": "Procedure not found" }` when no match exists.
 ```
 
 Check whether a patient already has a procedure scheduled on a specific date:

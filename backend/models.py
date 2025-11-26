@@ -113,6 +113,12 @@ class ProcedureMetadataSearchResponse(BaseModel):
     success: bool = Field(..., description="Whether a matching procedure was found")
     procedure_id: Optional[int] = Field(None, description="Identifier of the deleted procedure")
     message: Optional[str] = Field(None, description="Additional details about the operation")
+    procedure_date: Optional[str] = Field(None, description="ISO procedure date when a match is found")
+    status: Optional[str] = Field(None, description="Workflow status for the procedure")
+    procedure_type: Optional[str] = Field(None, description="Procedure type identifier")
+    package_type: Optional[str] = Field(None, description="Package selection for the procedure")
+    agency: Optional[str] = Field(None, description="Agency or referral source")
+    grafts: Optional[str] = Field(None, description="Stored graft count/detail")
 
 
 class PhotoBase(BaseModel):

@@ -341,6 +341,12 @@ def test_search_procedure_by_metadata_and_delete(client: TestClient):
     body = search.json()
     assert body["success"] is True
     assert body["procedure_id"] == procedure_id
+    assert body["procedure_date"] == "2025-05-10"
+    assert body["status"] == "reserved"
+    assert body["procedure_type"] == "sfue"
+    assert body["package_type"] == "small"
+    assert body["agency"] == ""
+    assert body["grafts"] == "3000"
 
     status_only_request = {
         "status": "reserved",
@@ -352,6 +358,12 @@ def test_search_procedure_by_metadata_and_delete(client: TestClient):
     status_body = status_search.json()
     assert status_body["success"] is True
     assert status_body["procedure_id"] == procedure_id
+    assert status_body["procedure_date"] == "2025-05-10"
+    assert status_body["status"] == "reserved"
+    assert status_body["procedure_type"] == "sfue"
+    assert status_body["package_type"] == "small"
+    assert status_body["agency"] == ""
+    assert status_body["grafts"] == "3000"
 
     deleted = client.delete(f"/procedures/{procedure_id}")
     assert deleted.status_code == 200
