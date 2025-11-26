@@ -111,7 +111,7 @@ If you are behind nginx proxy manager with ssl certificate than use
 | GET | `/auth/me` | Return the current user |
 | GET/POST/PUT/DELETE | `/auth/users` | Admin user management APIs |
 | GET/POST/DELETE | `/api-tokens` | Manage integration tokens scoped to the current admin user |
-| GET | `/api/v1/search?full_name=name%20Surname` | External-only endpoint that finds a patient by full name and returns `{ "success": true, "id": 123, "first_name": "...", ... }` (flat patient fields) or `{ "success": false, "message": "Patient record not found" }`. |
+| GET | `/api/v1/search?full_name=name%20Surname` | External-only endpoint that finds a patient by full name and returns `{ "success": true, "id": 123, "first_name": "...", ..., "procedures": [ { ... } ] }` or `{ "success": false, "message": "Patient record not found", "procedures": [] }`. |
 
 **Trailing slash:** The collection routes under `/api/v1` (for example `/patients/` and `/procedures/`) are registered with FastAPI's trailing-slash path. Requests that omit the slash (`/patients` without `/`) return a `307 Temporary Redirect`, so include the trailing slash in HTTP clients to reach the handler directly.
 
@@ -417,7 +417,7 @@ The SQLite schema now separates personal information (`patients`) from schedulin
 
 All HTTP APIs include interactive docs at `http://127.0.0.1:8000/docs` once the server is running.
 
-**External integrations:** Every route above is mirrored under `/api/v1/*` and requires an API token created in the Settings → API Tokens UI. Send it in the `Authorization: Bearer <token>` header (requests without this header are rejected). The `/api/v1/search` helper is specifically designed for lightweight patient lookups from outside systems—you can pass `full_name=name%20Surname` (preferred) or continue using the legacy `name` and optional `surname` parameters. The response includes the patient's fields at the top level when found (e.g. `{ "success": true, "id": 123, "first_name": "Jane", ... }`), sets `success: false` with `message: "Patient record not found"` when no match exists, and returns `success: false` with `message: "Name is missing"` when no name parameters are supplied so you can spot empty requests.
+**External integrations:** Every route above is mirrored under `/api/v1/*` and requires an API token created in the Settings → API Tokens UI. Send it in the `Authorization: Bearer <token>` header (requests without this header are rejected). The `/api/v1/search` helper is specifically designed for lightweight patient lookups from outside systems—you can pass `full_name=name%20Surname` (preferred) or continue using the legacy `name` and optional `surname` parameters. The response includes the patient's fields (flattened) plus a `procedures` array when found (e.g. `{ "success": true, "id": 123, "first_name": "Jane", ..., "procedures": [ { ... } ] }`), sets `success: false` with `message: "Patient record not found"` and `procedures: []` when no match exists, and returns `success: false` with `message: "Name is missing"` when no name parameters are supplied so you can spot empty requests.
 <!--  -->
 7. **Search by metadata (flexible match)** — _All fields are optional (`full_name`, `date`, `status`, `grafts_number`, `package_type`) and can be supplied in any combination to narrow the match. This endpoint is designed for integrations that only know partial patient details._
 

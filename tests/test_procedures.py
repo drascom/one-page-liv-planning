@@ -427,10 +427,12 @@ def test_search_endpoint_omits_empty_fields_when_missing_patient(client: TestCli
     assert body["message"] == "Patient record not found"
     assert "id" not in body
     assert "patient" not in body
+    assert body["procedures"] == []
 
 
 def test_search_endpoint_returns_flat_patient_fields(client: TestClient):
     patient_id = _create_patient(client)
+    procedure_id = _create_procedure(client, patient_id)
     token_response = client.post("/api-tokens", json={"name": "search-success"})
     assert token_response.status_code == 201
     api_token = token_response.json()["token"]
@@ -450,3 +452,5 @@ def test_search_endpoint_returns_flat_patient_fields(client: TestClient):
     assert body["city"] == "Exampleville"
     assert body["deleted"] is False
     assert "patient" not in body
+    assert isinstance(body["procedures"], list)
+    assert any(entry["id"] == procedure_id for entry in body["procedures"])

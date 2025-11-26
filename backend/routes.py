@@ -995,10 +995,13 @@ def search_patients_route(
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     if not record:
-        return PatientSearchResult(success=False, message="Patient record not found")
+        return PatientSearchResult(success=False, message="Patient record not found", procedures=[])
     patient = Patient(**record)
     patient_data = patient.model_dump()
+    procedure_records = database.list_procedures_for_patient(patient.id)
+    procedures = [Procedure(**entry) for entry in procedure_records]
     return PatientSearchResult(
         success=True,
         **patient_data,
+        procedures=procedures,
     )

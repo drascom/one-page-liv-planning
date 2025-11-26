@@ -167,6 +167,7 @@ class PatientSearchResult(BaseModel):
     created_at: Optional[str] = Field(None, description="Timestamp when the patient was created")
     updated_at: Optional[str] = Field(None, description="Timestamp when the patient was last updated")
     photo_count: Optional[int] = Field(None, description="Number of photos linked to the patient")
+    procedures: List[Procedure] = Field(default_factory=list, description="Procedures linked to the patient")
 
 
 class SimplifiedPatientPayload(BaseModel):
