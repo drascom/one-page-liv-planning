@@ -973,15 +973,8 @@ def search_patients_route(
     if not record:
         return PatientSearchResult(success=False, message="Patient record not found")
     patient = Patient(**record)
-    surgery_date = None
-    procedures = database.list_procedures_for_patient(patient.id)
-    for procedure in procedures:
-        if procedure.get("procedure_date"):
-            surgery_date = procedure["procedure_date"]
-            break
     return PatientSearchResult(
         success=True,
         id=patient.id,
-        surgery_date=surgery_date,
         patient=patient,
     )
