@@ -654,10 +654,11 @@ def _row_to_procedure(row: sqlite3.Row) -> Dict[str, Any]:
     forms = _deserialize_json_list(row["forms"])
     consents = _deserialize_json_list(row["consents"])
     photo_files = _deserialize_json_list(row["photo_files"])
+    procedure_date = _date_only(row["procedure_date"]) or ""
     return {
         "id": row["id"],
         "patient_id": row["patient_id"],
-        "procedure_date": _date_only(row["procedure_date"]),
+        "procedure_date": procedure_date,
         "status": row["status"],
         "procedure_type": row["procedure_type"],
         "package_type": (row["package_type"] if "package_type" in row.keys() else "") or "",
@@ -1121,8 +1122,12 @@ def _serialize_procedure_payload(data: Dict[str, Any]) -> Dict[str, Any]:
     else:
         consultation_list = list(consultation_value)
 
+    normalized_date = _date_only(data.get("procedure_date"))
+    if not normalized_date:
+        raise ValueError("procedure_date is required")
+
     return {
-        "procedure_date": _date_only(data.get("procedure_date")),
+        "procedure_date": normalized_date,
         "status": data.get("status", ""),
         "procedure_type": data.get("procedure_type", ""),
         "package_type": data.get("package_type") or "",

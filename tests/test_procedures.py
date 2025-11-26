@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+from contextlib import closing
 
 import pytest
 from fastapi.testclient import TestClient
@@ -374,3 +375,38 @@ def test_search_procedure_by_metadata_requires_filters(client: TestClient):
     response = client.post("/procedures/search-by-meta", json={})
     assert response.status_code == 400
     assert "Provide at least one search field" in response.json()["detail"]
+
+
+def test_procedure_creation_rejects_blank_date(client: TestClient):
+    patient_id = _create_patient(client)
+    payload = {
+        "patient_id": patient_id,
+        "procedure_date": "   ",
+        "status": "reserved",
+        "procedure_type": "sfue",
+        "package_type": "small",
+        "grafts": "",
+        "payment": "waiting",
+        "consultation": [],
+        "forms": [],
+        "consents": [],
+        "photo_files": [],
+    }
+    response = client.post("/procedures", json=payload)
+    assert response.status_code == 422
+    assert response.json()["detail"] == "procedure_date is required"
+
+
+def test_procedure_listing_survives_null_dates(client: TestClient):
+    patient_id = _create_patient(client)
+    procedure_id = _create_procedure(client, patient_id)
+    with closing(database.get_connection()) as conn:
+        conn.execute("UPDATE procedures SET procedure_date = NULL WHERE id = ?", (procedure_id,))
+        conn.commit()
+    response = client.get("/procedures")
+    assert response.status_code == 200
+    procedures = response.json()
+    assert any(
+        entry["id"] == procedure_id and entry["procedure_date"] == ""
+        for entry in procedures
+    )

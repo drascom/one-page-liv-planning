@@ -279,7 +279,10 @@ async def create_procedure(patient_id: int, payload: ProcedureCreate, request: R
     patient = database.fetch_patient(patient_id)
     if not patient:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
-    created = database.create_procedure(patient_id, payload.model_dump())
+    try:
+        created = database.create_procedure(patient_id, payload.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     procedure_record = database.fetch_procedure(created["id"])
     if procedure_record:
         await _emit_procedure_event("created", procedure_record, request, patient=patient)
@@ -304,7 +307,10 @@ async def update_procedure(
     procedure = database.fetch_procedure(procedure_id, include_deleted=True)
     if not procedure or procedure["patient_id"] != patient_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
-    updated = database.update_procedure(procedure_id, payload.model_dump())
+    try:
+        updated = database.update_procedure(procedure_id, payload.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
     refreshed = database.fetch_procedure(procedure_id)
@@ -485,7 +491,10 @@ async def create_procedure_route(payload: ProcedureCreatePayload, request: Reque
     patient = database.fetch_patient(payload.patient_id)
     if not patient:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
-    created = database.create_procedure(payload.patient_id, payload.model_dump(exclude={"patient_id"}))
+    try:
+        created = database.create_procedure(payload.patient_id, payload.model_dump(exclude={"patient_id"}))
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     procedure_record = database.fetch_procedure(created["id"])
     if procedure_record:
         await _emit_procedure_event("created", procedure_record, request, patient=patient)
@@ -608,7 +617,10 @@ async def update_procedure_route(
     existing = database.fetch_procedure(procedure_id, include_deleted=True)
     if not existing:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
-    updated = database.update_procedure(procedure_id, payload.model_dump(exclude={"patient_id"}))
+    try:
+        updated = database.update_procedure(procedure_id, payload.model_dump(exclude={"patient_id"}))
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
     refreshed = database.fetch_procedure(procedure_id)
