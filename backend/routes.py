@@ -955,7 +955,7 @@ def list_activity_feed() -> List[ActivityEvent]:
     return [ActivityEvent(**record) for record in records]
 
 
-@search_router.get("/search", response_model=PatientSearchResult)
+@search_router.get("/search", response_model=PatientSearchResult, response_model_exclude_none=True)
 def search_patients_route(
     full_name: Optional[str] = Query(
         None,

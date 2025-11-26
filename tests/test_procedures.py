@@ -410,3 +410,21 @@ def test_procedure_listing_survives_null_dates(client: TestClient):
         entry["id"] == procedure_id and entry["procedure_date"] == ""
         for entry in procedures
     )
+
+
+def test_search_endpoint_omits_empty_fields_when_missing_patient(client: TestClient):
+    token_response = client.post("/api-tokens", json={"name": "search-test"})
+    assert token_response.status_code == 201
+    api_token = token_response.json()["token"]
+    response = client.get(
+        "/api/v1/search",
+        params={"full_name": "Missing Patient"},
+        headers={"Authorization": f"Bearer {api_token}"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is False
+    assert body["message"] == "Patient record not found"
+    assert "id" not in body
+    assert "surgery_date" not in body
+    assert "patient" not in body
