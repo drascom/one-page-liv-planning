@@ -426,5 +426,27 @@ def test_search_endpoint_omits_empty_fields_when_missing_patient(client: TestCli
     assert body["success"] is False
     assert body["message"] == "Patient record not found"
     assert "id" not in body
-    assert "surgery_date" not in body
+    assert "patient" not in body
+
+
+def test_search_endpoint_returns_flat_patient_fields(client: TestClient):
+    patient_id = _create_patient(client)
+    token_response = client.post("/api-tokens", json={"name": "search-success"})
+    assert token_response.status_code == 201
+    api_token = token_response.json()["token"]
+    response = client.get(
+        "/api/v1/search",
+        params={"FULL_NAME": "TEST PATIENT"},
+        headers={"Authorization": f"Bearer {api_token}"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["id"] == patient_id
+    assert body["first_name"] == "Test"
+    assert body["last_name"] == "Patient"
+    assert body["email"] == "test@example.com"
+    assert body["phone"] == "+10000000000"
+    assert body["city"] == "Exampleville"
+    assert body["deleted"] is False
     assert "patient" not in body

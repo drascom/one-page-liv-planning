@@ -156,10 +156,17 @@ class Payment(PaymentBase):
 
 class PatientSearchResult(BaseModel):
     success: bool = Field(..., description="Indicates whether the patient was found")
-    id: Optional[int] = Field(None, description="Database identifier for the matching patient")
-    surgery_date: Optional[str] = Field(None, description="ISO surgery date (procedure_date in the DB)")
-    patient: Optional[Patient] = Field(None, description="Full patient record when a match is found")
     message: Optional[str] = Field(None, description="Human readable message (e.g. when the patient is missing)")
+    id: Optional[int] = Field(None, description="Database identifier for the matching patient")
+    first_name: Optional[str] = Field(None, description="Patient first name when found")
+    last_name: Optional[str] = Field(None, description="Patient last name when found")
+    email: Optional[str] = Field(None, description="Preferred contact email when found")
+    phone: Optional[str] = Field(None, description="Preferred phone number when found")
+    city: Optional[str] = Field(None, description="Patient city when found")
+    deleted: Optional[bool] = Field(None, description="Whether the record is soft deleted")
+    created_at: Optional[str] = Field(None, description="Timestamp when the patient was created")
+    updated_at: Optional[str] = Field(None, description="Timestamp when the patient was last updated")
+    photo_count: Optional[int] = Field(None, description="Number of photos linked to the patient")
 
 
 class SimplifiedPatientPayload(BaseModel):

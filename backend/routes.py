@@ -886,6 +886,15 @@ def _sanitize_relative_path(value: str) -> Path:
     return candidate
 
 
+def _get_casefold_query_param(request: Request, name: str) -> Optional[str]:
+    """Return a query parameter value regardless of key casing."""
+    desired = name.lower()
+    for key, value in request.query_params.multi_items():
+        if key.lower() == desired:
+            return value
+    return None
+
+
 @upload_router.post("/{patient_last_name}", status_code=status.HTTP_201_CREATED)
 async def upload_patient_photos(
     patient_last_name: str,
@@ -957,6 +966,7 @@ def list_activity_feed() -> List[ActivityEvent]:
 
 @search_router.get("/search", response_model=PatientSearchResult, response_model_exclude_none=True)
 def search_patients_route(
+    request: Request,
     full_name: Optional[str] = Query(
         None,
         alias="full_name",
@@ -971,6 +981,8 @@ def search_patients_route(
         description="Optional surname parameter kept for backwards compatibility; appended to the name if provided.",
     ),
 ) -> PatientSearchResult:
+    if full_name is None:
+        full_name = _get_casefold_query_param(request, "full_name")
     if full_name:
         raw_value = full_name
     else:
@@ -985,8 +997,8 @@ def search_patients_route(
     if not record:
         return PatientSearchResult(success=False, message="Patient record not found")
     patient = Patient(**record)
+    patient_data = patient.model_dump()
     return PatientSearchResult(
         success=True,
-        id=patient.id,
-        patient=patient,
+        **patient_data,
     )
