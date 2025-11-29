@@ -1,0 +1,85 @@
+import os
+import json
+import logging
+from typing import Optional
+from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request
+from google_auth_oauthlib.flow import InstalledAppFlow
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Scopes required for the application
+SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
+
+def get_google_credentials() -> Optional[Credentials]:
+    """
+    Retrieves Google OAuth2 credentials.
+    Uses environment variables for client configuration and token storage.
+    """
+    creds = None
+    
+    # Try to load token from environment variable
+    token_json = os.getenv('GOOGLE_TOKEN_JSON')
+    if token_json:
+        try:
+            creds = Credentials.from_authorized_user_info(json.loads(token_json), SCOPES)
+        except Exception as e:
+            logger.error(f"Error loading token from environment: {e}")
+
+    # If there are no (valid) credentials available, let the user log in.
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            try:
+                creds.refresh(Request())
+            except Exception as e:
+                logger.error(f"Error refreshing token: {e}")
+                creds = None
+
+        if not creds:
+            # Check for client config in environment variables
+            client_id = os.getenv('GOOGLE_CLIENT_ID')
+            client_secret = os.getenv('GOOGLE_CLIENT_SECRET')
+            project_id = os.getenv('GOOGLE_PROJECT_ID')
+            redirect_uris = os.getenv('GOOGLE_REDIRECT_URIS', 'http://localhost').split(',')
+            auth_uri = os.getenv('GOOGLE_AUTH_URI', 'https://accounts.google.com/o/oauth2/auth')
+            token_uri = os.getenv('GOOGLE_TOKEN_URI', 'https://oauth2.googleapis.com/token')
+            
+            if client_id and client_secret:
+                client_config = {
+                    "installed": {
+                        "client_id": client_id,
+                        "project_id": project_id,
+                        "auth_uri": auth_uri,
+                        "token_uri": token_uri,
+                        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                        "client_secret": client_secret,
+                        "redirect_uris": redirect_uris
+                    }
+                }
+                
+                try:
+                    flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
+                    # This will open a browser window for authentication
+                    creds = flow.run_local_server(port=0)
+                except Exception as e:
+                    logger.error(f"Error during OAuth flow: {e}")
+                    return None
+            else:
+                logger.warning("Google Client ID/Secret not found in environment variables.")
+                return None
+
+        # Save the credentials for the next run (print to console to be added to ENV)
+        if creds:
+            logger.info("New token generated. Please add the following JSON to your GOOGLE_TOKEN_JSON environment variable:")
+            logger.info(creds.to_json())
+
+    return creds
+
+def get_access_token() -> Optional[str]:
+    """Helper to get just the access token string."""
+    creds = get_google_credentials()
+    if creds and creds.valid:
+        return creds.token
+    return None

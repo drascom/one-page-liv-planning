@@ -14,6 +14,7 @@ from .routes import (
     audit_router,
     auth_router,
     config_router,
+    drive_router,
     field_options_router,
     patients_router,
     procedures_router,
@@ -130,6 +131,7 @@ def create_app() -> FastAPI:
     api.include_router(upload_router, dependencies=auth_dependency, include_in_schema=False)
     api.include_router(field_options_router, dependencies=auth_dependency, include_in_schema=False)
     api.include_router(status_router, dependencies=auth_dependency)
+    api.include_router(drive_router, dependencies=auth_dependency)
     api.include_router(realtime_router, include_in_schema=False)
     for protected_router in (
         plans_router,
@@ -139,6 +141,7 @@ def create_app() -> FastAPI:
         field_options_router,
         status_router,
         search_router,
+        drive_router,
     ):
         api.include_router(
             protected_router,
@@ -177,6 +180,7 @@ app.include_router(audit_router, dependencies=auth_dependency)
 app.include_router(upload_router, dependencies=auth_dependency, include_in_schema=False)
 app.include_router(field_options_router, dependencies=auth_dependency, include_in_schema=False)
 app.include_router(status_router, dependencies=auth_dependency)
+app.include_router(drive_router, dependencies=auth_dependency)
 app.include_router(realtime_router, include_in_schema=False)
 for protected_router in (
     plans_router,
@@ -186,6 +190,7 @@ for protected_router in (
     field_options_router,
     status_router,
     search_router,
+    drive_router,
 ):
     app.include_router(
         protected_router,

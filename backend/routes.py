@@ -19,10 +19,12 @@ from fastapi import (
     UploadFile,
     status,
 )
+import requests
 from fastapi.responses import JSONResponse, PlainTextResponse
 
 from pydantic import ValidationError
 from . import database
+from .google_auth import get_access_token
 from .auth import (
     clear_login_cookie,
     hash_password,
@@ -76,6 +78,7 @@ status_router = APIRouter(prefix="/status", tags=["status"])
 search_router = APIRouter(tags=["search"])
 config_router = APIRouter(tags=["config"])
 audit_router = APIRouter(prefix="/api-requests", tags=["api requests"])
+drive_router = APIRouter(prefix="/drive-image", tags=["drive"])
 
 settings = get_settings()
 UPLOAD_ROOT = settings.uploads_root
@@ -1014,3 +1017,41 @@ def search_patients_route(
         **patient_data,
         procedures=procedures,
     )
+
+
+# Google Drive Image Proxy Route
+
+@drive_router.get("/{file_id}")
+def get_drive_image(file_id: str):
+    """
+    Proxies a Google Drive image to the frontend using the server's access token.
+    This keeps the token private and avoids CORS issues with direct Drive links.
+    """
+    # Google Drive file download endpoint
+    url = f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media"
+
+    token = get_access_token()
+    if not token:
+        raise HTTPException(
+            status_code=500,
+            detail="Google Drive authentication failed. Check server logs.",
+        )
+    
+    headers = {
+        "Authorization": f"Bearer {token}"
+    }
+
+    try:
+        r = requests.get(url, headers=headers, stream=True)
+        if r.status_code != 200:
+            raise HTTPException(
+                status_code=404,
+                detail="File not found or no permission",
+            )
+        
+        # Auto detect mime type if Google returns it
+        content_type = r.headers.get("Content-Type", "image/jpeg")
+        
+        return Response(content=r.content, media_type=content_type)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

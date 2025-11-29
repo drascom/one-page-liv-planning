@@ -505,6 +505,15 @@ async function fetchPhotosForPatient(patientId) {
   return patientPhotos;
 }
 
+function getDrivePhotoIds() {
+  if (!currentPatient?.drive_file_ids_string) return [];
+  // Handle simple comma-separated string
+  return currentPatient.drive_file_ids_string
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 async function fetchProceduresForPatient(patientId) {
   if (!patientId || !proceduresStatusEl) {
     return [];
@@ -809,22 +818,29 @@ function updatePhotoCountInput() {
 
 function renderPhotoGallery() {
   if (!galleryContainer) return;
-  const files = getPhotoFiles();
+  const localFiles = getPhotoFiles();
+  const driveIds = getDrivePhotoIds();
+  const totalCount = localFiles.length + driveIds.length;
+
   galleryContainer.innerHTML = "";
-  if (!files.length) {
+  
+  if (totalCount === 0) {
     if (galleryEmptyState) {
       galleryEmptyState.textContent = "No photos uploaded yet.";
     }
     return;
   }
+  
   if (galleryEmptyState) {
-    galleryEmptyState.textContent = `${files.length} photo${files.length > 1 ? "s" : ""} uploaded`;
+    galleryEmptyState.textContent = `${totalCount} photo${totalCount > 1 ? "s" : ""} available`;
   }
-  files.forEach((relativePath, index) => {
+
+  // Render Local Photos
+  localFiles.forEach((relativePath, index) => {
     const card = document.createElement("div");
     card.className = "photo-thumb";
     card.style.backgroundImage = `url(${buildPhotoUrl(relativePath)})`;
-    card.addEventListener("click", () => openPhotoViewer(index));
+    card.addEventListener("click", () => openPhotoViewer(index, 'local'));
 
     const deleteBtn = document.createElement("button");
     deleteBtn.type = "button";
@@ -838,18 +854,61 @@ function renderPhotoGallery() {
     card.appendChild(deleteBtn);
     galleryContainer.appendChild(card);
   });
+
+  // Render Drive Photos
+  driveIds.forEach((fileId, index) => {
+    const card = document.createElement("div");
+    card.className = "photo-thumb";
+    // Using the proxy endpoint
+    const imageUrl = `/drive-image/${fileId}`;
+    card.style.backgroundImage = `url(${imageUrl})`;
+    card.addEventListener("click", () => openPhotoViewer(index, 'drive'));
+    
+    // Optional: Add an icon or indicator that this is from Drive
+    const driveBadge = document.createElement("span");
+    driveBadge.className = "drive-badge";
+    driveBadge.textContent = "Drive";
+    driveBadge.style.cssText = "position: absolute; bottom: 4px; left: 4px; background: rgba(0,0,0,0.6); color: white; font-size: 10px; padding: 2px 4px; border-radius: 4px;";
+    card.appendChild(driveBadge);
+
+    galleryContainer.appendChild(card);
+  });
 }
 
-function openPhotoViewer(index) {
-  const files = getPhotoFiles();
-  if (!files.length || !viewerEl || !viewerImage) {
+function openPhotoViewer(index, source = 'local') {
+  const localFiles = getPhotoFiles();
+  const driveIds = getDrivePhotoIds();
+  
+  if (!viewerEl || !viewerImage) {
     return;
   }
-  activePhotoIndex = (index + files.length) % files.length;
-  const relativePath = files[activePhotoIndex];
-  viewerImage.src = buildPhotoUrl(relativePath);
+
+  let imageUrl = "";
+  let caption = "";
+
+  if (source === 'local') {
+    if (!localFiles.length) return;
+    activePhotoIndex = (index + localFiles.length) % localFiles.length;
+    imageUrl = buildPhotoUrl(localFiles[activePhotoIndex]);
+    caption = `Local Photo ${activePhotoIndex + 1} of ${localFiles.length}`;
+    // Store context for navigation
+    viewerEl.dataset.source = 'local';
+    viewerEl.dataset.index = activePhotoIndex;
+    viewerDeleteBtn.hidden = false;
+  } else {
+    if (!driveIds.length) return;
+    const driveIndex = (index + driveIds.length) % driveIds.length;
+    const fileId = driveIds[driveIndex];
+    imageUrl = `/drive-image/${fileId}`;
+    caption = `Drive Photo ${driveIndex + 1} of ${driveIds.length}`;
+    viewerEl.dataset.source = 'drive';
+    viewerEl.dataset.index = driveIndex;
+    viewerDeleteBtn.hidden = true; // Cannot delete drive photos from here yet
+  }
+
+  viewerImage.src = imageUrl;
   if (viewerCaption) {
-    viewerCaption.textContent = `Photo ${activePhotoIndex + 1} of ${files.length}`;
+    viewerCaption.textContent = caption;
   }
   viewerEl.hidden = false;
 }
@@ -861,15 +920,13 @@ function closePhotoViewer() {
 }
 
 function showRelativePhoto(step) {
-  const files = getPhotoFiles();
-  if (!files.length) return;
-  activePhotoIndex = (activePhotoIndex + step + files.length) % files.length;
-  const relativePath = files[activePhotoIndex];
-  if (viewerImage) {
-    viewerImage.src = buildPhotoUrl(relativePath);
-  }
-  if (viewerCaption) {
-    viewerCaption.textContent = `Photo ${activePhotoIndex + 1} of ${files.length}`;
+  const source = viewerEl.dataset.source || 'local';
+  const currentIndex = parseInt(viewerEl.dataset.index || '0', 10);
+  
+  if (source === 'local') {
+    openPhotoViewer(currentIndex + step, 'local');
+  } else {
+    openPhotoViewer(currentIndex + step, 'drive');
   }
 }
 
