@@ -79,7 +79,6 @@ def _reset_patients_table(conn: sqlite3.Connection) -> None:
         "phone",
         "city",
         "drive_folder_id",
-        "drive_file_ids",
         "drive_file_ids_string",
         "drive_links",
         "deleted",
@@ -88,14 +87,12 @@ def _reset_patients_table(conn: sqlite3.Connection) -> None:
     }
     if columns:
         missing = desired - columns
-        alterable = {"drive_folder_id", "drive_file_ids", "drive_file_ids_string", "drive_links"}
+        alterable = {"drive_folder_id", "drive_file_ids_string", "drive_links"}
         if not missing:
             return
         if missing.issubset(alterable):
             if "drive_folder_id" in missing:
                 conn.execute("ALTER TABLE patients ADD COLUMN drive_folder_id TEXT")
-            if "drive_file_ids" in missing:
-                conn.execute("ALTER TABLE patients ADD COLUMN drive_file_ids TEXT NOT NULL DEFAULT '[]'")
             if "drive_file_ids_string" in missing:
                 conn.execute("ALTER TABLE patients ADD COLUMN drive_file_ids_string TEXT")
             if "drive_links" in missing:
@@ -115,7 +112,6 @@ def _reset_patients_table(conn: sqlite3.Connection) -> None:
             phone TEXT NOT NULL,
             city TEXT NOT NULL,
             drive_folder_id TEXT,
-            drive_file_ids TEXT NOT NULL DEFAULT '[]',
             drive_file_ids_string TEXT,
             drive_links TEXT,
             deleted INTEGER NOT NULL DEFAULT 0,
@@ -667,7 +663,6 @@ def _row_to_patient(row: sqlite3.Row) -> Dict[str, Any]:
         "phone": row["phone"],
         "city": row["city"],
         "drive_folder_id": row["drive_folder_id"] if "drive_folder_id" in row.keys() else None,
-        "drive_file_ids": _deserialize_json_list(row["drive_file_ids"]) if "drive_file_ids" in row.keys() else [],
         "drive_file_ids_string": row["drive_file_ids_string"] if "drive_file_ids_string" in row.keys() else None,
         "drive_links": row["drive_links"] if "drive_links" in row.keys() else None,
         "deleted": bool(row["deleted"]),
@@ -1134,17 +1129,6 @@ def _serialize_patient_payload(data: Dict[str, Any]) -> Dict[str, Any]:
     normalized_first = (data.get("first_name") or "").strip()
     normalized_last = (data.get("last_name") or "").strip()
     
-    drive_file_ids = data.get("drive_file_ids") or []
-    if isinstance(drive_file_ids, str):
-        try:
-            parsed = json.loads(drive_file_ids)
-            if isinstance(parsed, list):
-                drive_file_ids = parsed
-            else:
-                drive_file_ids = []
-        except json.JSONDecodeError:
-            drive_file_ids = []
-
     return {
         "first_name": normalized_first,
         "last_name": normalized_last,
@@ -1152,7 +1136,6 @@ def _serialize_patient_payload(data: Dict[str, Any]) -> Dict[str, Any]:
         "phone": data.get("phone", ""),
         "city": data.get("city", ""),
         "drive_folder_id": data.get("drive_folder_id"),
-        "drive_file_ids": json.dumps(drive_file_ids),
         "drive_file_ids_string": data.get("drive_file_ids_string"),
         "drive_links": data.get("drive_links"),
     }
@@ -1193,9 +1176,9 @@ def create_patient(data: Dict[str, Any]) -> Dict[str, Any]:
             """
             INSERT INTO patients (
                 first_name, last_name, email, phone, city,
-                drive_folder_id, drive_file_ids, drive_file_ids_string, drive_links
+                drive_folder_id, drive_file_ids_string, drive_links
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 payload["first_name"],
@@ -1204,7 +1187,6 @@ def create_patient(data: Dict[str, Any]) -> Dict[str, Any]:
                 payload["phone"],
                 payload["city"],
                 payload["drive_folder_id"],
-                payload["drive_file_ids"],
                 payload["drive_file_ids_string"],
                 payload["drive_links"],
             ),
@@ -1231,7 +1213,6 @@ def update_patient(patient_id: int, data: Dict[str, Any]) -> Optional[Dict[str, 
                 phone = ?,
                 city = ?,
                 drive_folder_id = ?,
-                drive_file_ids = ?,
                 drive_file_ids_string = ?,
                 drive_links = ?,
                 updated_at = CURRENT_TIMESTAMP
@@ -1244,7 +1225,6 @@ def update_patient(patient_id: int, data: Dict[str, Any]) -> Optional[Dict[str, 
                 payload["phone"],
                 payload["city"],
                 payload["drive_folder_id"],
-                payload["drive_file_ids"],
                 payload["drive_file_ids_string"],
                 payload["drive_links"],
                 patient_id,

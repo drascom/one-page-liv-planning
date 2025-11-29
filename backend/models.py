@@ -35,7 +35,6 @@ class PatientBase(BaseModel):
     phone: str = Field(..., description="Preferred phone number")
     city: str = Field(..., description="Patient city")
     drive_folder_id: Optional[str] = Field(None, description="The ID of the patient's folder")
-    drive_file_ids: List[str] = Field(default_factory=list, description="An array of uploaded file IDs")
     drive_file_ids_string: Optional[str] = Field(None, description="A comma-separated string of IDs (e.g., '12345,67890')")
     drive_links: Optional[str] = Field(None, description="String representation of file links")
 
@@ -174,7 +173,6 @@ class PatientSearchResult(BaseModel):
     phone: Optional[str] = Field(None, description="Preferred phone number when found")
     city: Optional[str] = Field(None, description="Patient city when found")
     drive_folder_id: Optional[str] = Field(None, description="The ID of the patient's folder")
-    drive_file_ids: List[str] = Field(default_factory=list, description="An array of uploaded file IDs")
     drive_file_ids_string: Optional[str] = Field(None, description="A comma-separated string of IDs (e.g., '12345,67890')")
     drive_links: Optional[str] = Field(None, description="String representation of file links")
     deleted: Optional[bool] = Field(None, description="Whether the record is soft deleted")
