@@ -237,6 +237,12 @@ def serve_customers(request: Request):
 
 
 @app.get("/login", include_in_schema=False)
+@app.get("/test-drive", include_in_schema=False)
+def serve_test_drive(request: Request):
+    # Only allow authenticated admins ideally, but for dev we allow logged in users
+    if not get_current_user(request):
+        return _redirect_to_login(request)
+    return FileResponse(settings.html_root / "test-drive.html")
 def serve_login(request: Request):
     if get_current_user(request):
         next_url = request.query_params.get("next") or "/"
