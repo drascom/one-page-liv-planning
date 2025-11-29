@@ -63,9 +63,9 @@ def get_google_credentials() -> Optional[Credentials]:
                     flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
                     # This will open a browser window for authentication
                     # Using port 8080 to ensure the redirect URI is consistent
-                    # We try 127.0.0.1 as it is sometimes preferred over localhost
-                    logger.info("Opening browser for authentication. Ensure http://127.0.0.1:8080/ is whitelisted in Google Cloud Console.")
-                    creds = flow.run_local_server(port=8080, host='127.0.0.1')
+                    # Ensure http://localhost:8080/ is whitelisted in Google Cloud Console
+                    logger.info("Opening browser for authentication. Ensure http://localhost:8080/ is whitelisted in Google Cloud Console.")
+                    creds = flow.run_local_server(port=8080)
                 except Exception as e:
                     logger.error(f"Error during OAuth flow: {e}")
                     return None
