@@ -81,13 +81,14 @@ def _reset_patients_table(conn: sqlite3.Connection) -> None:
         "drive_folder_id",
         "drive_file_ids",
         "drive_file_ids_string",
+        "drive_links",
         "deleted",
         "created_at",
         "updated_at",
     }
     if columns:
         missing = desired - columns
-        alterable = {"drive_folder_id", "drive_file_ids", "drive_file_ids_string"}
+        alterable = {"drive_folder_id", "drive_file_ids", "drive_file_ids_string", "drive_links"}
         if not missing:
             return
         if missing.issubset(alterable):
@@ -97,6 +98,8 @@ def _reset_patients_table(conn: sqlite3.Connection) -> None:
                 conn.execute("ALTER TABLE patients ADD COLUMN drive_file_ids TEXT NOT NULL DEFAULT '[]'")
             if "drive_file_ids_string" in missing:
                 conn.execute("ALTER TABLE patients ADD COLUMN drive_file_ids_string TEXT")
+            if "drive_links" in missing:
+                conn.execute("ALTER TABLE patients ADD COLUMN drive_links TEXT")
             conn.commit()
             return
 
@@ -114,6 +117,7 @@ def _reset_patients_table(conn: sqlite3.Connection) -> None:
             drive_folder_id TEXT,
             drive_file_ids TEXT NOT NULL DEFAULT '[]',
             drive_file_ids_string TEXT,
+            drive_links TEXT,
             deleted INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -665,6 +669,7 @@ def _row_to_patient(row: sqlite3.Row) -> Dict[str, Any]:
         "drive_folder_id": row["drive_folder_id"] if "drive_folder_id" in row.keys() else None,
         "drive_file_ids": _deserialize_json_list(row["drive_file_ids"]) if "drive_file_ids" in row.keys() else [],
         "drive_file_ids_string": row["drive_file_ids_string"] if "drive_file_ids_string" in row.keys() else None,
+        "drive_links": row["drive_links"] if "drive_links" in row.keys() else None,
         "deleted": bool(row["deleted"]),
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
@@ -1149,6 +1154,7 @@ def _serialize_patient_payload(data: Dict[str, Any]) -> Dict[str, Any]:
         "drive_folder_id": data.get("drive_folder_id"),
         "drive_file_ids": json.dumps(drive_file_ids),
         "drive_file_ids_string": data.get("drive_file_ids_string"),
+        "drive_links": data.get("drive_links"),
     }
 
 
@@ -1187,9 +1193,9 @@ def create_patient(data: Dict[str, Any]) -> Dict[str, Any]:
             """
             INSERT INTO patients (
                 first_name, last_name, email, phone, city,
-                drive_folder_id, drive_file_ids, drive_file_ids_string
+                drive_folder_id, drive_file_ids, drive_file_ids_string, drive_links
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 payload["first_name"],
@@ -1200,6 +1206,7 @@ def create_patient(data: Dict[str, Any]) -> Dict[str, Any]:
                 payload["drive_folder_id"],
                 payload["drive_file_ids"],
                 payload["drive_file_ids_string"],
+                payload["drive_links"],
             ),
         )
         conn.commit()
@@ -1226,6 +1233,7 @@ def update_patient(patient_id: int, data: Dict[str, Any]) -> Optional[Dict[str, 
                 drive_folder_id = ?,
                 drive_file_ids = ?,
                 drive_file_ids_string = ?,
+                drive_links = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
             """,
@@ -1238,6 +1246,7 @@ def update_patient(patient_id: int, data: Dict[str, Any]) -> Optional[Dict[str, 
                 payload["drive_folder_id"],
                 payload["drive_file_ids"],
                 payload["drive_file_ids_string"],
+                payload["drive_links"],
                 patient_id,
             ),
         )
