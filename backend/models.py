@@ -34,6 +34,9 @@ class PatientBase(BaseModel):
     email: str = Field(..., description="Preferred contact email")
     phone: str = Field(..., description="Preferred phone number")
     city: str = Field(..., description="Patient city")
+    drive_folder_id: Optional[str] = Field(None, description="The ID of the patient's folder")
+    drive_file_ids: List[str] = Field(default_factory=list, description="An array of uploaded file IDs")
+    drive_file_ids_string: Optional[str] = Field(None, description="A comma-separated string of IDs (e.g., '12345,67890')")
 
 
 class PatientCreate(PatientBase):
@@ -311,6 +314,7 @@ class ProcedureType(str, Enum):
 
 
 class ProcedureStatus(str, Enum):
+    CONSULTATION = "consultation"
     RESERVED = "reserved"
     CONFIRMED = "confirmed"
     IN_SURGERY = "insurgery"

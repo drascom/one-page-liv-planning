@@ -78,12 +78,28 @@ def _reset_patients_table(conn: sqlite3.Connection) -> None:
         "email",
         "phone",
         "city",
+        "drive_folder_id",
+        "drive_file_ids",
+        "drive_file_ids_string",
         "deleted",
         "created_at",
         "updated_at",
     }
-    if columns and columns == desired:
-        return
+    if columns:
+        missing = desired - columns
+        alterable = {"drive_folder_id", "drive_file_ids", "drive_file_ids_string"}
+        if not missing:
+            return
+        if missing.issubset(alterable):
+            if "drive_folder_id" in missing:
+                conn.execute("ALTER TABLE patients ADD COLUMN drive_folder_id TEXT")
+            if "drive_file_ids" in missing:
+                conn.execute("ALTER TABLE patients ADD COLUMN drive_file_ids TEXT NOT NULL DEFAULT '[]'")
+            if "drive_file_ids_string" in missing:
+                conn.execute("ALTER TABLE patients ADD COLUMN drive_file_ids_string TEXT")
+            conn.commit()
+            return
+
     # Drop legacy table if present; caller already decided data can be discarded
     conn.execute("DROP TABLE IF EXISTS patients")
     conn.execute(
@@ -95,6 +111,9 @@ def _reset_patients_table(conn: sqlite3.Connection) -> None:
             email TEXT NOT NULL,
             phone TEXT NOT NULL,
             city TEXT NOT NULL,
+            drive_folder_id TEXT,
+            drive_file_ids TEXT NOT NULL DEFAULT '[]',
+            drive_file_ids_string TEXT,
             deleted INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -265,6 +284,7 @@ def delete_user(user_id: int) -> bool:
 
 DEFAULT_FIELD_OPTIONS: Dict[str, List[Dict[str, str]]] = {
     "status": [
+        {"value": "consultation", "label": "Consultation"},
         {"value": "reserved", "label": "Reserved"},
         {"value": "confirmed", "label": "Confirmed"},
         {"value": "insurgery", "label": "In Surgery"},
@@ -642,6 +662,9 @@ def _row_to_patient(row: sqlite3.Row) -> Dict[str, Any]:
         "email": row["email"],
         "phone": row["phone"],
         "city": row["city"],
+        "drive_folder_id": row["drive_folder_id"] if "drive_folder_id" in row.keys() else None,
+        "drive_file_ids": _deserialize_json_list(row["drive_file_ids"]) if "drive_file_ids" in row.keys() else [],
+        "drive_file_ids_string": row["drive_file_ids_string"] if "drive_file_ids_string" in row.keys() else None,
         "deleted": bool(row["deleted"]),
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
@@ -1105,12 +1128,27 @@ def _serialize_patient_payload(data: Dict[str, Any]) -> Dict[str, Any]:
     """Serialize patient data (personal info only)."""
     normalized_first = (data.get("first_name") or "").strip()
     normalized_last = (data.get("last_name") or "").strip()
+    
+    drive_file_ids = data.get("drive_file_ids") or []
+    if isinstance(drive_file_ids, str):
+        try:
+            parsed = json.loads(drive_file_ids)
+            if isinstance(parsed, list):
+                drive_file_ids = parsed
+            else:
+                drive_file_ids = []
+        except json.JSONDecodeError:
+            drive_file_ids = []
+
     return {
         "first_name": normalized_first,
         "last_name": normalized_last,
         "email": data.get("email", ""),
         "phone": data.get("phone", ""),
         "city": data.get("city", ""),
+        "drive_folder_id": data.get("drive_folder_id"),
+        "drive_file_ids": json.dumps(drive_file_ids),
+        "drive_file_ids_string": data.get("drive_file_ids_string"),
     }
 
 
@@ -1147,8 +1185,11 @@ def create_patient(data: Dict[str, Any]) -> Dict[str, Any]:
     with closing(get_connection()) as conn:
         cursor = conn.execute(
             """
-            INSERT INTO patients (first_name, last_name, email, phone, city)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO patients (
+                first_name, last_name, email, phone, city,
+                drive_folder_id, drive_file_ids, drive_file_ids_string
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 payload["first_name"],
@@ -1156,6 +1197,9 @@ def create_patient(data: Dict[str, Any]) -> Dict[str, Any]:
                 payload["email"],
                 payload["phone"],
                 payload["city"],
+                payload["drive_folder_id"],
+                payload["drive_file_ids"],
+                payload["drive_file_ids_string"],
             ),
         )
         conn.commit()
@@ -1179,6 +1223,9 @@ def update_patient(patient_id: int, data: Dict[str, Any]) -> Optional[Dict[str, 
                 email = ?,
                 phone = ?,
                 city = ?,
+                drive_folder_id = ?,
+                drive_file_ids = ?,
+                drive_file_ids_string = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
             """,
@@ -1188,6 +1235,9 @@ def update_patient(patient_id: int, data: Dict[str, Any]) -> Optional[Dict[str, 
                 payload["email"],
                 payload["phone"],
                 payload["city"],
+                payload["drive_folder_id"],
+                payload["drive_file_ids"],
+                payload["drive_file_ids_string"],
                 patient_id,
             ),
         )
