@@ -211,6 +211,20 @@
         </div>
       </section>
       <p id="form-status" class="form-status" role="status"></p>
+
+      <!-- Admin Debug Section -->
+      <section id="admin-debug" class="admin-debug card" hidden style="margin-top: 2rem; border: 1px solid red;">
+        <header class="card-header">
+          <h3>Admin Debug</h3>
+        </header>
+        <div style="padding: 1rem;">
+          <p><strong>Drive File IDs (Raw):</strong> <span id="debug-drive-string"></span></p>
+          <p><strong>Parsed IDs:</strong> <span id="debug-drive-count"></span></p>
+          <p><strong>Last API Error:</strong> <span id="debug-api-error" style="color: red;">None</span></p>
+          <button type="button" class="btn btn-secondary" id="debug-test-drive">Test First Image Fetch</button>
+          <pre id="debug-console" style="background: #eee; padding: 10px; margin-top: 10px; font-size: 12px; overflow: auto; max-height: 200px;"></pre>
+        </div>
+      </section>
     </main>
 
     <div class="photo-viewer" id="photo-viewer" hidden>

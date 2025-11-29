@@ -252,6 +252,13 @@ const viewerPrevBtn = document.getElementById("photo-viewer-prev");
 const viewerNextBtn = document.getElementById("photo-viewer-next");
 const viewerDeleteBtn = document.getElementById("photo-viewer-delete");
 
+// Debug Elements
+const adminDebugSection = document.getElementById("admin-debug");
+const debugDriveStringEl = document.getElementById("debug-drive-string");
+const debugDriveCountEl = document.getElementById("debug-drive-count");
+const debugTestDriveBtn = document.getElementById("debug-test-drive");
+const debugConsoleEl = document.getElementById("debug-console");
+
 const params = new URLSearchParams(window.location.search);
 const requestedId = params.get("id");
 const requestedName = params.get("patient");
@@ -505,13 +512,29 @@ async function fetchPhotosForPatient(patientId) {
   return patientPhotos;
 }
 
-function getDrivePhotoIds() {
+function getDriveFiles() {
+  // Prefer the detailed array if available
+  if (currentPatient?.file_details && Array.isArray(currentPatient.file_details) && currentPatient.file_details.length > 0) {
+    return currentPatient.file_details.map(f => ({
+      id: f.fileId,
+      mimeType: f.mimeType,
+      name: f.name, // Might be undefined
+      driveLink: f.driveLink
+    }));
+  }
+
+  // Fallback to string
   if (!currentPatient?.drive_file_ids_string) return [];
-  // Handle simple comma-separated string
   return currentPatient.drive_file_ids_string
     .split(",")
     .map((s) => s.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .map(id => ({ id, mimeType: null }));
+}
+
+// Deprecated alias for compatibility if needed elsewhere
+function getDrivePhotoIds() {
+  return getDriveFiles().map(f => f.id);
 }
 
 async function fetchProceduresForPatient(patientId) {
@@ -819,8 +842,8 @@ function updatePhotoCountInput() {
 function renderPhotoGallery() {
   if (!galleryContainer) return;
   const localFiles = getPhotoFiles();
-  const driveIds = getDrivePhotoIds();
-  const totalCount = localFiles.length + driveIds.length;
+  const driveFiles = getDriveFiles();
+  const totalCount = localFiles.length + driveFiles.length;
 
   galleryContainer.innerHTML = "";
   
@@ -856,28 +879,114 @@ function renderPhotoGallery() {
   });
 
   // Render Drive Photos
-  driveIds.forEach((fileId, index) => {
+  driveFiles.forEach(async (fileObj, index) => {
+    const fileId = fileObj.id;
     const card = document.createElement("div");
     card.className = "photo-thumb";
-    // Using the proxy endpoint
-    const imageUrl = `/drive-image/${fileId}`;
-    card.style.backgroundImage = `url(${imageUrl})`;
-    card.addEventListener("click", () => openPhotoViewer(index, 'drive'));
     
-    // Optional: Add an icon or indicator that this is from Drive
     const driveBadge = document.createElement("span");
     driveBadge.className = "drive-badge";
     driveBadge.textContent = "Drive";
     driveBadge.style.cssText = "position: absolute; bottom: 4px; left: 4px; background: rgba(0,0,0,0.6); color: white; font-size: 10px; padding: 2px 4px; border-radius: 4px;";
     card.appendChild(driveBadge);
-
+    
     galleryContainer.appendChild(card);
+
+    // Helper to render file card (document/zip)
+    const renderFileCard = (name, dlUrl) => {
+        card.classList.add("file-thumb");
+        card.style.display = "flex";
+        card.style.flexDirection = "column";
+        card.style.alignItems = "center";
+        card.style.justifyContent = "center";
+        card.style.backgroundColor = "#f0f0f0";
+        card.style.cursor = "default"; // Not clickable for viewer
+        
+        const icon = document.createElement("div");
+        icon.textContent = "📄";
+        icon.style.fontSize = "24px";
+        
+        const nameEl = document.createElement("div");
+        nameEl.textContent = name || "File";
+        nameEl.style.fontSize = "12px";
+        nameEl.style.textAlign = "center";
+        nameEl.style.padding = "4px";
+        nameEl.style.overflow = "hidden";
+        nameEl.style.textOverflow = "ellipsis";
+        nameEl.style.whiteSpace = "nowrap";
+        nameEl.style.width = "100%";
+
+        const link = document.createElement("a");
+        link.href = dlUrl;
+        link.target = "_blank";
+        link.download = name || "download";
+        link.textContent = "Download";
+        link.style.fontSize = "11px";
+        link.style.marginTop = "4px";
+        
+        // If we have a direct Drive link (from API), maybe offer that too?
+        // For now, use our proxy to download
+        
+        card.appendChild(icon);
+        card.appendChild(nameEl);
+        card.appendChild(link);
+    };
+
+    // Helper to render image card
+    const renderImageCard = (url) => {
+        card.style.backgroundImage = `url(${url})`;
+        card.addEventListener("click", () => openPhotoViewer(index, 'drive'));
+    };
+
+    // If we already have mimeType, avoid the extra fetch unless necessary for name
+    if (fileObj.mimeType) {
+        if (fileObj.mimeType.startsWith("image/")) {
+            renderImageCard(`/drive-image/${fileId}`);
+        } else {
+            // It's a file. If we don't have name, we might want to fetch meta, or just show generic
+            if (fileObj.name) {
+                renderFileCard(fileObj.name, `/drive-image/${fileId}`);
+            } else {
+                // Fetch meta just for name? Or lazy load name?
+                // Let's try to fetch meta to get the proper name
+                try {
+                    const metaRes = await fetch(`/drive-image/${fileId}/meta`);
+                    if (metaRes.ok) {
+                        const meta = await metaRes.json();
+                        renderFileCard(meta.name, `/drive-image/${fileId}`);
+                    } else {
+                        renderFileCard("Drive File", `/drive-image/${fileId}`);
+                    }
+                } catch {
+                    renderFileCard("Drive File", `/drive-image/${fileId}`);
+                }
+            }
+        }
+        return; // Done
+    }
+
+    // Fallback: No mimeType known (old string format), fetch meta
+    try {
+      const metaRes = await fetch(`/drive-image/${fileId}/meta`);
+      if (!metaRes.ok) throw new Error("Meta fail");
+      const meta = await metaRes.json();
+      
+      if (meta.mimeType && meta.mimeType.startsWith("image/")) {
+        renderImageCard(`/drive-image/${fileId}`);
+      } else {
+        renderFileCard(meta.name, `/drive-image/${fileId}`);
+      }
+    } catch (e) {
+      console.warn("Failed to load drive item", fileId, e);
+      card.style.backgroundColor = "#fee";
+      card.textContent = "Error";
+    }
   });
 }
 
 function openPhotoViewer(index, source = 'local') {
   const localFiles = getPhotoFiles();
-  const driveIds = getDrivePhotoIds();
+  const driveFiles = getDriveFiles();
   
   if (!viewerEl || !viewerImage) {
     return;
@@ -896,11 +1005,16 @@ function openPhotoViewer(index, source = 'local') {
     viewerEl.dataset.index = activePhotoIndex;
     viewerDeleteBtn.hidden = false;
   } else {
-    if (!driveIds.length) return;
-    const driveIndex = (index + driveIds.length) % driveIds.length;
-    const fileId = driveIds[driveIndex];
+    if (!driveFiles.length) return;
+    const driveIndex = (index + driveFiles.length) % driveFiles.length;
+    const fileObj = driveFiles[driveIndex];
+    const fileId = fileObj.id;
+    
+    // Simple check: if not image, just load it (might fail or browser handles it)
+    // Ideally we shouldn't open non-images in this viewer.
+    
     imageUrl = `/drive-image/${fileId}`;
-    caption = `Drive Photo ${driveIndex + 1} of ${driveIds.length}`;
+    caption = `Drive Photo ${driveIndex + 1} of ${driveFiles.length}`;
     viewerEl.dataset.source = 'drive';
     viewerEl.dataset.index = driveIndex;
     viewerDeleteBtn.hidden = true; // Cannot delete drive photos from here yet
@@ -1028,6 +1142,7 @@ async function savePatient(event) {
     const refreshedPatient = await fetchPatientById(updateResult.id);
     currentPatient = refreshedPatient;
     populatePatientForm(refreshedPatient);
+    if (isAdminUser) updateDebugInfo();
     patientStatusEl.textContent = "Patient details saved.";
   } catch (error) {
     console.error(error);
@@ -1362,6 +1477,53 @@ async function initializePatientPage() {
   }
   refreshDeleteButtonState();
   await fetchPatient();
+  if (isAdminUser && adminDebugSection) {
+    adminDebugSection.hidden = false;
+    updateDebugInfo();
+  }
+}
+
+function updateDebugInfo() {
+  if (!currentPatient || !debugDriveStringEl) return;
+  const rawString = currentPatient.drive_file_ids_string || "(empty)";
+  debugDriveStringEl.textContent = rawString;
+  const ids = getDrivePhotoIds();
+  debugDriveCountEl.textContent = `${ids.length} IDs found`;
+}
+
+if (debugTestDriveBtn) {
+  debugTestDriveBtn.addEventListener("click", async () => {
+    const ids = getDrivePhotoIds();
+    if (!ids.length) {
+      logDebug("No Drive IDs to test.");
+      return;
+    }
+    const testId = ids[0];
+    const url = `/drive-image/${testId}`;
+    logDebug(`Testing fetch: ${url}`);
+    
+    try {
+      const response = await fetch(url);
+      logDebug(`Response Status: ${response.status} ${response.statusText}`);
+      if (response.ok) {
+        const blob = await response.blob();
+        logDebug(`Success! Blob Type: ${blob.type}, Size: ${blob.size}`);
+      } else {
+        const text = await response.text();
+        logDebug(`Error Body: ${text.substring(0, 200)}`);
+      }
+    } catch (e) {
+      logDebug(`Fetch Exception: ${e.message}`);
+    }
+  });
+}
+
+function logDebug(msg) {
+  if (!debugConsoleEl) return;
+  const line = document.createElement("div");
+  line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  debugConsoleEl.appendChild(line);
+  debugConsoleEl.scrollTop = debugConsoleEl.scrollHeight;
 }
 
 initializePatientPage();

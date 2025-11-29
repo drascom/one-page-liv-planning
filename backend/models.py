@@ -175,6 +175,7 @@ class PatientSearchResult(BaseModel):
     drive_folder_id: Optional[str] = Field(None, description="The ID of the patient's folder")
     drive_file_ids_string: Optional[str] = Field(None, description="A comma-separated string of IDs (e.g., '12345,67890')")
     drive_links: Optional[str] = Field(None, description="String representation of file links")
+    file_details: Optional[List[Dict[str, str]]] = Field(default_factory=list, description="Detailed info about Drive files (id, mimeType, etc.)")
     deleted: Optional[bool] = Field(None, description="Whether the record is soft deleted")
     created_at: Optional[str] = Field(None, description="Timestamp when the patient was created")
     updated_at: Optional[str] = Field(None, description="Timestamp when the patient was last updated")

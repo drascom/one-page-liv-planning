@@ -1052,6 +1052,34 @@ def get_drive_image(file_id: str):
         # Auto detect mime type if Google returns it
         content_type = r.headers.get("Content-Type", "image/jpeg")
         
-        return Response(content=r.content, media_type=content_type)
+        # If it's a downloadable file, add disposition
+        headers = {}
+        if "image" not in content_type:
+             # Try to get filename from Content-Disposition if available, or just set generic
+             cd = r.headers.get("Content-Disposition")
+             if cd:
+                 headers["Content-Disposition"] = cd
+        
+        return Response(content=r.content, media_type=content_type, headers=headers)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@drive_router.get("/{file_id}/meta")
+def get_drive_file_meta(file_id: str):
+    """
+    Fetches metadata (name, mimeType) for a Drive file.
+    """
+    url = f"https://www.googleapis.com/drive/v3/files/{file_id}?fields=id,name,mimeType"
+    token = get_access_token()
+    if not token:
+        raise HTTPException(status_code=500, detail="Google Auth failed")
+    
+    headers = {"Authorization": f"Bearer {token}"}
+    try:
+        r = requests.get(url, headers=headers)
+        if r.status_code != 200:
+            raise HTTPException(status_code=r.status_code, detail=r.text)
+        return r.json()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
