@@ -213,7 +213,7 @@ Replace the example token (`YOUR_API_TOKEN`) with an API token generated from **
      -H "Authorization: Bearer YOUR_API_TOKEN"
    ```
 
-2. **Create a patient** — _Required JSON fields: `first_name`, `last_name`, `email`, `phone`, `city`._
+2. **Create a patient** — _Required JSON fields: `first_name`, `last_name`, `email`, `phone`, `city`. Optional: `drive_folder_id`, `drive_file_ids` (array of strings), `drive_file_ids_string`._
 
    ```bash
    curl -X POST "http://127.0.0.1:8000/api/v1/patients/" \
@@ -224,11 +224,14 @@ Replace the example token (`YOUR_API_TOKEN`) with an API token generated from **
        "last_name": "Doe",
        "email": "jane.doe@example.com",
        "phone": "+1-555-123-4567",
-       "city": "Los Angeles"
+       "city": "Los Angeles",
+       "drive_folder_id": "1abc...",
+       "drive_file_ids": ["file1", "file2"],
+       "drive_file_ids_string": "file1,file2"
      }'
    ```
 
-3. **Update a patient** — _Required path parameter: `patient_id`. Required JSON fields are the same as creation (`first_name`, `last_name`, `email`, `phone`, `city`)._
+3. **Update a patient** — _Required path parameter: `patient_id`. Required JSON fields are the same as creation (`first_name`, `last_name`, `email`, `phone`, `city`). Optional fields are also the same._
 
    ```bash
    curl -X PUT "http://127.0.0.1:8000/api/v1/patients/123" \
@@ -239,7 +242,8 @@ Replace the example token (`YOUR_API_TOKEN`) with an API token generated from **
        "last_name": "Doe",
        "email": "jane.doe@example.com",
        "phone": "+1-555-765-4321",
-       "city": "Los Angeles"
+       "city": "Los Angeles",
+       "drive_folder_id": "new_folder_id"
      }'
    ```
 
