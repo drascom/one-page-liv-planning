@@ -2464,6 +2464,63 @@ body.app-shell {
   border-color: #7dd3fc;
 }
 
+/* Patient page compact overrides */
+.patient-page {
+  font-size: 14px;
+}
+
+.patient-page .card {
+  padding: 1rem;
+}
+
+.patient-page h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.patient-page h3 {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.patient-page label,
+.patient-page p,
+.patient-page span,
+.patient-page .settings-section__eyebrow {
+  font-weight: 500;
+}
+
+.patient-page .form-group input,
+.patient-page .form-group select,
+.patient-page .form-group textarea {
+  font-size: 0.95rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 8px;
+}
+
+.patient-page .btn {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border-radius: 8px;
+}
+
+.patient-page .patient-media-section {
+  gap: 0.75rem;
+}
+
+.patient-page .card-header {
+  padding-bottom: 0.25rem;
+}
+
+.patient-page .form-layout {
+  gap: 0.6rem;
+}
+
+.patient-page .photo-gallery {
+  gap: 0.5rem;
+}
+
 .photo-viewer img {
   max-width: 90vw;
   max-height: 70vh;
