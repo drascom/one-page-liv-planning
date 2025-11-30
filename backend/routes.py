@@ -1033,8 +1033,8 @@ def get_drive_image(file_id: str):
     token = get_access_token()
     if not token:
         raise HTTPException(
-            status_code=500,
-            detail="Google Drive authentication failed. Check server logs.",
+            status_code=503,
+            detail="Google Drive authentication failed. Please reconnect Google Drive in Settings.",
         )
     
     headers = {
@@ -1044,10 +1044,8 @@ def get_drive_image(file_id: str):
     try:
         r = requests.get(url, headers=headers, stream=True)
         if r.status_code != 200:
-            raise HTTPException(
-                status_code=404,
-                detail="File not found or no permission",
-            )
+            detail = r.text or "File not found or no permission"
+            raise HTTPException(status_code=r.status_code, detail=detail)
         
         # Auto detect mime type if Google returns it
         content_type = r.headers.get("Content-Type", "image/jpeg")
@@ -1062,7 +1060,7 @@ def get_drive_image(file_id: str):
         
         return Response(content=r.content, media_type=content_type, headers=headers)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=502, detail=f"Google Drive fetch failed: {e}")
 
 
 @drive_router.get("/{file_id}/meta")
@@ -1073,13 +1071,13 @@ def get_drive_file_meta(file_id: str):
     url = f"https://www.googleapis.com/drive/v3/files/{file_id}?fields=id,name,mimeType"
     token = get_access_token()
     if not token:
-        raise HTTPException(status_code=500, detail="Google Auth failed")
+        raise HTTPException(status_code=503, detail="Google Drive authentication failed. Please reconnect Google Drive.")
     
     headers = {"Authorization": f"Bearer {token}"}
     try:
         r = requests.get(url, headers=headers)
         if r.status_code != 200:
-            raise HTTPException(status_code=r.status_code, detail=r.text)
+            raise HTTPException(status_code=r.status_code, detail=r.text or "Google Drive request failed")
         return r.json()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=502, detail=f"Google Drive metadata fetch failed: {e}")
