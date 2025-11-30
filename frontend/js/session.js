@@ -2,7 +2,18 @@ export function currentPathWithQuery() {
   return `${window.location.pathname}${window.location.search}`;
 }
 
+const API_BASE_URL =
+  window.APP_CONFIG?.backendUrl ??
+  `${window.location.protocol}//${window.location.host}`;
+
+function buildApiUrl(path) {
+  return new URL(path, API_BASE_URL).toString();
+}
+
 export function redirectToLogin() {
+  if (window.location.pathname === "/login") {
+    return;
+  }
   const next = encodeURIComponent(currentPathWithQuery());
   window.location.href = `/login?next=${next}`;
 }
@@ -33,7 +44,7 @@ let cachedCurrentUser = null;
 let currentUserRequest = null;
 
 async function loadCurrentUser() {
-  const response = await fetch("/auth/me");
+  const response = await fetch(buildApiUrl("/auth/me"));
   handleUnauthorized(response);
   if (!response.ok) {
     return null;

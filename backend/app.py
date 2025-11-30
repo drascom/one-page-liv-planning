@@ -68,14 +68,17 @@ PROTECTED_FRONTEND_PREFIXES: tuple[str, ...] = (
 
 
 def _redirect_to_login(request: Request) -> RedirectResponse:
+    # If already at /login, avoid infinite redirect
+    if request.url.path == "/login":
+        return RedirectResponse("/login")
+
     next_path = request.url.path
     if request.url.query:
         next_path = f"{next_path}?{request.url.query}"
-    if next_path in ("/login", "/login/"):
-        return RedirectResponse("/login")
+    
     encoded = quote(next_path, safe="") if next_path else ""
     target = "/login"
-    if encoded:
+    if encoded and encoded != "/":
         target = f"/login?next={encoded}"
     return RedirectResponse(target)
 
@@ -237,13 +240,14 @@ def serve_customers(request: Request):
     return FileResponse(settings.html_root / "customers.html")
 
 
-@app.get("/login", include_in_schema=False)
 @app.get("/test-drive", include_in_schema=False)
 def serve_test_drive(request: Request):
     # Only allow authenticated admins ideally, but for dev we allow logged in users
     if not get_current_user(request):
         return _redirect_to_login(request)
     return FileResponse(settings.html_root / "test-drive.html")
+
+@app.get("/login", include_in_schema=False)
 def serve_login(request: Request):
     if get_current_user(request):
         next_url = request.query_params.get("next") or "/"

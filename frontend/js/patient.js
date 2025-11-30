@@ -9,12 +9,14 @@ const DEFAULT_FIELD_OPTIONS = {
     { value: "done", label: "Done" },
   ],
   procedure_type: [
+    { value: "consultation", label: "Consultation" },
     { value: "sfue", label: "sFUE" },
     { value: "beard", label: "Beard" },
     { value: "woman", label: "Woman" },
     { value: "eyebrow", label: "Eyebrow" },
   ],
   package_type: [
+    { value: "consultation", label: "Consultation" },
     { value: "small", label: "Small" },
     { value: "big", label: "Big" },
   ],
@@ -1474,6 +1476,8 @@ async function initializePatientPage() {
   if (isAdminUser && adminDebugSection) {
     adminDebugSection.hidden = false;
     updateDebugInfo();
+  } else if (adminDebugSection) {
+    adminDebugSection.hidden = true;
   }
 }
 

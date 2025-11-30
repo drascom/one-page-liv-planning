@@ -1,439 +1,92 @@
-# one-page-liv-planning
+# Liv CRM (one-page-liv-crm)
 
-Planning weekly business priorities for Liv.
+Liv CRM is the refreshed one-page scheduling and patient tracking workspace for the Liv team. A FastAPI backend manages patients, procedures, photos, payments, field options, API tokens, and activity events while the static frontend (HTML/CSS/JS under `frontend/`) delivers a single-page workflow for scheduling, editing patient records, and administrating the workspace.
 
-## Backend overview
+## Workflow overview
 
-The `backend/` folder contains a small FastAPI service backed by a local SQLite
-(`backend/liv_planning.db`) database. The API lets us capture Liv's focus area,
-objectives, metrics, and notes for every week so that a one-page plan can be
-built from consistent data.
+1. **Authenticate.** Visit `/login`, submit the admin username/password, and the server issues a secure session cookie. Non-admins can browse read-only lists but only admins see the "Add patient", "Customers", or "Settings" controls.
+2. **Schedule.** The home screen (`index.html`) renders a monthly calendar of procedures, lets you search for patients by name or city, mark multiple procedures for bulk deletes, and displays a real-time activity feed plus a conflict banner whenever another user pushes an update. The schedule pulls field options for statuses, procedure types, packages, agencies, and payments so the UI stays in sync with the backend.
+3. **Patient workspace.** Clicking a card opens `patient.html`, where you can:
+   - Edit contact info and navigate weeks via the dynamic heading (procedure dates mirror the selected record).
+   - Manage every procedure field now including `package_type` (Small/Big) and `agency` (default "Want Hair" with "Liv Hair" as an option), pick a status and procedure type (Hair/sFUE, Beard, Woman, Eyebrow with sFUE selected by default), update graft counts, payment state, and checklist-driven forms/consents/consultations that show numbered tiles plus check/empty icons.
+   - Upload unlimited photos via the drop zone and preview them in the full-screen viewer; files land under `uploads/<last-name>` and are served from `/uploaded-files`.
+   - Track payments, assign multiple procedures, and delete/purge records; the UI automatically hides actions that require admin privileges and surfaces a reload button when concurrent edits clash.
+4. **Admin & directory.** Admins can browse `customers.html` for a directory of every patient (including soft-deleted ones), refresh counts, filter by name/city/email, and delete individual entries. `settings.html` exposes tabs for dropdown options, API tokens, request logs, soft-deleted records, team access, and destructive resets. Dropdowns (forms, consents, consultations, payment, statuses, procedure types, package types, agency) can be edited via new cards, resetting options falls back to the built-in defaults, and user management lets you invite, toggle, or remove teammates. API tokens never expire and are shown with a shortcut to the `/api/v1/search` tester.
+5. **Integrations.** Every internal endpoint (`/patients`, `/procedures`, `/uploads`, `/field-options`, `/api-tokens`, `/status`, `/drive-image`, etc.) is also available with the `/api/v1/*` prefix when you present a valid API token. Use `POST /api/v1/patients` or `POST /api/v1/patients/multiple` to import simplified payloads, `GET /api/v1/search?full_name=...` to fetch a flat patient sheet, and `POST /api/v1/procedures/search-by-meta` to look up procedures via metadata. The audit tab logs recent API calls so you can trace integrations.
 
-### Features
+## Feature highlights
 
-- SQLite persistence via lightweight helper functions in `backend/database.py`.
-- Pydantic models (`backend/models.py`) that validate API payloads.
-- REST-style routes (`backend/routes.py`) to list, create, update, and delete
-  weekly plans.
-- FastAPI application factory in `backend/app.py` with startup hooks that ensure
-  the database schema exists.
+### Frontend experience
+
+- **Schedule view** – Monthly navigation, patient counts (current month/total), unscheduled plates, select-all checkbox, bulk delete, nav search/autocomplete, realtime connection indicator, and an activity feed that syncs over the websocket hub at `/ws/updates`.
+- **Patient form** – Multi-procedure support, dynamic week labels, checklist representations for forms/consents/consultations (icon + numbering), photo uploads with viewer/via Google Drive proxy, package/agency dropdowns seeded with "Small/Big" and "Want Hair/Liv Hair", and payment/status tracking.
+- **Admin surfaces** – Settings tabs arrange dropdown option management, data reset, deleted record recovery/purge, user management, API token creation/deletion, and audit log review. Customers view exposes the patient directory, visibility counts, and admin-only delete buttons.
+
+### Backend services
+
+- FastAPI app with routers for patients, procedures, uploads, API tokens, field options, audit activity, configuration (`/app-config` and `/app-config.js`), Google Drive proxies, status checks (`GET /api/v1/status/connection-check`), and the realtime websocket hub.
+- SQLite persistence in `backend/liv_planning.db` for tables covering patients, procedures, photos, payments, field options, API tokens, activity events, and users. Database initialization/alterations keep `package_type`/`agency` columns and default option counts in sync.
+- Pydantic models enforce structured payloads for patients, procedures, metadata searches, payments, photos, and activity events while `backend/realtime.py` records and broadcasts every change so clients can display the activity timeline and flag conflicts.
+- Google Drive integration proxies `/drive-image/{file_id}` (and `/meta`) through `google-auth` credentials stored in the environment (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_PROJECT_ID`, `GOOGLE_TOKEN_JSON`, etc.) so credentials never reach the browser.
+
+### Integrations & automation
+
+- `/api/v1/*` versions of every internal route require Bearer tokens created in the settings UI; tokens are immutable but your code can delete them when no longer needed.
+- Procedures support metadata searches (`/procedures/search`, `/procedures/search-by-meta`) and paginated deleted/recoverable records (`/procedures/deleted`, `/procedures/{id}/recover`, `/procedures/{id}/purge`). Patients support soft delete/recover/purge flows along with `GET /patients/{id}/procedures`.
+- `LIV REST API.paw` provides a ready-made Paw collection, while `endpoints.md` documents every shape and route in prose for quick reference.
+- Smoke-test automation lives in `tests/patient_workflow_test.py` (log in, create patient/procedure, update, and optionally purge). The `tests/test_procedures.py` suite exercises CRUD, filtering, search fallback, deleted record workflows, metadata search, validations, and `api/v1/search` responses.
 
 ## Getting started
 
-1. Clone the repository (Python 3.11+).
-2. **Ubuntu/Debian quick install:** run the bundled script to install apt deps, uv, Python packages, `.env` defaults, and a managed `systemd` service (`one-page-crm.service`) that runs uvicorn automatically:
-
-   ```bash
-   chmod +x install.sh
-   ./install.sh
-   ```
-
-   The script reuses the current user for the service and enables it via `systemctl enable --now one-page-crm.service`. Manage it later with `sudo systemctl restart|status one-page-crm.service`. (For manual control or non-Debian systems, continue with the steps below.)
-
-3. Install [uv](https://github.com/astral-sh/uv) if it's not already available:
-
-   ```bash
-   curl -LsSf https://astral.sh/uv/install.sh | sh
-   ```
-
-   (Or `pip install uv` on Windows.)
-
-4. Install the project dependencies into `.venv` with uv:
-
-   ```bash
-   uv sync
-   ```
-
-5. Configure the `.env` file (optional but recommended):
-
-   ```bash
-   cp .env.example .env
-   ```
-
-   * `APP_SECRET_KEY` – random string used to sign session cookies.
-   * `DEFAULT_ADMIN_PASSWORD` – temporary password for the auto-seeded admin user (`admin`).
-   * `BACKEND_URL`/`FRONTEND_URL` – optional; if omitted the app auto-detects the current origin so you only need to set these when a specific host/port must be enforced (e.g. behind a reverse proxy).
-   * `PROCEDURES_TABLE` – the table name for procedure records (keeps database migrations and infra-as-code config in sync).
-
-6. Start the API server with uv (which automatically uses the synced virtualenv) and bind it to `0.0.0.0` so other machines can reach it:
-
-   ```bash
-    uv run uvicorn backend.app:app --reload --host 0.0.0.0 --port 8000
-   ```
-If you are behind nginx proxy manager with ssl certificate than use 
-```bash
-   uv run uvicorn backend.app:app --host 0.0.0.0 --port 8000 \
-  --proxy-headers --forwarded-allow-ips="*"
-  ```
-  
-   The server now accepts traffic on all interfaces (e.g. `http://127.0.0.1:8000` locally or your machine's LAN IP). The frontend automatically talks to the same origin it was loaded from, so you can deploy to any IP without editing `.env`. Visit `/login` and sign in using `admin` plus the password from `.env`. From there you can invite teammates, issue API tokens, and manage dropdown options.
-
-7. (Optional) Serve HTTPS locally with a self-signed certificate:
-
-   ```bash
-   chmod +x generate-self-signed-cert.sh
-   ./generate-self-signed-cert.sh my-local-domain.test
-   uv run uvicorn backend.app:app --host 0.0.0.0 --port 8443 \
-     --ssl-keyfile certs/my-local-domain.test.key \
-     --ssl-certfile certs/my-local-domain.test.crt
-   ```
-
-   Replace `my-local-domain.test` with the hostname you access in the browser (defaults to `localhost` if omitted). Browsers will warn about the untrusted cert—you can proceed after trusting it or import it into your system keychain.
-
-8. Build or serve the static frontend: the repository ships with prebuilt HTML screens under `frontend/html/` plus bundled JS and CSS under `frontend/js/` and `frontend/css/` (served automatically by FastAPI).
-
-## API reference
-
-| Method | Path | Description |
-| --- | --- | --- |
-| GET | `/plans/` | List every weekly plan |
-| POST | `/plans/` | Create plan |
-| PUT | `/plans/{id}` | Update plan |
-| DELETE | `/plans/{id}` | Delete plan |
-| GET | `/patients/` | List patients (personal info only) |
-| POST | `/patients/` | Create a patient |
-| GET/PUT | `/patients/{id}` | Fetch or update a patient record |
-| DELETE | `/patients/{id}` | Delete a patient (admin session only) |
-| GET | `/procedures/` | List procedures (filter by `patient_id` when needed) |
-| POST | `/procedures/` | Create a procedure linked to a patient |
-| GET/PUT | `/procedures/{id}` | Fetch or update a procedure |
-| DELETE | `/procedures/{id}` | Delete a procedure |
-| POST | `/api/v1/procedures/search-by-meta` | Provide patient name/date metadata to retrieve a matching procedure id plus the procedure metadata (use `DELETE /procedures/{id}` afterward). |
-| GET | `/procedures/search` | Provide `procedure_id` to fetch a procedure directly, or supply `patient_id` (optionally `procedure_date=YYYY-MM-DD`) to locate a patient's procedure. Returns `{ "success": true, "procedure": { ... } }` or `{ "success": false, "message": "Procedure not found" }`. |
-| GET/POST/DELETE | `/patients/{id}/photos` | List/create/delete photo metadata (files land in `/uploads`) |
-| GET/POST/DELETE | `/patients/{id}/payments` | Manage patient payments |
-| POST | `/uploads/{last_name}` | Upload photos for a patient |
-| DELETE | `/uploads/{patient_id}?file=path` | Remove a photo |
-| GET | `/field-options` | Fetch the dropdown metadata (status, forms, etc.) |
-| PUT | `/field-options/{field}` | Replace a dropdown list (admin only) |
-| POST | `/auth/login` | Authenticate and receive a session cookie |
-| POST | `/auth/logout` | Clear the current session |
-| GET | `/auth/me` | Return the current user |
-| GET/POST/PUT/DELETE | `/auth/users` | Admin user management APIs |
-| GET/POST/DELETE | `/api-tokens` | Manage integration tokens scoped to the current admin user |
-| GET | `/api/v1/search?full_name=name%20Surname` | External-only endpoint that finds a patient by full name and returns `{ "success": true, "id": 123, "first_name": "...", ..., "procedures": [ { ... } ] }` or `{ "success": false, "message": "Patient record not found", "procedures": [] }`. |
-
-**Trailing slash:** The collection routes under `/api/v1` (for example `/patients/` and `/procedures/`) are registered with FastAPI's trailing-slash path. Requests that omit the slash (`/patients` without `/`) return a `307 Temporary Redirect`, so include the trailing slash in HTTP clients to reach the handler directly.
-
-Use `GET /api/v1/procedures/{procedure_id}` when you already know the procedure id (`GET https://liv.drascom.uk/api/v1/procedures/1063`). The collection route still lists every procedure, optionally filtered by `patient_id`.
-
-### Sample patient requests
-
-Create a patient (internal session cookie example):
+### Debian/Ubuntu quick install
 
 ```bash
-curl -X POST "http://127.0.0.1:8000/api/v1/patients/" \
-  -H "Authorization: Bearer SfTcDiRknE4NcRnlm50TEeH9zR6SkgQvjYA6kV0RRj32PnsF" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "first_name": "Jane",
-    "last_name": "Doe",
-    "email": "jane.doe@example.com",
-    "phone": "+1-555-123-4567",
-    "city": "Los Angeles"
-  }'
+chmod +x install.sh
+./install.sh
 ```
 
-Successful requests return `201 Created` along with the inserted record id and a short message:
+The script installs system packages (`python3`, `python3-venv`, `curl`, `build-essential`, `libsqlite3-dev`), the `uv` tool, syncs dependencies via `uv sync`, boots a systemd service named `one-page-crm.service`, and seeds `.env` from `.env.example` if missing. After installation, manage the service with `sudo systemctl restart one-page-crm.service` or `sudo systemctl status one-page-crm.service`.
 
-```json
-{ "success": true, "id": 123, "message": "Patient created" }
+### Manual development
+
+1. Install [uv](https://github.com/astral-sh/uv) if missing: `curl -LsSf https://astral.sh/uv/install.sh | sh`.
+2. Sync dependencies: `uv sync`.
+3. Copy the environment file: `cp .env.example .env` and adjust `APP_SECRET_KEY`, `DEFAULT_ADMIN_PASSWORD`, `BACKEND_URL`, `FRONTEND_URL`, and optional Google OAuth / token variables.
+4. Run the app locally: `uv run uvicorn backend.app:app --reload --host 0.0.0.0 --port 8000`. Behind a proxy or load balancer use `uv run uvicorn backend.app:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips="*"`.
+5. Visit `/login`, auth as `admin`/password-from-`.env`, then explore the schedule, patient, settings, and customers pages. Static assets live under `frontend/css`, `frontend/js`, and `frontend/html`; FastAPI automatically serves them.
+
+### Docker
+
+```
+docker build -t liv-crm .
+docker run -p 8000:8000 --env-file .env liv-crm
 ```
 
-Update an existing patient (replace `123` with the record id):
+The `Dockerfile` installs uv, syncs dependencies with `uv sync --no-dev`, copies static assets, exposes port 8000, and launches `uvicorn backend.app:app`.
 
-```bash
-curl -X PUT "http://127.0.0.1:8000/api/v1/patients/123" \
-  -H "Authorization: Bearer SfTcDiRknE4NcRnlm50TEeH9zR6SkgQvjYA6kV0RRj32PnsF" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "first_name": "Jane",
-    "last_name": "Doe",
-    "email": "jane.doe@example.com",
-    "phone": "+1-555-987-6543",
-    "city": "Los Angeles"
-  }'
-```
+## Configuration
 
-Patient updates return `200 OK` with `{ "success": true, "id": 123, "message": "Patient updated" }`.
+- `.env.example` declares `APP_SECRET_KEY`, `DEFAULT_ADMIN_PASSWORD`, `BACKEND_URL`, `FRONTEND_URL`, and Google OAuth variables (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_PROJECT_ID`, `GOOGLE_REDIRECT_URIS`, `GOOGLE_AUTH_URI`, `GOOGLE_TOKEN_URI`, and optional `GOOGLE_TOKEN_JSON`). `GOOGLE_TOKEN_JSON` lets you paste a pre-authorized credential set so the Drive proxy works without going through the browser flow.
+- `backend/settings.py` exposes `static_root` (serving `frontend/`), `uploads_root` (`uploads/`), and the paths used by `app-config`. The `uploads/` directory stores patient photo files and must be writable.
+- The `private/` directory currently holds a sample Google client secret; copy yours into the environment variables instead of checking in secrets.
 
-### Sample procedure requests
+## Testing & automation
 
-Create a procedure for an existing patient (only `patient_id`, `procedure_date`, `procedure_type`, `status`, and `grafts` are required; the other fields are optional and default to empty values):
+- Run the unit/integration suite with `uv run pytest tests`.
+- Use the workflow smoke-test helper: `uv run python tests/patient_workflow_test.py --base-url http://127.0.0.1:8000 --username admin --password changeme [--keep-records]`.
+- `uv run python -m pytest tests/test_procedures.py` exercises procedures search, metadata, deletion, recovery, and API-token-protected responses.
 
-```bash
-curl -X POST "http://127.0.0.1:8000/api/v1/procedures/" \
-  -H "Authorization: Bearer SfTcDiRknE4NcRnlm50TEeH9zR6SkgQvjYA6kV0RRj32PnsF" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "patient_id": 4,
-    "procedure_date": "2025-01-02",
-    "procedure_type": "sfue",
-    "status": "reserved",
-    "grafts": "",
-    "payment": "waiting",
-    "consultation": [],
-    "forms": [],
-    "consents": [],
-    "photo_files": []
-  }'
-```
+## API docs & tooling
 
-On success the server responds `201 Created` with `{ "success": true, "id": 456, "message": "Procedure created" }`, which you can store and later pass to the GET endpoint when you need the full record.
+- Interactive docs are served automatically at `/docs` and `/redoc` when the server is running.
+- `endpoints.md` enumerates every route, including the simplified payload shapes accepted by `/patients`, `/patients/multiple`, and the `/api/v1/*` mirror.
+- `LIV REST API.paw` is a Paw collection with sample requests for the most common flows.
+- `config_router` exposes `/app-config` and `/app-config.js` so the frontend can discover the correct backend/frontend URLs at runtime.
 
-Purging a patient via `DELETE /api/v1/patients/{id}/purge` cascades and removes all linked procedures and their metadata so downstream integrations do not have to manually clean them up.
+## Operations & observability
 
-### Sample curl commands with API token
-
-The snippets below show how to call the `/api/v1` endpoints directly using the API token `f1iUbTg7yfh1cdncn2SWcq3t1eiQZZQUHmVZS3jPIrOiquyx`.
-
-Create a patient via the token-protected API:
-
-```bash
-curl -X POST "http://127.0.0.1:8000/api/v1/patients/" \
-  -H "Authorization: Bearer f1iUbTg7yfh1cdncn2SWcq3t1eiQZZQUHmVZS3jPIrOiquyx" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "first_name": "Token",
-    "last_name": "Patient",
-    "email": "token.patient@example.com",
-    "phone": "+1-555-111-2222",
-    "city": "Cardiff"
-  }'
-```
-
-## API request samples
-
-Replace the example token (`YOUR_API_TOKEN`) with an API token generated from **Settings → API Tokens** and adjust the host if your backend is on a different origin.
-
-1. **Search for a patient (external lookup)** — _Required query parameters: `full_name` (or legacy `name`+`surname`)._
-
-   ```bash
-   curl "http://127.0.0.1:8000/api/v1/search?full_name=Jane%20Doe" \
-     -H "Authorization: Bearer YOUR_API_TOKEN"
-   ```
-
-2. **Create a patient** — _Required JSON fields: `first_name`, `last_name`, `email`, `phone`, `city`. Optional: `drive_folder_id`, `drive_file_ids` (array of strings), `drive_file_ids_string`._
-
-   ```bash
-   curl -X POST "http://127.0.0.1:8000/api/v1/patients/" \
-     -H "Authorization: Bearer YOUR_API_TOKEN" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "first_name": "Jane",
-       "last_name": "Doe",
-       "email": "jane.doe@example.com",
-       "phone": "+1-555-123-4567",
-       "city": "Los Angeles",
-       "drive_folder_id": "1abc...",
-       "drive_file_ids": ["file1", "file2"],
-       "drive_file_ids_string": "file1,file2"
-     }'
-   ```
-
-3. **Update a patient** — _Required path parameter: `patient_id`. Required JSON fields are the same as creation (`first_name`, `last_name`, `email`, `phone`, `city`). Optional fields are also the same._
-
-   ```bash
-   curl -X PUT "http://127.0.0.1:8000/api/v1/patients/123" \
-     -H "Authorization: Bearer YOUR_API_TOKEN" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "first_name": "Jane",
-       "last_name": "Doe",
-       "email": "jane.doe@example.com",
-       "phone": "+1-555-765-4321",
-       "city": "Los Angeles",
-       "drive_folder_id": "new_folder_id"
-     }'
-   ```
-
-4. **Search for a procedure (id or patient/date)** — _Option A: provide `procedure_id` to fetch a specific procedure. Option B: provide `patient_id` and optionally `procedure_date` (YYYY-MM-DD). When the date is omitted, the earliest procedure for that patient is returned._
-
-   ```bash
-   curl "http://127.0.0.1:8000/api/v1/procedures/search?patient_id=123&procedure_date=2025-01-02" \
-     -H "Authorization: Bearer YOUR_API_TOKEN"
-   ```
-
-   ```bash
-   curl "http://127.0.0.1:8000/api/v1/procedures/search?procedure_id=456" \
-     -H "Authorization: Bearer YOUR_API_TOKEN"
-   ```
-
-5. **Create a procedure** — _Required JSON fields: `patient_id`, `procedure_date`, `procedure_type`, `status`, `grafts`. Optional fields: `package_type`, `agency`, `payment`, `consultation`, `forms`, `consents`, `photo_files`. The API accepts json arrays for the list fields and plain strings for the others._
-
-  ```bash
-  curl -X POST "http://127.0.0.1:8000/api/v1/procedures/" \
-    -H "Authorization: Bearer YOUR_API_TOKEN" \
-    -H "Content-Type: application/json" \
-     -d '{
-       "patient_id": 123,
-       "procedure_date": "2025-01-02",
-       "status": "reserved",
-       "procedure_type": "sfue",
-       "package_type": "small",
-       "grafts": "3000",
-       "payment": "waiting",
-       "consultation": [],
-       "forms": [],
-       "consents": [],
-       "photo_files": []
-     }'
-   ```
-
-6. **Update a procedure** — _Required path parameter: `procedure_id`. Required JSON body matches creation (`patient_id`, `procedure_date`, `procedure_type`, `status`, `grafts`). Include any subset of optional fields (`package_type`, `agency`, `payment`, `consultation`, `forms`, `consents`, `photo_files`) when you need to update them._
-
-   ```bash
-   curl -X PUT "http://127.0.0.1:8000/api/v1/procedures/456" \
-     -H "Authorization: Bearer YOUR_API_TOKEN" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "patient_id": 123,
-       "procedure_date": "2025-01-03",
-       "status": "confirmed",
-       "procedure_type": "sfue",
-       "package_type": "small",
-       "grafts": "3200",
-       "payment": "paid",
-       "consultation": ["consultation1"],
-       "forms": [],
-       "consents": [],
-       "photo_files": []
-     }'
-   ```
-
-Create a procedure linked to the new patient (replace `123` with the patient id returned above). Just like the admin example above, only `patient_id`, `procedure_date`, `procedure_type`, `status`, and `grafts` are required:
-
-```bash
-curl -X POST "http://127.0.0.1:8000/api/v1/procedures/" \
-  -H "Authorization: Bearer f1iUbTg7yfh1cdncn2SWcq3t1eiQZZQUHmVZS3jPIrOiquyx" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "patient_id": 123,
-    "procedure_date": "2025-02-12",
-    "procedure_type": "sfue",
-    "status": "reserved",
-    "grafts": "",
-    "payment": "waiting",
-    "consultation": [],
-    "forms": [],
-    "consents": [],
-    "photo_files": []
-  }'
-
-### Find a procedure id by metadata _(All fields optional; provide any combination of `full_name`, `date`, `status`, `grafts_number`, `package_type` to narrow the search)._
-
-Administrators can locate a procedure without knowing its id by POSTing to `/api/v1/procedures/search-by-meta`. The request body is flexible and you may send any subset of the supported keys (`full_name`, `date`, `status`, `grafts_number`, `package_type`). Supplying more fields reduces the chance of multiple matches:
-
-```bash
-curl -X POST "http://127.0.0.1:8000/api/v1/procedures/search-by-meta" \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "full_name": "Test Case",
-    "date": "2025-10-15T00:00:00.000Z",
-    "status": "reserved",
-    "grafts_number": "3000",
-    "package_type": "small"
-  }'
-```
-
-The response includes the matching metadata when a record is found (e.g. `{ "success": true, "procedure_id": 42, "procedure_date": "2025-05-10", "status": "reserved", "procedure_type": "sfue", ... }`), or `{ "success": false, "message": "Procedure not found" }` when no match exists.
-```
-
-Check whether a patient already has a procedure scheduled on a specific date:
-
-```bash
-curl -X GET "http://127.0.0.1:8000/api/v1/procedures/search?patient_id=123&procedure_date=2025-02-12" \
-  -H "Authorization: Bearer f1iUbTg7yfh1cdncn2SWcq3t1eiQZZQUHmVZS3jPIrOiquyx"
-```
-
-Responses include a `success` flag plus either the matching procedure or a friendly message:
-
-```json
-// When a matching procedure exists
-{ "success": true, "procedure": { "id": 456, "procedure_date": "2025-02-12", ... } }
-
-// When nothing matches
-{ "success": false, "message": "Procedure not found" }
-```
-
-### Automated workflow smoke test
-
-Use the helper script below to quickly exercise the full patient/procedure flow (login → create patient → create procedure → update both → purge everything). It logs in via the regular `/auth/login` endpoint, so the provided user must be an admin.
-
-```bash
-uv run python scripts/patient_workflow_test.py \
-  --base-url http://127.0.0.1:8000 \
-  --username admin \
-  --password changeme
-```
-
-Pass `--keep-records` if you want to inspect the created rows instead of purging them automatically when the script finishes.
-
-Update the patient’s contact info (the response again includes the `id` so you can confirm the change):
-
-```bash
-curl -X PUT "http://127.0.0.1:8000/api/v1/patients/123" \
-  -H "Authorization: Bearer f1iUbTg7yfh1cdncn2SWcq3t1eiQZZQUHmVZS3jPIrOiquyx" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "first_name": "Token",
-    "last_name": "Patient",
-    "email": "token.patient+updated@example.com",
-    "phone": "+1-555-999-0000",
-    "city": "Cardiff"
-  }'
-```
-
-Update the related procedure (replace `456` with the procedure id you created earlier); the response body now mirrors the operation result, e.g. `{ "success": true, "id": 456, "message": "Procedure updated" }`:
-
-```bash
-curl -X PUT "http://127.0.0.1:8000/api/v1/procedures/456" \
-  -H "Authorization: Bearer f1iUbTg7yfh1cdncn2SWcq3t1eiQZZQUHmVZS3jPIrOiquyx" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "patient_id": 123,
-    "procedure_date": "2025-02-12",
-    "procedure_type": "sfue",
-    "status": "confirmed",
-    "grafts": "",
-    "payment": "paid",
-    "consultation": [],
-    "forms": [],
-    "consents": [],
-    "photo_files": []
-  }'
-```
-
-### Migration note
-
-The SQLite schema now separates personal information (`patients`) from scheduling data (`procedures`) plus related `photos` and `payments` tables. The bootstrap step recreates those tables from scratch (legacy migrations were removed) so the API and UI can rely on the new shape immediately.
-
-### Frontend capabilities
-
-- **Weekly schedule** – `index.html` renders the one-page calendar. Authenticated users can page through months, create placeholder patients, and drill into patient details. All data flows through the FastAPI APIs.
-- **Patient editor** – `patient.html` lets you edit contact info, forms/consents, consultation status, and upload photos.
-- **Settings dashboard** – `settings.html` combines multiple admin tools:
-  - API token generator (with delete controls)
-  - Option manager for every dropdown (status, procedure type, payment, forms, consents, consultation). The UI mirrors the provided todo-style design.
-  - User management (create users, toggle admin, reset passwords, delete accounts)
-- **Login/logout** – `login.html` provides the session entry point while logout buttons are available on every authenticated page.
-
-All HTTP APIs include interactive docs at `http://127.0.0.1:8000/docs` once the server is running.
-
-**External integrations:** Every route above is mirrored under `/api/v1/*` and requires an API token created in the Settings → API Tokens UI. Send it in the `Authorization: Bearer <token>` header (requests without this header are rejected). The `/api/v1/search` helper is specifically designed for lightweight patient lookups from outside systems—you can pass `full_name=name%20Surname` (preferred) or continue using the legacy `name` and optional `surname` parameters. The response includes the patient's fields (flattened) plus a `procedures` array when found (e.g. `{ "success": true, "id": 123, "first_name": "Jane", ..., "procedures": [ { ... } ] }`), sets `success: false` with `message: "Patient record not found"` and `procedures: []` when no match exists, and returns `success: false` with `message: "Name is missing"` when no name parameters are supplied so you can spot empty requests.
-<!--  -->
-7. **Search by metadata (flexible match)** — _All fields are optional (`full_name`, `date`, `status`, `grafts_number`, `package_type`) and can be supplied in any combination to narrow the match. This endpoint is designed for integrations that only know partial patient details._
-
-   ```bash
-   curl -X POST "http://127.0.0.1:8000/api/v1/procedures/search-by-meta" \
-     -H "Authorization: Bearer YOUR_API_TOKEN" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "full_name": "Jane Doe",
-       "date": "2025-01-02",
-       "status": "reserved",
-       "grafts_number": "3000",
-       "package_type": "small"
-     }'
-   ```
+- Real-time updates flow through the websocket hub at `/ws/updates`, populating the activity feed and letting clients detect conflicts, show `Offline/Connected` status, and offer manual refresh controls.
+- Activity events are recorded via `database.record_activity_event` (procedures, patients, uploads), retained in `activity_events`, and surfaced in the frontend feed.
+- Google Drive files are proxied through `/drive-image/{file_id}` and `/drive-image/{file_id}/meta` using the server's credentials so browsers never see the OAuth token.
+- Uploaded photos and other static artifacts are served from `/uploaded-files`; refer to `patient.js` for the drop zone + gallery flow.
+- Use `GET /api/v1/status/connection-check` with a token to verify connectivity before attempting uploads or imports.

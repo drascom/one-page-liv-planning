@@ -47,12 +47,13 @@ def read_session_token(token: str) -> Optional[int]:
 
 def set_login_cookie(response: Response, user_id: int) -> None:
     token = create_session_token(user_id)
+    is_https = settings.backend_url and settings.backend_url.startswith("https://")
     response.set_cookie(
         SESSION_COOKIE,
         token,
         httponly=True,
         samesite="lax",
-        secure=False,
+        secure=is_https,
         max_age=60 * 60 * 24 * 7,
     )
 
