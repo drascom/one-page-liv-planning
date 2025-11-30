@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from .auth import require_admin_user
-from .google_auth import get_google_credentials
+from .google_auth import get_google_credentials, save_token_json
 from .settings import get_settings
 from google_auth_oauthlib.flow import Flow
-import os
 import json
 import logging
+import base64
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth/google", tags=["google_auth"])
@@ -14,7 +14,53 @@ settings = get_settings()
 
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
 
+
+def _preferred_origin(request: Request) -> str:
+    """Respect proxy headers so redirect URIs stay HTTPS on production."""
+    forwarded_host = request.headers.get("x-forwarded-host")
+    forwarded_proto = request.headers.get("x-forwarded-proto")
+    forwarded_port = request.headers.get("x-forwarded-port")
+
+    if forwarded_host:
+        host = forwarded_host.split(",")[0].strip()
+        scheme = (forwarded_proto or request.url.scheme).split(",")[0].strip()
+        port = ""
+        if forwarded_port and ":" not in host and forwarded_port not in ("80", "443"):
+            port = f":{forwarded_port.split(',')[0].strip()}"
+        return f"{scheme}://{host}{port}"
+
+    scheme = (forwarded_proto or request.url.scheme).split(",")[0].strip()
+    return f"{scheme}://{request.url.netloc}"
+
+
+def _infer_backend_url(request: Request, domain_override: str | None = None) -> str:
+    if domain_override:
+        return domain_override
+    if settings.backend_url:
+        return settings.backend_url
+    return _preferred_origin(request)
+
+
+def _encode_state(state_payload: dict) -> str:
+    raw = json.dumps(state_payload)
+    return base64.urlsafe_b64encode(raw.encode()).decode()
+
+
+def _decode_state(state_value: str) -> dict:
+    if not state_value:
+        return {}
+    try:
+        padding = "=" * (-len(state_value) % 4)
+        data = base64.urlsafe_b64decode((state_value + padding).encode())
+        parsed = json.loads(data.decode())
+        return parsed if isinstance(parsed, dict) else {}
+    except Exception:
+        return {}
+
+
 def _get_flow(redirect_uri: str):
+    if not settings.google_client_id or not settings.google_client_secret:
+        raise HTTPException(status_code=500, detail="Google client id/secret are not configured")
     client_config = {
         "web": {
             "client_id": settings.google_client_id,
@@ -39,25 +85,18 @@ def google_auth_status(current_user: dict = Depends(require_admin_user)):
 
 @router.get("/login-url")
 def google_login_url(request: Request, domain: str = None, current_user: dict = Depends(require_admin_user)):
-    # Determine redirect URI based on current request host or settings
-    # We want to redirect back to the backend callback endpoint
-    
-    # Use provided domain override if available (useful for fixing mismatch)
-    if domain:
-        backend_url = domain
-    else:
-        # Use BACKEND_URL if set, otherwise construct from request
-        backend_url = settings.backend_url
-        if not backend_url:
-            scheme = request.url.scheme
-            host = request.url.netloc
-            backend_url = f"{scheme}://{host}"
-    
+    backend_url = _infer_backend_url(request, domain_override=domain)
     redirect_uri = f"{backend_url.rstrip('/')}/auth/google/callback"
-    
+    state = _encode_state({"redirect_uri": redirect_uri})
+
     try:
         flow = _get_flow(redirect_uri)
-        auth_url, _ = flow.authorization_url(prompt='consent')
+        auth_url, _ = flow.authorization_url(
+            prompt='consent',
+            access_type="offline",
+            include_granted_scopes=True,
+            state=state,
+        )
         return {"url": auth_url}
     except Exception as e:
         logger.error(f"Failed to create flow: {e}")
@@ -65,30 +104,11 @@ def google_login_url(request: Request, domain: str = None, current_user: dict = 
 
 @router.get("/callback")
 def google_auth_callback(request: Request, code: str):
-    # This endpoint handles the redirect from Google
-    
-    # We need to reconstruct the redirect_uri exactly as it was sent in the auth request.
-    # Since we can't pass state easily without session storage in this simple setup,
-    # we'll try to infer it. The critical part is the domain.
-    # If the user overrode the domain in the frontend, the initial request used that.
-    # However, the callback hits *this* server.
-    
-    # If the callback is hitting this server, the request.base_url should generally match
-    # unless there's a proxy rewriting headers differently than the original request used.
-    
-    # Heuristic: If BACKEND_URL is set, use it. Otherwise use request base.
-    # Note: If the user provided a CUSTOM domain in the UI that is DIFFERENT from
-    # what the backend thinks it is (and different from BACKEND_URL), we might have a mismatch.
-    # In a stateless flow without passing the redirect_uri in 'state' param, we have to guess.
-    # Let's try the settings/request first.
-    
-    backend_url = settings.backend_url
-    if not backend_url:
-        scheme = request.url.scheme
-        host = request.url.netloc
-        backend_url = f"{scheme}://{host}"
-        
-    redirect_uri = f"{backend_url.rstrip('/')}/auth/google/callback"
+    state_data = _decode_state(request.query_params.get("state", ""))
+    redirect_uri = state_data.get("redirect_uri")
+    if not redirect_uri:
+        backend_url = _infer_backend_url(request)
+        redirect_uri = f"{backend_url.rstrip('/')}/auth/google/callback"
 
     try:
         flow = _get_flow(redirect_uri)
@@ -98,51 +118,14 @@ def google_auth_callback(request: Request, code: str):
         # Save credentials to environment variable / file
         # In a real production app, you might save this to DB or Secrets Manager.
         # For this setup, we'll try to print it and maybe update .env if possible or just rely on in-memory/file if configured
-        
+
         token_json = creds.to_json()
-        
-        # We can't easily update the running process environment variable persistently across restarts 
-        # unless we write to .env file.
-        # Let's write to .env
-        _update_env_file("GOOGLE_TOKEN_JSON", token_json)
-        
+        save_token_json(token_json)
+
         # Redirect back to settings page
-        frontend_url = settings.frontend_url or backend_url
+        frontend_url = settings.frontend_url or _infer_backend_url(request)
         return RedirectResponse(f"{frontend_url.rstrip('/')}/settings.html#google")
         
     except Exception as e:
         logger.error(f"Error in callback: {e}")
         return {"error": str(e)}
-
-def _update_env_file(key: str, value: str):
-    env_path = settings.base_dir / ".env" if hasattr(settings, 'base_dir') else os.path.join(os.getcwd(), ".env")
-    
-    # Read existing
-    lines = []
-    if os.path.exists(env_path):
-        with open(env_path, "r") as f:
-            lines = f.readlines()
-    
-    # Prepare new line
-    # Escape single quotes if present in JSON to avoid issues if we were using shell, 
-    # but for .env usually just KEY='VALUE' works. 
-    # JSON has double quotes, so wrapping in single quotes is safest.
-    new_line = f"{key}='{value}'\n"
-    
-    # Update or Append
-    key_found = False
-    new_lines = []
-    for line in lines:
-        if line.strip().startswith(f"{key}="):
-            new_lines.append(new_line)
-            key_found = True
-        else:
-            new_lines.append(line)
-            
-    if not key_found:
-        if new_lines and not new_lines[-1].endswith('\n'):
-             new_lines[-1] += '\n'
-        new_lines.append(new_line)
-        
-    with open(env_path, "w") as f:
-        f.writelines(new_lines)

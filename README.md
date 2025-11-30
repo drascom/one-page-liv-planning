@@ -67,6 +67,7 @@ The `Dockerfile` installs uv, syncs dependencies with `uv sync --no-dev`, copies
 ## Configuration
 
 - `.env.example` declares `APP_SECRET_KEY`, `DEFAULT_ADMIN_PASSWORD`, `BACKEND_URL`, `FRONTEND_URL`, and Google OAuth variables (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_PROJECT_ID`, `GOOGLE_REDIRECT_URIS`, `GOOGLE_AUTH_URI`, `GOOGLE_TOKEN_URI`, and optional `GOOGLE_TOKEN_JSON`). `GOOGLE_TOKEN_JSON` lets you paste a pre-authorized credential set so the Drive proxy works without going through the browser flow.
+- When configuring Google OAuth, whitelist the callback `https://<your-domain>/auth/google/callback` (or `http://localhost:8000/auth/google/callback` for local dev). The settings page lets you override the domain used in the login URL if your app runs behind a proxy.
 - `backend/settings.py` exposes `static_root` (serving `frontend/`), `uploads_root` (`uploads/`), and the paths used by `app-config`. The `uploads/` directory stores patient photo files and must be writable.
 - The `private/` directory currently holds a sample Google client secret; copy yours into the environment variables instead of checking in secrets.
 
