@@ -1366,8 +1366,15 @@ async function checkGoogleAuthStatus() {
 if (googleAuthBtn) {
   googleAuthBtn.addEventListener("click", async () => {
     try {
+        // Build query params
+        const params = new URLSearchParams();
+        const customDomain = googleAuthDomainInput?.value?.trim();
+        if (customDomain) {
+            params.set("domain", customDomain);
+        }
+
         // We need to redirect to the auth URL provided by the backend
-        const response = await fetch(buildApiUrl("/auth/google/login-url"));
+        const response = await fetch(buildApiUrl(`/auth/google/login-url?${params.toString()}`));
         handleUnauthorized(response);
         if (response.ok) {
             const data = await response.json();
@@ -1397,6 +1404,12 @@ async function initializeSettingsPage() {
   if (recoverAllBtn) {
     recoverAllBtn.disabled = true;
   }
+  
+  // Pre-fill domain input if available
+  if (googleAuthDomainInput && window.location.origin) {
+      googleAuthDomainInput.value = window.location.origin;
+  }
+
   await fetchDeletedPatients();
   await fetchDeletedProcedures();
   await initializeUserManagement();

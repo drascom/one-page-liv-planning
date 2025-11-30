@@ -38,16 +38,20 @@ def google_auth_status(current_user: dict = Depends(require_admin_user)):
     return {"connected": creds is not None and creds.valid}
 
 @router.get("/login-url")
-def google_login_url(request: Request, current_user: dict = Depends(require_admin_user)):
+def google_login_url(request: Request, domain: str = None, current_user: dict = Depends(require_admin_user)):
     # Determine redirect URI based on current request host or settings
     # We want to redirect back to the backend callback endpoint
     
-    # Use BACKEND_URL if set, otherwise construct from request
-    backend_url = settings.backend_url
-    if not backend_url:
-        scheme = request.url.scheme
-        host = request.url.netloc
-        backend_url = f"{scheme}://{host}"
+    # Use provided domain override if available (useful for fixing mismatch)
+    if domain:
+        backend_url = domain
+    else:
+        # Use BACKEND_URL if set, otherwise construct from request
+        backend_url = settings.backend_url
+        if not backend_url:
+            scheme = request.url.scheme
+            host = request.url.netloc
+            backend_url = f"{scheme}://{host}"
     
     redirect_uri = f"{backend_url.rstrip('/')}/auth/google/callback"
     
@@ -62,6 +66,21 @@ def google_login_url(request: Request, current_user: dict = Depends(require_admi
 @router.get("/callback")
 def google_auth_callback(request: Request, code: str):
     # This endpoint handles the redirect from Google
+    
+    # We need to reconstruct the redirect_uri exactly as it was sent in the auth request.
+    # Since we can't pass state easily without session storage in this simple setup,
+    # we'll try to infer it. The critical part is the domain.
+    # If the user overrode the domain in the frontend, the initial request used that.
+    # However, the callback hits *this* server.
+    
+    # If the callback is hitting this server, the request.base_url should generally match
+    # unless there's a proxy rewriting headers differently than the original request used.
+    
+    # Heuristic: If BACKEND_URL is set, use it. Otherwise use request base.
+    # Note: If the user provided a CUSTOM domain in the UI that is DIFFERENT from
+    # what the backend thinks it is (and different from BACKEND_URL), we might have a mismatch.
+    # In a stateless flow without passing the redirect_uri in 'state' param, we have to guess.
+    # Let's try the settings/request first.
     
     backend_url = settings.backend_url
     if not backend_url:

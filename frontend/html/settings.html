@@ -180,7 +180,21 @@
           <section class="patient-card">
             <h3>Connection Status</h3>
             <p id="google-auth-status" class="upload-status">Checking status...</p>
-            <div class="settings-section__header" style="gap: 12px;">
+            
+            <div class="settings-section__header" style="gap: 12px; flex-direction: column; align-items: flex-start;">
+              <div class="form-group" style="width: 100%; max-width: 400px;">
+                <label for="google-auth-domain" class="form-label" style="font-weight: 600; font-size: 0.9rem; color: #475569;">Override Domain (Optional)</label>
+                <input
+                  type="text"
+                  id="google-auth-domain"
+                  class="search-input"
+                  placeholder="https://your-domain.com"
+                  style="width: 100%; margin-top: 0.25rem;"
+                >
+                <p class="upload-hint" style="font-size: 0.8rem; margin-top: 0.25rem;">
+                  Enter the base URL where the app is hosted (e.g., https://liv.drascom.uk) to ensure the redirect works correctly. Leave blank to auto-detect.
+                </p>
+              </div>
               <button type="button" class="primary-btn" id="google-auth-btn">Connect Google Drive</button>
             </div>
             <p class="upload-hint" style="margin-top: 1rem;">
