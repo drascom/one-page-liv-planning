@@ -523,13 +523,7 @@ function getDriveFiles() {
     }));
   }
 
-  // Fallback to string
-  if (!currentPatient?.drive_file_ids_string) return [];
-  return currentPatient.drive_file_ids_string
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .map(id => ({ id, mimeType: null }));
+  return [];
 }
 
 // Deprecated alias for compatibility if needed elsewhere
@@ -1485,10 +1479,9 @@ async function initializePatientPage() {
 
 function updateDebugInfo() {
   if (!currentPatient || !debugDriveStringEl) return;
-  const rawString = currentPatient.drive_file_ids_string || "(empty)";
-  debugDriveStringEl.textContent = rawString;
-  const ids = getDrivePhotoIds();
-  debugDriveCountEl.textContent = `${ids.length} IDs found`;
+  const files = getDriveFiles();
+  debugDriveStringEl.textContent = JSON.stringify(files, null, 2);
+  debugDriveCountEl.textContent = `${files.length} files found`;
 }
 
 if (debugTestDriveBtn) {
