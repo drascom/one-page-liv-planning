@@ -1279,34 +1279,22 @@ function appendUploadedFileItem(file) {
   uploadList.appendChild(item);
 }
 
-function ensureLastName() {
-  const lastName = lastNameInput.value.trim();
-  if (!lastName) {
-    uploadStatus.textContent = "Enter the patient's last name before uploading.";
-    return null;
-  }
-  return lastName;
-}
-
 async function uploadFiles(fileList) {
   if (!currentPatient) {
     uploadStatus.textContent = "Load a patient before uploading.";
     return;
   }
-  const files = Array.from(fileList).slice(0, 10);
-  if (!files.length) return;
-  const lastName = ensureLastName();
-  if (!lastName) {
+  if (!currentPatient.drive_folder_id) {
+    uploadStatus.textContent = "Set a Drive folder ID for this patient before uploading.";
     return;
   }
+  const files = Array.from(fileList).slice(0, 10);
+  if (!files.length) return;
   const formData = new FormData();
   files.forEach((file) => formData.append("files", file));
-  uploadStatus.textContent = "Uploading photos...";
+  uploadStatus.textContent = "Uploading to Drive...";
   try {
-    const uploadUrl = new URL(`/uploads/${encodeURIComponent(lastName)}`, API_BASE_URL);
-    if (currentPatient?.id) {
-      uploadUrl.searchParams.set("patient_id", String(currentPatient.id));
-    }
+    const uploadUrl = new URL(`/drive-image/folder/${encodeURIComponent(currentPatient.drive_folder_id)}/upload`, API_BASE_URL);
     const response = await fetch(uploadUrl, {
       method: "POST",
       body: formData,
@@ -1315,15 +1303,13 @@ async function uploadFiles(fileList) {
     if (!response.ok) {
       throw new Error(`Upload failed (${response.status})`);
     }
-    const payload = await response.json();
     files.forEach(appendUploadedFileItem);
-    if (currentPatient?.id) {
-      await fetchPhotosForPatient(currentPatient.id);
-    }
-    uploadStatus.textContent = `Uploaded ${files.length} file(s).`;
+    await fetchDriveFolderFiles(currentPatient.drive_folder_id);
+    renderPhotoGallery();
+    uploadStatus.textContent = `Uploaded ${files.length} file(s) to Drive.`;
   } catch (error) {
     console.error(error);
-    uploadStatus.textContent = `Unable to upload photos: ${error.message}`;
+    uploadStatus.textContent = `Unable to upload to Drive: ${error.message}`;
   }
 }
 

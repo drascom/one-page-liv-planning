@@ -1127,3 +1127,48 @@ def list_drive_folder_files(folder_id: str):
         raise HTTPException(status_code=502, detail=f"Google Drive list failed: {e}")
 
     return {"files": files}
+
+
+@drive_router.post("/folder/{folder_id}/upload", status_code=status.HTTP_201_CREATED)
+async def upload_drive_files(folder_id: str, files: List[UploadFile] = File(...)):
+    """
+    Uploads one or more files directly into a Drive folder using multipart upload.
+    """
+    if not files:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No files provided")
+
+    token = get_access_token()
+    if not token:
+        raise HTTPException(
+            status_code=503,
+            detail="Google Drive authentication failed. Please reconnect Google Drive in Settings.",
+        )
+
+    headers = {"Authorization": f"Bearer {token}"}
+    upload_url = "https://www.googleapis.com/upload/drive/v3/files"
+    params = {
+        "uploadType": "multipart",
+        "fields": "id,name,mimeType,thumbnailLink,webViewLink",
+        "supportsAllDrives": True,
+    }
+
+    uploaded: List[dict] = []
+    for index, upload in enumerate(files):
+        name = upload.filename or f"upload-{index}"
+        metadata = {"name": name, "parents": [folder_id]}
+        media = await upload.read()
+        files_payload = {
+            "metadata": ("metadata", json.dumps(metadata), "application/json"),
+            "file": (name, media, upload.content_type or "application/octet-stream"),
+        }
+        try:
+            resp = requests.post(upload_url, headers=headers, params=params, files=files_payload)
+            if resp.status_code not in (200, 201):
+                raise HTTPException(status_code=resp.status_code, detail=resp.text or "Drive upload failed")
+            uploaded.append(resp.json())
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Drive upload failed: {exc}")
+
+    return {"files": uploaded}

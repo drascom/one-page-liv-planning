@@ -12,7 +12,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth/google", tags=["google_auth"])
 settings = get_settings()
 
-SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
+# Allows listing and uploading to user-selected files/folders.
+SCOPES = ['https://www.googleapis.com/auth/drive.file']
 
 
 def _preferred_origin(request: Request) -> str:
