@@ -5,7 +5,7 @@ import time
 import threading
 
 API_URL = "https://liv.drascom.uk/api/v1/search"
-TOKEN = "tpkg598mZ4Db29bYFNa4b5PyIVXBEqhYOLrHqg9vxPpIFgpS"
+TOKEN = ""
 
 # ---- SETTINGS ----
 INITIAL_RPS = 5       # start with 5 requests per second
