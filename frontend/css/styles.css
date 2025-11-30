@@ -2364,6 +2364,106 @@ body.app-shell {
   display: none;
 }
 
+.patient-documents-card .upload-hint {
+  margin: 0;
+  color: #475569;
+}
+
+.document-empty {
+  color: #94a3b8;
+  font-style: italic;
+  margin-top: 0.5rem;
+}
+
+.document-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.document-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  box-shadow: 0 10px 24px -16px rgba(15, 23, 42, 0.3);
+}
+
+.document-card__icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: #0f172a;
+  background: radial-gradient(circle at 25% 25%, #e0f2fe, #bae6fd);
+  border: 1px solid #bae6fd;
+}
+
+.document-card__meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.document-card__name {
+  margin: 0;
+  font-weight: 650;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document-card__type {
+  margin: 0.1rem 0 0;
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+.document-card__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+  margin-top: 0.35rem;
+}
+
+.document-card__actions {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.document-card__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid #bae6fd;
+  background: #f0f9ff;
+  color: #0284c7;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.document-card__link:hover {
+  background: #e0f2fe;
+  border-color: #7dd3fc;
+}
+
 .photo-viewer img {
   max-width: 90vw;
   max-height: 70vh;

@@ -253,6 +253,8 @@ const viewerCloseBtn = document.getElementById("photo-viewer-close");
 const viewerPrevBtn = document.getElementById("photo-viewer-prev");
 const viewerNextBtn = document.getElementById("photo-viewer-next");
 const viewerDeleteBtn = document.getElementById("photo-viewer-delete");
+const documentsListEl = document.getElementById("documents-list");
+const documentsEmptyStateEl = document.getElementById("documents-empty");
 
 // Debug Elements
 const adminDebugSection = document.getElementById("admin-debug");
@@ -528,9 +530,66 @@ function getDriveFiles() {
   return [];
 }
 
+function buildDriveFileUrl(fileObj) {
+  if (!fileObj) return "";
+  if (fileObj.id) {
+    return `/drive-image/${fileObj.id}`;
+  }
+  return fileObj.driveLink || "";
+}
+
+function isPdfFile(file) {
+  const mime = (file?.mimeType || "").toLowerCase();
+  const name = (file?.name || "").toLowerCase();
+  return mime === "application/pdf" || name.endsWith(".pdf");
+}
+
+function isZipFile(file) {
+  const mime = (file?.mimeType || "").toLowerCase();
+  const name = (file?.name || "").toLowerCase();
+  return (
+    mime === "application/zip" ||
+    mime === "application/x-zip-compressed" ||
+    name.endsWith(".zip")
+  );
+}
+
+function isImageFile(file) {
+  const mime = (file?.mimeType || "").toLowerCase();
+  const name = (file?.name || "").toLowerCase();
+  if (mime.startsWith("image/")) return true;
+  return /\.(jpe?g|png|gif|webp|bmp|svg)$/i.test(name);
+}
+
+function classifyDriveFiles(files = []) {
+  const buckets = { images: [], pdfs: [], archives: [], others: [] };
+  files.forEach((file) => {
+    if (isImageFile(file)) {
+      buckets.images.push(file);
+    } else if (isPdfFile(file)) {
+      buckets.pdfs.push(file);
+    } else if (isZipFile(file)) {
+      buckets.archives.push(file);
+    } else {
+      buckets.others.push(file);
+    }
+  });
+  return buckets;
+}
+
+function getDriveImageFiles() {
+  const { images } = classifyDriveFiles(getDriveFiles());
+  return images;
+}
+
+function getDriveDocumentFiles() {
+  const { pdfs, archives, others } = classifyDriveFiles(getDriveFiles());
+  return { pdfs, archives, others };
+}
+
 // Deprecated alias for compatibility if needed elsewhere
 function getDrivePhotoIds() {
-  return getDriveFiles().map(f => f.id);
+  return getDriveImageFiles().map(f => f.id);
 }
 
 async function fetchProceduresForPatient(patientId) {
@@ -835,23 +894,102 @@ function updatePhotoCountInput() {
   // No longer needed as the photos input field has been removed
 }
 
-function renderPhotoGallery() {
-  if (!galleryContainer) return;
-  const localFiles = getPhotoFiles();
-  const driveFiles = getDriveFiles();
-  const totalCount = localFiles.length + driveFiles.length;
+function renderDriveDocuments(pdfFiles = [], archiveFiles = [], otherFiles = []) {
+  if (!documentsListEl || !documentsEmptyStateEl) return;
 
-  galleryContainer.innerHTML = "";
-  
-  if (totalCount === 0) {
-    if (galleryEmptyState) {
-      galleryEmptyState.textContent = "No photos uploaded yet.";
-    }
+  documentsListEl.innerHTML = "";
+  const files = [
+    ...pdfFiles.map((file) => ({ file, kind: "pdf" })),
+    ...archiveFiles.map((file) => ({ file, kind: "zip" })),
+    ...otherFiles.map((file) => ({ file, kind: "file" })),
+  ];
+
+  if (!files.length) {
+    documentsEmptyStateEl.hidden = false;
     return;
   }
-  
+
+  documentsEmptyStateEl.hidden = true;
+
+  files.forEach(({ file, kind }) => {
+    const card = document.createElement("div");
+    card.className = "document-card";
+
+    const icon = document.createElement("div");
+    icon.className = "document-card__icon";
+    icon.textContent = kind === "pdf" ? "PDF" : kind === "zip" ? "ZIP" : "FILE";
+
+    const meta = document.createElement("div");
+    meta.className = "document-card__meta";
+
+    const nameEl = document.createElement("p");
+    nameEl.className = "document-card__name";
+    const displayName =
+      file.name || (kind === "pdf" ? "PDF document" : kind === "zip" ? "ZIP archive" : "Drive file");
+    nameEl.textContent = displayName;
+    nameEl.title = displayName;
+
+    const pill = document.createElement("span");
+    pill.className = "document-card__pill";
+    pill.textContent = kind === "pdf" ? "PDF" : kind === "zip" ? "ZIP" : (file.mimeType || "FILE").toUpperCase();
+
+    const typeEl = document.createElement("p");
+    typeEl.className = "document-card__type";
+    typeEl.textContent = file.mimeType || (kind === "pdf" ? "PDF document" : kind === "zip" ? "ZIP archive" : "File");
+
+    const actions = document.createElement("div");
+    actions.className = "document-card__actions";
+    const url = buildDriveFileUrl(file);
+    if (url) {
+      if (kind === "pdf") {
+        const viewLink = document.createElement("a");
+        viewLink.className = "document-card__link";
+        viewLink.href = url;
+        viewLink.target = "_blank";
+        viewLink.rel = "noreferrer noopener";
+        viewLink.textContent = "Open";
+        actions.appendChild(viewLink);
+      }
+
+      const downloadLink = document.createElement("a");
+      downloadLink.className = "document-card__link";
+      downloadLink.href = url;
+      downloadLink.download = displayName;
+      downloadLink.textContent = "Download";
+      actions.appendChild(downloadLink);
+    }
+
+    meta.appendChild(nameEl);
+    meta.appendChild(pill);
+    meta.appendChild(typeEl);
+
+    card.appendChild(icon);
+    card.appendChild(meta);
+    card.appendChild(actions);
+    documentsListEl.appendChild(card);
+  });
+}
+
+function renderPhotoGallery() {
+  if (!galleryContainer) return;
+
+  const localFiles = getPhotoFiles();
+  const { images: driveImages, pdfs: drivePdfs, archives: driveArchives, others: driveOthers } = classifyDriveFiles(getDriveFiles());
+  const totalCount = localFiles.length + driveImages.length;
+
+  galleryContainer.innerHTML = "";
+
   if (galleryEmptyState) {
-    galleryEmptyState.textContent = `${totalCount} photo${totalCount > 1 ? "s" : ""} available`;
+    galleryEmptyState.textContent = totalCount
+      ? `${totalCount} photo${totalCount > 1 ? "s" : ""} available`
+      : "No photos uploaded yet.";
+  }
+
+  // Always render documents, even if there are no photos to show
+  renderDriveDocuments(drivePdfs, driveArchives, driveOthers);
+
+  if (totalCount === 0) {
+    return;
   }
 
   // Render Local Photos
@@ -875,7 +1013,7 @@ function renderPhotoGallery() {
   });
 
   // Render Drive Photos
-  driveFiles.forEach(async (fileObj, index) => {
+  driveImages.forEach((fileObj, index) => {
     const fileId = fileObj.id;
     const card = document.createElement("div");
     card.className = "photo-thumb";
@@ -888,101 +1026,14 @@ function renderPhotoGallery() {
     
     galleryContainer.appendChild(card);
 
-    // Helper to render file card (document/zip)
-    const renderFileCard = (name, dlUrl) => {
-        card.classList.add("file-thumb");
-        card.style.display = "flex";
-        card.style.flexDirection = "column";
-        card.style.alignItems = "center";
-        card.style.justifyContent = "center";
-        card.style.backgroundColor = "#f0f0f0";
-        card.style.cursor = "default"; // Not clickable for viewer
-        
-        const icon = document.createElement("div");
-        icon.textContent = "📄";
-        icon.style.fontSize = "24px";
-        
-        const nameEl = document.createElement("div");
-        nameEl.textContent = name || "File";
-        nameEl.style.fontSize = "12px";
-        nameEl.style.textAlign = "center";
-        nameEl.style.padding = "4px";
-        nameEl.style.overflow = "hidden";
-        nameEl.style.textOverflow = "ellipsis";
-        nameEl.style.whiteSpace = "nowrap";
-        nameEl.style.width = "100%";
-
-        const link = document.createElement("a");
-        link.href = dlUrl;
-        link.target = "_blank";
-        link.download = name || "download";
-        link.textContent = "Download";
-        link.style.fontSize = "11px";
-        link.style.marginTop = "4px";
-        
-        // If we have a direct Drive link (from API), maybe offer that too?
-        // For now, use our proxy to download
-        
-        card.appendChild(icon);
-        card.appendChild(nameEl);
-        card.appendChild(link);
-    };
-
-    // Helper to render image card
-    const renderImageCard = (url) => {
-        card.style.backgroundImage = `url(${url})`;
-        card.addEventListener("click", () => openPhotoViewer(index, 'drive'));
-    };
-
-    // If we already have mimeType, avoid the extra fetch unless necessary for name
-    if (fileObj.mimeType) {
-        if (fileObj.mimeType.startsWith("image/")) {
-            renderImageCard(`/drive-image/${fileId}`);
-        } else {
-            // It's a file. If we don't have name, we might want to fetch meta, or just show generic
-            if (fileObj.name) {
-                renderFileCard(fileObj.name, `/drive-image/${fileId}`);
-            } else {
-                // Fetch meta just for name? Or lazy load name?
-                // Let's try to fetch meta to get the proper name
-                try {
-                    const metaRes = await fetch(`/drive-image/${fileId}/meta`);
-                    if (metaRes.ok) {
-                        const meta = await metaRes.json();
-                        renderFileCard(meta.name, `/drive-image/${fileId}`);
-                    } else {
-                        renderFileCard("Drive File", `/drive-image/${fileId}`);
-                    }
-                } catch {
-                    renderFileCard("Drive File", `/drive-image/${fileId}`);
-                }
-            }
-        }
-        return; // Done
-    }
-
-    // Fallback: No mimeType known (old string format), fetch meta
-    try {
-      const metaRes = await fetch(`/drive-image/${fileId}/meta`);
-      if (!metaRes.ok) throw new Error("Meta fail");
-      const meta = await metaRes.json();
-      
-      if (meta.mimeType && meta.mimeType.startsWith("image/")) {
-        renderImageCard(`/drive-image/${fileId}`);
-      } else {
-        renderFileCard(meta.name, `/drive-image/${fileId}`);
-      }
-    } catch (e) {
-      console.warn("Failed to load drive item", fileId, e);
-      card.style.backgroundColor = "#fee";
-      card.textContent = "Error";
-    }
+    card.style.backgroundImage = `url(/drive-image/${fileId})`;
+    card.addEventListener("click", () => openPhotoViewer(index, 'drive'));
   });
 }
 
 function openPhotoViewer(index, source = 'local') {
   const localFiles = getPhotoFiles();
-  const driveFiles = getDriveFiles();
+  const driveFiles = getDriveImageFiles();
   
   if (!viewerEl || !viewerImage) {
     return;
@@ -1006,8 +1057,7 @@ function openPhotoViewer(index, source = 'local') {
     const fileObj = driveFiles[driveIndex];
     const fileId = fileObj.id;
     
-    // Simple check: if not image, just load it (might fail or browser handles it)
-    // Ideally we shouldn't open non-images in this viewer.
+    // Drive viewer is limited to image-type files
     
     imageUrl = `/drive-image/${fileId}`;
     caption = `Drive Photo ${driveIndex + 1} of ${driveFiles.length}`;
