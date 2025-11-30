@@ -943,6 +943,34 @@ function renderDriveDocuments(pdfFiles = [], archiveFiles = [], otherFiles = [])
   documentsEmptyStateEl.hidden = true;
 
   files.forEach(({ file, kind }) => {
+    const createIconLink = (label, paths, opts = {}) => {
+      const link = document.createElement("a");
+      link.className = "document-card__link document-card__link--icon";
+      link.setAttribute("aria-label", label);
+      link.title = label;
+      if (opts.href) link.href = opts.href;
+      if (opts.target) link.target = opts.target;
+      if (opts.rel) link.rel = opts.rel;
+      if (opts.download) link.download = opts.download;
+
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("viewBox", "0 0 24 24");
+      svg.setAttribute("fill", "none");
+      svg.setAttribute("stroke", "currentColor");
+      svg.setAttribute("stroke-width", "1.8");
+      svg.setAttribute("stroke-linecap", "round");
+      svg.setAttribute("stroke-linejoin", "round");
+
+      paths.forEach((d) => {
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", d);
+        svg.appendChild(path);
+      });
+
+      link.appendChild(svg);
+      return link;
+    };
+
     const card = document.createElement("div");
     card.className = "document-card";
 
@@ -965,20 +993,19 @@ function renderDriveDocuments(pdfFiles = [], archiveFiles = [], otherFiles = [])
     const url = buildDriveFileUrl(file);
     if (url) {
       if (kind === "pdf") {
-        const viewLink = document.createElement("a");
-        viewLink.className = "document-card__link";
-        viewLink.href = url;
-        viewLink.target = "_blank";
-        viewLink.rel = "noreferrer noopener";
-        viewLink.textContent = "Open";
+        const viewLink = createIconLink(
+          "Open file",
+          ["M5 9v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V11", "M14 5h5m0 0v5m0-5L10 14"],
+          { href: url, target: "_blank", rel: "noreferrer noopener" }
+        );
         actions.appendChild(viewLink);
       }
 
-      const downloadLink = document.createElement("a");
-      downloadLink.className = "document-card__link";
-      downloadLink.href = url;
-      downloadLink.download = displayName;
-      downloadLink.textContent = "Download";
+      const downloadLink = createIconLink(
+        "Download file",
+        ["M12 4v12m0 0-4-4m4 4 4-4", "M5 19h14"],
+        { href: url, download: displayName }
+      );
       actions.appendChild(downloadLink);
     }
 

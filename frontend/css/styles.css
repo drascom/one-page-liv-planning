@@ -2453,7 +2453,7 @@ body.app-shell {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.25rem 0.6rem;
+  padding: 0.28rem 0.6rem;
   border-radius: 8px;
   border: 1px solid #cbd5e1;
   background: #f8fafc;
@@ -2461,6 +2461,18 @@ body.app-shell {
   font-weight: 600;
   font-size: 0.9rem;
   text-decoration: none;
+}
+
+.document-card__link--icon {
+  width: 34px;
+  height: 34px;
+  justify-content: center;
+  padding: 0.28rem;
+}
+
+.document-card__link svg {
+  width: 16px;
+  height: 16px;
 }
 
 .document-card__link:hover {
