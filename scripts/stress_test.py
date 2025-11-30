@@ -3,9 +3,13 @@ import random
 import string
 import time
 import threading
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 API_URL = "https://liv.drascom.uk/api/v1/search"
-TOKEN = ""
+TOKEN = os.getenv("WEBSITE_TOKEN")
 
 # ---- SETTINGS ----
 INITIAL_RPS = 5       # start with 5 requests per second
