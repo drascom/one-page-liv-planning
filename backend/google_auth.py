@@ -12,8 +12,11 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Scopes required for the application
-# drive.file allows upload to user-selected files/folders while remaining scoped.
-SCOPES = ['https://www.googleapis.com/auth/drive.file']
+# drive.readonly + drive.file lets us list existing folders/files and upload into them.
+SCOPES = [
+    'https://www.googleapis.com/auth/drive.readonly',
+    'https://www.googleapis.com/auth/drive.file',
+]
 ENV_PATH = BASE_DIR / ".env"
 
 
