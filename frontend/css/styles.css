@@ -1600,7 +1600,7 @@ body.app-shell {
 }
 
 .settings-tab.is-active {
-  background: linear-gradient(120deg, rgba(56, 189, 248, 0.2), rgba(14, 165, 233, 0.35));
+  background: #e0f2fe;
   border-color: rgba(56, 189, 248, 0.8);
   box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.3);
   color: #0f172a;
