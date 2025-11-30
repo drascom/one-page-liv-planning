@@ -94,7 +94,8 @@ def google_login_url(request: Request, domain: str = None, current_user: dict = 
         auth_url, _ = flow.authorization_url(
             prompt='consent',
             access_type="offline",
-            include_granted_scopes=True,
+            # Google expects a lowercase string, not Python bool
+            include_granted_scopes="true",
             state=state,
         )
         return {"url": auth_url}
