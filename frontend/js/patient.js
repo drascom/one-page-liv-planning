@@ -960,14 +960,6 @@ function renderDriveDocuments(pdfFiles = [], archiveFiles = [], otherFiles = [])
     nameEl.textContent = displayName;
     nameEl.title = displayName;
 
-    const pill = document.createElement("span");
-    pill.className = "document-card__pill";
-    pill.textContent = kind === "pdf" ? "PDF" : kind === "zip" ? "ZIP" : (file.mimeType || "FILE").toUpperCase();
-
-    const typeEl = document.createElement("p");
-    typeEl.className = "document-card__type";
-    typeEl.textContent = file.mimeType || (kind === "pdf" ? "PDF document" : kind === "zip" ? "ZIP archive" : "File");
-
     const actions = document.createElement("div");
     actions.className = "document-card__actions";
     const url = buildDriveFileUrl(file);
@@ -991,8 +983,6 @@ function renderDriveDocuments(pdfFiles = [], archiveFiles = [], otherFiles = [])
     }
 
     meta.appendChild(nameEl);
-    meta.appendChild(pill);
-    meta.appendChild(typeEl);
 
     card.appendChild(icon);
     card.appendChild(meta);
