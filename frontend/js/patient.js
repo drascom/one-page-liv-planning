@@ -971,6 +971,11 @@ function renderDriveDocuments(pdfFiles = [], archiveFiles = [], otherFiles = [])
       return link;
     };
 
+    const withInlineDisposition = (href) => {
+      if (!href || !href.startsWith("/drive-image/")) return href;
+      return href.includes("?") ? `${href}&disposition=inline` : `${href}?disposition=inline`;
+    };
+
     const card = document.createElement("div");
     card.className = "document-card";
 
@@ -996,7 +1001,7 @@ function renderDriveDocuments(pdfFiles = [], archiveFiles = [], otherFiles = [])
         const viewLink = createIconLink(
           "Open file",
           ["M5 9v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V11", "M14 5h5m0 0v5m0-5L10 14"],
-          { href: url, target: "_blank", rel: "noreferrer noopener" }
+          { href: withInlineDisposition(url), target: "_blank", rel: "noreferrer noopener" }
         );
         actions.appendChild(viewLink);
       }

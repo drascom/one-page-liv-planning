@@ -1022,7 +1022,7 @@ def search_patients_route(
 # Google Drive Image Proxy Route
 
 @drive_router.get("/{file_id}")
-def get_drive_image(file_id: str):
+def get_drive_image(file_id: str, disposition: str | None = Query(None, pattern="^(inline|attachment)$")):
     """
     Proxies a Google Drive image to the frontend using the server's access token.
     This keeps the token private and avoids CORS issues with direct Drive links.
@@ -1050,13 +1050,21 @@ def get_drive_image(file_id: str):
         # Auto detect mime type if Google returns it
         content_type = r.headers.get("Content-Type", "image/jpeg")
         
-        # If it's a downloadable file, add disposition
         headers = {}
+        # If it's a downloadable file, add disposition
         if "image" not in content_type:
-             # Try to get filename from Content-Disposition if available, or just set generic
-             cd = r.headers.get("Content-Disposition")
-             if cd:
-                 headers["Content-Disposition"] = cd
+            cd = r.headers.get("Content-Disposition", "")
+            filename = None
+            if "filename=" in cd:
+                # crude filename parse, handles filename="name.pdf" and filename=name.pdf
+                _, _, after = cd.partition("filename=")
+                filename = after.strip().strip('"').strip("'")
+
+            if disposition == "inline":
+                safe_name = filename or f"{file_id}.pdf"
+                headers["Content-Disposition"] = f'inline; filename="{safe_name}"'
+            elif cd:
+                headers["Content-Disposition"] = cd
         
         return Response(content=r.content, media_type=content_type, headers=headers)
     except Exception as e:
