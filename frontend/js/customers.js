@@ -15,6 +15,11 @@ const searchForm = document.getElementById("patient-search-form");
 const searchInput = document.getElementById("patient-search");
 const searchClearBtn = document.getElementById("patient-search-clear");
 const searchResultsEl = document.getElementById("patient-search-results");
+const mergeControlsEl = document.getElementById("customer-merge-controls");
+const mergeCountEl = document.getElementById("customer-merge-count");
+const mergeSelectedBtn = document.getElementById("customer-merge-selected-btn");
+const mergeClearBtn = document.getElementById("customer-merge-clear-btn");
+const mergeOpenBtn = document.getElementById("customer-open-merge-btn");
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
@@ -26,6 +31,7 @@ let allCustomers = [];
 let filteredCustomers = [];
 let isAdminUser = false;
 let hasCustomerData = false;
+const selectedPatientIds = new Set();
 
 initSessionControls();
 
@@ -77,6 +83,20 @@ function normalizeName(value) {
   return (value || "").toString().trim().toLowerCase();
 }
 
+function pruneSelectedPatients() {
+  const validIds = new Set(allCustomers.map((customer) => Number(customer.id)));
+  let changed = false;
+  selectedPatientIds.forEach((id) => {
+    if (!validIds.has(id)) {
+      selectedPatientIds.delete(id);
+      changed = true;
+    }
+  });
+  if (changed) {
+    updateMergeControls();
+  }
+}
+
 function summarizeProcedures(procedures = []) {
   if (!procedures.length) {
     return { count: 0, nextLabel: "No procedures scheduled" };
@@ -119,9 +139,10 @@ function renderCustomers(customers) {
       '<li class="customer-empty">No patients match your search. Try another name or city.</li>';
   } else {
     listEl.innerHTML = customers
-      .map(
-        (customer) => `
-        <li class="customer-card">
+      .map((customer) => {
+        const isSelected = selectedPatientIds.has(Number(customer.id));
+        return `
+        <li class="customer-card ${isSelected ? "customer-card--selected" : ""}" data-patient-id="${customer.id}">
           <div class="customer-card__primary">
             <a class="customer-card__name" href="patient.html?id=${customer.id}">
               ${customer.first_name || ""} ${customer.last_name || ""}
@@ -141,22 +162,76 @@ function renderCustomers(customers) {
             </div>
           </div>
           <div class="customer-card__actions">
+            <label class="customer-card__select">
+              <input
+                type="checkbox"
+                class="customer-card__select-input"
+                data-select-patient="${customer.id}"
+                ${isSelected ? "checked" : ""}
+                aria-label="Select ${customer.first_name || ""} ${customer.last_name || ""} for merge"
+              />
+              <span>${isSelected ? "Selected" : "Select"}</span>
+            </label>
             <p class="customer-card__status">${customer.nextProcedureLabel}</p>
             <a class="secondary-btn customer-card__link" href="patient.html?id=${customer.id}">Open</a>
             ${
               isAdminUser
                 ? `<button type="button" class="danger-btn customer-card__delete-btn" data-delete-patient="${customer.id}">Delete</button>`
-                : ""
+              : ""
             }
           </div>
         </li>
-      `
-      )
+      `;
+      })
       .join("");
   }
   if (visibleCountEl) {
     visibleCountEl.textContent = String(customers.length);
   }
+  updateMergeControls();
+}
+
+function updateMergeControls() {
+  const selectedCount = selectedPatientIds.size;
+  if (mergeControlsEl) {
+    mergeControlsEl.hidden = selectedCount === 0;
+  }
+  if (mergeCountEl) {
+    mergeCountEl.textContent = String(selectedCount);
+  }
+  if (mergeSelectedBtn) {
+    mergeSelectedBtn.disabled = selectedCount < 2;
+  }
+}
+
+function clearMergeSelection() {
+  selectedPatientIds.clear();
+  updateMergeControls();
+  renderCustomers(filteredCustomers);
+}
+
+function openMergePage() {
+  const ids = Array.from(selectedPatientIds);
+  const params = new URLSearchParams();
+  if (ids.length) {
+    params.set("ids", ids.join(","));
+  }
+  const query = params.toString();
+  const target = query ? `merge-patients.html?${query}` : "merge-patients.html";
+  window.location.href = target;
+}
+
+function togglePatientSelection(patientId, isSelected) {
+  if (!Number.isFinite(patientId)) {
+    return;
+  }
+  if (isSelected) {
+    selectedPatientIds.add(patientId);
+  } else {
+    selectedPatientIds.delete(patientId);
+  }
+  updateMergeControls();
+  renderCustomers(filteredCustomers);
 }
 
 function applyCustomerFilter(query) {
@@ -226,6 +301,7 @@ function getCustomerLabel(patientId) {
 function removeCustomerFromState(patientId) {
   allCustomers = allCustomers.filter((customer) => Number(customer.id) !== patientId);
   filteredCustomers = filteredCustomers.filter((customer) => Number(customer.id) !== patientId);
+  selectedPatientIds.delete(patientId);
   updateCustomerTotals();
   renderCustomers(filteredCustomers);
 }
@@ -306,6 +382,7 @@ async function loadCustomers() {
         if (lastCompare !== 0) return lastCompare;
         return a.first_name.localeCompare(b.first_name);
       });
+    pruneSelectedPatients();
     filteredCustomers = [...allCustomers];
     hasCustomerData = true;
     updateCustomerTotals();
@@ -360,6 +437,34 @@ listEl?.addEventListener("click", (event) => {
   }
   event.preventDefault();
   handleCustomerDelete(deleteButton, patientId);
+});
+
+listEl?.addEventListener("change", (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLInputElement)) {
+    return;
+  }
+  if (!target.matches("[data-select-patient]")) {
+    return;
+  }
+  const patientId = Number(target.dataset.selectPatient);
+  togglePatientSelection(patientId, target.checked);
+});
+
+mergeSelectedBtn?.addEventListener("click", () => {
+  if (selectedPatientIds.size < 2) {
+    setStatus("Pick at least two patients to combine.", { isError: true });
+    return;
+  }
+  openMergePage();
+});
+
+mergeClearBtn?.addEventListener("click", () => {
+  clearMergeSelection();
+});
+
+mergeOpenBtn?.addEventListener("click", () => {
+  openMergePage();
 });
 
 ensureAdminLinkVisibility();

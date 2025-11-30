@@ -1255,6 +1255,122 @@ def delete_patient(patient_id: int) -> bool:
         return cursor.rowcount > 0
 
 
+def merge_patients(
+    target_patient_id: int,
+    source_patient_ids: List[int],
+    *,
+    updates: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Merge duplicate patient records into the target record."""
+    if not source_patient_ids:
+        raise ValueError("Provide at least one duplicate patient to merge.")
+
+    target = fetch_patient(target_patient_id)
+    if not target:
+        raise ValueError("Target patient was not found or is deleted.")
+
+    merged_values = {
+        "first_name": target["first_name"],
+        "last_name": target["last_name"],
+        "email": target["email"],
+        "phone": target["phone"],
+        "city": target["city"],
+        "drive_folder_id": target.get("drive_folder_id"),
+    }
+    if updates:
+        for field in ("first_name", "last_name", "email", "phone", "city", "drive_folder_id"):
+            if updates.get(field) is not None:
+                merged_values[field] = updates[field]
+
+    normalized_sources: List[int] = []
+    seen: set[int] = set()
+    for patient_id in source_patient_ids:
+        if patient_id == target_patient_id or patient_id in seen:
+            continue
+        patient = fetch_patient(patient_id)
+        if not patient:
+            raise ValueError(f"Patient #{patient_id} was not found or is deleted.")
+        normalized_sources.append(patient_id)
+        seen.add(patient_id)
+
+    if not normalized_sources:
+        raise ValueError("Add at least one other existing patient to merge.")
+
+    payload = _serialize_patient_payload(merged_values)
+    moved_procedures = 0
+    moved_photos = 0
+    moved_payments = 0
+
+    with closing(get_connection()) as conn:
+        conn.execute(
+            """
+            UPDATE patients
+            SET
+                first_name = ?,
+                last_name = ?,
+                email = ?,
+                phone = ?,
+                city = ?,
+                drive_folder_id = ?,
+                deleted = 0,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (
+                payload["first_name"],
+                payload["last_name"],
+                payload["email"],
+                payload["phone"],
+                payload["city"],
+                payload["drive_folder_id"],
+                target_patient_id,
+            ),
+        )
+
+        for source_id in normalized_sources:
+            proc_cursor = conn.execute(
+                """
+                UPDATE procedures
+                SET patient_id = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE patient_id = ?
+                """,
+                (target_patient_id, source_id),
+            )
+            moved_procedures += proc_cursor.rowcount
+
+            photo_cursor = conn.execute(
+                "UPDATE photos SET patient_id = ? WHERE patient_id = ?",
+                (target_patient_id, source_id),
+            )
+            moved_photos += photo_cursor.rowcount
+
+            payment_cursor = conn.execute(
+                "UPDATE payments SET patient_id = ? WHERE patient_id = ?",
+                (target_patient_id, source_id),
+            )
+            moved_payments += payment_cursor.rowcount
+
+            conn.execute(
+                """
+                UPDATE patients
+                SET deleted = 1, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (source_id,),
+            )
+
+        conn.commit()
+
+    updated_patient = fetch_patient(target_patient_id)
+    return {
+        "patient": updated_patient,
+        "archived_patient_ids": normalized_sources,
+        "moved_procedures": moved_procedures,
+        "moved_photos": moved_photos,
+        "moved_payments": moved_payments,
+    }
+
+
 def list_procedures_for_patient(
     patient_id: int,
     *,

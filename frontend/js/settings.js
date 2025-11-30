@@ -31,6 +31,10 @@ const adminCustomerLinks = document.querySelectorAll("[data-admin-customers]");
 const googleAuthBtn = document.getElementById("google-auth-btn");
 const googleAuthDomainInput = document.getElementById("google-auth-domain");
 const googleAuthStatus = document.getElementById("google-auth-status");
+const n8nImportForm = document.getElementById("n8n-import-form");
+const n8nImportDate = document.getElementById("n8n-import-date");
+const n8nImportBtn = document.getElementById("n8n-import-btn");
+const n8nImportStatus = document.getElementById("n8n-import-status");
 const settingsMenu = document.querySelector(".settings-menu");
 
 initSessionControls();
@@ -1392,6 +1396,49 @@ if (googleAuthBtn) {
         alert("Error starting Google Auth flow");
     }
   });
+}
+
+async function handleN8nImport(event) {
+  event.preventDefault();
+  if (!n8nImportDate.value) {
+    n8nImportStatus.textContent = "Please select a date.";
+    return;
+  }
+
+  if (n8nImportBtn) n8nImportBtn.disabled = true;
+  if (n8nImportStatus) n8nImportStatus.textContent = "Starting import...";
+
+  try {
+    const response = await fetch("https://n8n.drascom.uk/webhook-test/start-import/n8n-form", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ date: n8nImportDate.value }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Import failed (${response.status})`);
+    }
+
+    if (n8nImportStatus) n8nImportStatus.textContent = "Import started successfully.";
+    if (n8nImportDate) n8nImportDate.value = "";
+  } catch (error) {
+    console.error(error);
+    if (n8nImportStatus) n8nImportStatus.textContent = "Error starting import.";
+  } finally {
+    if (n8nImportBtn) n8nImportBtn.disabled = false;
+    setTimeout(() => {
+      if (
+        n8nImportStatus &&
+        (n8nImportStatus.textContent.includes("started") || n8nImportStatus.textContent.includes("Error"))
+      ) {
+        n8nImportStatus.textContent = "";
+      }
+    }, 4000);
+  }
+}
+
+if (n8nImportForm) {
+  n8nImportForm.addEventListener("submit", handleN8nImport);
 }
 
 async function initializeSettingsPage() {

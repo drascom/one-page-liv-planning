@@ -43,6 +43,8 @@ from .models import (
     LoginRequest,
     Patient,
     PatientCreate,
+    PatientMergeRequest,
+    MergePatientsResult,
     OperationResult,
     Procedure,
     ProcedureMetadataDeleteRequest,
@@ -421,6 +423,38 @@ async def update_patient(patient_id: int, payload: PatientCreate, request: Reque
     if refreshed:
         await _emit_patient_event("updated", refreshed, request)
     return result
+
+
+@patients_router.post("/merge", response_model=MergePatientsResult)
+async def merge_patients_route(payload: PatientMergeRequest, request: Request) -> MergePatientsResult:
+    """Combine duplicate patients and reassign their related records."""
+    target = database.fetch_patient(payload.target_patient_id)
+    if not target:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Target patient not found")
+    updates = payload.updates.model_dump(exclude_none=True) if payload.updates else None
+    try:
+        merge_result = database.merge_patients(
+            payload.target_patient_id,
+            payload.source_patient_ids,
+            updates=updates,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    updated_patient = merge_result.get("patient") or database.fetch_patient(payload.target_patient_id)
+    if not updated_patient:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Merged patient not found after operation"
+        )
+    database.log_api_request("/patients/merge", "POST", payload.model_dump(), merge_result)
+    await _emit_patient_event("updated", updated_patient, request)
+    return MergePatientsResult(
+        success=True,
+        id=payload.target_patient_id,
+        archived_patient_ids=merge_result.get("archived_patient_ids", []),
+        moved_procedures=merge_result.get("moved_procedures", 0),
+        moved_photos=merge_result.get("moved_photos", 0),
+        moved_payments=merge_result.get("moved_payments", 0),
+    )
 
 
 @patients_router.delete("/{patient_id}", status_code=status.HTTP_200_OK)

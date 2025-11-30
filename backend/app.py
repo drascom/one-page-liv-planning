@@ -243,6 +243,14 @@ def serve_customers(request: Request):
     return FileResponse(settings.html_root / "customers.html")
 
 
+@app.get("/merge-patients.html", include_in_schema=False)
+@app.get("/merge-patients", include_in_schema=False)
+def serve_merge_patients(request: Request):
+    if not get_current_user(request):
+        return _redirect_to_login(request)
+    return FileResponse(settings.html_root / "merge-patients.html")
+
+
 @app.get("/test-drive", include_in_schema=False)
 def serve_test_drive(request: Request):
     # Only allow authenticated admins ideally, but for dev we allow logged in users

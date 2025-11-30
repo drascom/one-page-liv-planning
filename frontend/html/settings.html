@@ -222,6 +222,23 @@
             </div>
             <p class="form-status form-status--danger" id="purge-patients-status" aria-live="polite"></p>
           </section>
+
+          <section class="patient-card">
+            <h3>Import Data</h3>
+            <p>Trigger an import process via n8n.</p>
+            <form id="n8n-import-form" class="patient-form">
+              <div class="form-grid">
+                <label class="form-field">
+                  <span>Select Date</span>
+                  <input type="date" id="n8n-import-date" name="date" required />
+                </label>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="primary-btn" id="n8n-import-btn">Start Import</button>
+                <span id="n8n-import-status" class="form-status" role="status"></span>
+              </div>
+            </form>
+          </section>
         </section>
 
         <section class="settings-section" id="settings-panel-deleted" role="tabpanel"

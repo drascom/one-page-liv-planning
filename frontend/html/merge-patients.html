@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Combine Patient Records</title>
+    <link rel="stylesheet" href="/static/css/styles.css" />
+  </head>
+  <body class="patient-page app-shell merge-page">
+    <div class="app-layout">
+      <nav class="top-nav top-nav--subpage">
+        <div class="top-nav__brand">
+          <a class="top-nav__brand-link" href="/">
+            <span class="top-nav__brand-icon" aria-hidden="true">❖</span>
+            Liv Planner
+          </a>
+          <span class="top-nav__divider" aria-hidden="true">•</span>
+          <span class="top-nav__section">Merge Patients</span>
+        </div>
+        <div class="top-nav__actions">
+          <a class="nav-btn nav-btn--ghost" href="/">Schedule</a>
+          <a class="nav-btn nav-btn--ghost" href="customers.html">Customers</a>
+          <a class="nav-btn nav-btn--ghost" href="settings.html" data-admin-link hidden>Settings</a>
+          <button type="button" class="nav-btn nav-btn--primary" data-logout-btn>Logout</button>
+        </div>
+      </nav>
+
+      <main class="patient-content merge-content">
+        <section class="patient-card merge-card">
+          <header class="merge-card__header">
+            <div>
+              <p class="settings-section__eyebrow">Data hygiene</p>
+              <h1>Combine patient records</h1>
+              <p class="merge-card__lede">
+                Select duplicate patients, choose the record to keep, and move every procedure, payment, and file into a single profile.
+              </p>
+            </div>
+            <div class="merge-card__stats">
+              <div class="merge-card__stat">
+                <span class="merge-card__stat-value" id="merge-selected-count">0</span>
+                <span class="merge-card__stat-label">Selected</span>
+              </div>
+              <div class="merge-card__stat">
+                <span class="merge-card__stat-value" id="merge-procedure-count">0</span>
+                <span class="merge-card__stat-label">Procedures</span>
+              </div>
+            </div>
+          </header>
+
+          <p id="merge-status" class="form-status" role="status"></p>
+
+          <div class="merge-grid">
+            <div class="merge-stack">
+              <section class="merge-panel">
+                <header class="merge-panel__header">
+                  <div>
+                    <p class="settings-section__eyebrow">Selections</p>
+                    <h2>Selected patients</h2>
+                  </div>
+                  <button type="button" class="ghost-btn ghost-btn--small" id="merge-clear-btn">Clear</button>
+                </header>
+                <p class="merge-panel__hint">Choose at least two patients. Pick which record to keep.</p>
+                <ul id="merge-selected-list" class="merge-selected-list"></ul>
+                <div class="merge-panel__footer">
+                  <button type="button" class="secondary-btn" id="merge-open-directory">Back to directory</button>
+                  <button type="button" class="ghost-btn" id="merge-open-customers">View schedule</button>
+                </div>
+              </section>
+
+              <section class="merge-panel">
+                <header class="merge-panel__header">
+                  <div>
+                    <p class="settings-section__eyebrow">Add patients</p>
+                    <h2>Bring in more records</h2>
+                  </div>
+                </header>
+                <label class="visually-hidden" for="merge-add-search">Find patient to add</label>
+                <div class="merge-search">
+                  <span class="search-icon" aria-hidden="true">🔍</span>
+                  <input
+                    id="merge-add-search"
+                    type="search"
+                    placeholder="Find another patient by name, email, or city"
+                    class="search-input"
+                    enterkeyhint="search"
+                  />
+                </div>
+                <ul id="merge-available-list" class="merge-available-list"></ul>
+              </section>
+            </div>
+
+            <section class="merge-panel merge-panel--form">
+              <header class="merge-panel__header">
+                <div>
+                  <p class="settings-section__eyebrow">Surviving record</p>
+                  <h2>Keep this patient</h2>
+                </div>
+                <p class="merge-panel__hint merge-panel__hint--inline">We’ll move everything into this patient record.</p>
+              </header>
+
+              <form id="merge-form" class="form-layout merge-form">
+                <div class="form-group">
+                  <label for="merge-first-name">First Name</label>
+                  <input id="merge-first-name" name="firstName" type="text" autocomplete="given-name" required />
+                </div>
+                <div class="form-group">
+                  <label for="merge-last-name">Last Name</label>
+                  <input id="merge-last-name" name="lastName" type="text" autocomplete="family-name" required />
+                </div>
+                <div class="form-group">
+                  <label for="merge-email">Email</label>
+                  <input id="merge-email" name="email" type="email" autocomplete="email" required />
+                </div>
+                <div class="form-group">
+                  <label for="merge-phone">Phone</label>
+                  <input id="merge-phone" name="phone" type="tel" autocomplete="tel" required />
+                </div>
+                <div class="form-group">
+                  <label for="merge-city">City</label>
+                  <input id="merge-city" name="city" type="text" autocomplete="address-level2" required />
+                </div>
+                <div class="form-group">
+                  <label for="merge-drive">Drive Folder ID (optional)</label>
+                  <input id="merge-drive" name="driveFolderId" type="text" autocomplete="off" />
+                </div>
+
+                <div class="merge-summary">
+                  <div>
+                    <p class="merge-summary__label">Patients merging</p>
+                    <p class="merge-summary__value" id="merge-summary-count">0</p>
+                  </div>
+                  <div>
+                    <p class="merge-summary__label">Procedures moving</p>
+                    <p class="merge-summary__value" id="merge-summary-procedures">0</p>
+                  </div>
+                  <div>
+                    <p class="merge-summary__label">Photos moving</p>
+                    <p class="merge-summary__value" id="merge-summary-photos">0</p>
+                  </div>
+                </div>
+
+                <div class="merge-actions">
+                  <button type="submit" class="primary-btn" id="merge-submit-btn">Merge patients</button>
+                  <button type="button" class="secondary-btn" id="merge-view-patient" hidden>Open merged record</button>
+                </div>
+              </form>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/app-config.js"></script>
+    <script src="/static/js/merge-patients.js" type="module"></script>
+  </body>
+</html>

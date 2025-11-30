@@ -52,6 +52,24 @@ class Patient(PatientBase):
         from_attributes = True
 
 
+class PatientMergeUpdate(BaseModel):
+    """Optional fields that can be applied to the surviving patient during a merge."""
+    first_name: Optional[str] = Field(None, description="Updated first name for the surviving patient")
+    last_name: Optional[str] = Field(None, description="Updated last name for the surviving patient")
+    email: Optional[str] = Field(None, description="Updated email for the surviving patient")
+    phone: Optional[str] = Field(None, description="Updated phone for the surviving patient")
+    city: Optional[str] = Field(None, description="Updated city for the surviving patient")
+    drive_folder_id: Optional[str] = Field(None, description="Drive folder to keep on the surviving patient")
+
+
+class PatientMergeRequest(BaseModel):
+    target_patient_id: int = Field(..., description="Patient record to keep after merging duplicates")
+    source_patient_ids: List[int] = Field(..., min_length=1, description="Duplicate patient IDs to merge into target")
+    updates: Optional[PatientMergeUpdate] = Field(
+        None, description="Optional overrides applied to the surviving patient record"
+    )
+
+
 class ProcedureBase(BaseModel):
     """Procedure model - contains scheduling and booking metadata."""
     procedure_date: str = Field(..., description="ISO date for the scheduled procedure")
@@ -245,6 +263,13 @@ class ApiToken(ApiTokenBase):
 class OperationResult(BaseModel):
     success: bool = Field(..., description="Whether the operation succeeded")
     id: int = Field(..., description="Identifier of the affected record")
+
+
+class MergePatientsResult(OperationResult):
+    archived_patient_ids: List[int] = Field(default_factory=list, description="Patient IDs that were archived")
+    moved_procedures: int = Field(0, description="Number of procedures reassigned to the target patient", ge=0)
+    moved_photos: int = Field(0, description="Number of photos reassigned to the target patient", ge=0)
+    moved_payments: int = Field(0, description="Number of payments reassigned to the target patient", ge=0)
 
 
 class ActivityEvent(BaseModel):

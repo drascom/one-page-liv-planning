@@ -64,10 +64,26 @@
             <p class="customer-directory__summary">
               Showing <span id="customer-visible-count">0</span> of <span id="customer-total-inline">0</span> patients
             </p>
-            <button type="button" class="secondary-btn" id="customer-refresh-btn">Refresh</button>
+            <div class="customer-directory__actions">
+              <button type="button" class="secondary-btn" id="customer-open-merge-btn">Combine patients</button>
+              <button type="button" class="secondary-btn" id="customer-refresh-btn">Refresh</button>
+            </div>
           </div>
 
           <p id="customer-status" class="form-status" role="status"></p>
+
+          <div id="customer-merge-controls" class="customer-merge-controls" hidden>
+            <div class="customer-merge-controls__info">
+              <p class="customer-merge-controls__title">
+                <span id="customer-merge-count">0</span> selected for merge
+              </p>
+              <p class="customer-merge-controls__hint">Keep procedures, payments, and files together.</p>
+            </div>
+            <div class="customer-merge-controls__actions">
+              <button type="button" class="primary-btn" id="customer-merge-selected-btn" disabled>Combine selected</button>
+              <button type="button" class="ghost-btn" id="customer-merge-clear-btn">Clear</button>
+            </div>
+          </div>
 
           <ul id="customer-list" class="customer-list" aria-live="polite"></ul>
         </section>

@@ -3418,3 +3418,372 @@ body.app-shell {
   gap: 0.75rem;
   flex-wrap: wrap;
 }
+
+.customer-directory__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.customer-merge-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  margin: 1rem 0;
+  border-radius: 14px;
+  background: #0f172a;
+  color: #e2e8f0;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.25);
+}
+
+.customer-merge-controls__info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.customer-merge-controls__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.customer-merge-controls__hint {
+  margin: 0;
+  color: #cbd5f5;
+}
+
+.customer-merge-controls__actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.customer-card__select {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.customer-card__select-input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #0ea5e9;
+}
+
+.customer-card--selected {
+  border-color: #0ea5e9;
+  box-shadow: 0 16px 32px rgba(14, 165, 233, 0.18);
+}
+
+.customer-card--selected .customer-card__select span {
+  color: #0ea5e9;
+}
+
+.ghost-btn {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #0f172a;
+  padding: 0.55rem 0.9rem;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ghost-btn:hover {
+  border-color: #0ea5e9;
+  color: #0ea5e9;
+}
+
+.ghost-btn--small {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.9rem;
+}
+
+.merge-card__lede {
+  max-width: 720px;
+  color: #475569;
+}
+
+.merge-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.25rem;
+}
+
+.merge-card__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(120px, 1fr));
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: #0f172a;
+  color: #f8fafc;
+  border-radius: 12px;
+  min-width: 240px;
+}
+
+.merge-card__stat {
+  text-align: center;
+}
+
+.merge-card__stat-value {
+  display: block;
+  font-size: 1.6rem;
+  font-weight: 800;
+}
+
+.merge-card__stat-label {
+  font-size: 0.9rem;
+  color: #cbd5f5;
+}
+
+.merge-grid {
+  display: grid;
+  grid-template-columns: minmax(360px, 1.1fr) minmax(320px, 0.9fr);
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+.merge-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.merge-panel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.merge-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.merge-panel__hint {
+  margin: 0;
+  color: #475569;
+}
+
+.merge-panel__hint--inline {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.merge-panel__footer {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.merge-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.5rem 0.75rem;
+  background: #ffffff;
+}
+
+.merge-search .search-icon {
+  opacity: 0.7;
+}
+
+.merge-search input {
+  border: none;
+  outline: none;
+  flex: 1;
+}
+
+.merge-selected-list,
+.merge-available-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.merge-selected-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.75rem 0.9rem;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.merge-selected-card--primary {
+  border-color: #0ea5e9;
+  box-shadow: 0 12px 30px rgba(14, 165, 233, 0.2);
+  background: #e0f2fe;
+}
+
+.merge-selected-card--empty {
+  text-align: center;
+  color: #475569;
+  font-weight: 700;
+}
+
+.merge-selected-card__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.merge-selected-card__primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.merge-selected-card__body {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.merge-selected-card__name {
+  margin: 0;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.merge-selected-card__meta {
+  margin: 0.15rem 0 0;
+  color: #475569;
+}
+
+.merge-selected-card__stats {
+  display: flex;
+  gap: 0.8rem;
+  align-items: center;
+  color: #0f172a;
+  font-weight: 700;
+  flex-wrap: wrap;
+}
+
+.merge-selected-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.link-btn {
+  border: none;
+  background: none;
+  color: #0ea5e9;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+}
+
+.link-btn:hover {
+  text-decoration: underline;
+}
+
+.merge-available-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.merge-available-card__name {
+  margin: 0;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.merge-available-card__meta {
+  margin: 0.15rem 0 0;
+  color: #475569;
+}
+
+.merge-available-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.merge-available-card__stat {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.merge-available-card--empty {
+  text-align: center;
+  color: #475569;
+  font-weight: 600;
+}
+
+.merge-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.merge-summary__label {
+  margin: 0;
+  color: #475569;
+}
+
+.merge-summary__value {
+  margin: 0.15rem 0 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.merge-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 960px) {
+  .merge-card__header {
+    flex-direction: column;
+  }
+
+  .merge-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .customer-merge-controls {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
