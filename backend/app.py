@@ -111,6 +111,7 @@ def _register_frontend_security_middleware(api: FastAPI) -> None:
 
 @app.on_event("startup")
 def startup_event() -> None:
+    print(f"Initializing database at: {database.DB_PATH}")
     database.init_db()
     database.seed_default_admin_user(hash_password(settings.default_admin_password))
 
