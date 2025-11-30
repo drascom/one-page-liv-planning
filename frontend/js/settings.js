@@ -29,6 +29,7 @@ const refreshDeletedProceduresBtn = document.getElementById("refresh-deleted-pro
 let deletedProceduresCache = [];
 const adminCustomerLinks = document.querySelectorAll("[data-admin-customers]");
 const googleAuthBtn = document.getElementById("google-auth-btn");
+const googleAuthDomainInput = document.getElementById("google-auth-domain");
 const googleAuthStatus = document.getElementById("google-auth-status");
 const settingsMenu = document.querySelector(".settings-menu");
 
