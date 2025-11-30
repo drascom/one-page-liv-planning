@@ -453,14 +453,6 @@ async function fetchPatient() {
     driveFolderFilesCache = [];
     if (record.drive_folder_id) {
       await fetchDriveFolderFiles(record.drive_folder_id);
-      if (!Array.isArray(record.file_details) || record.file_details.length === 0) {
-        currentPatient.file_details = driveFolderFilesCache.map((f) => ({
-          fileId: f.id,
-          mimeType: f.mimeType,
-          name: f.name,
-          driveLink: f.driveLink,
-        }));
-      }
     }
     populatePatientForm(currentPatient);
     await fetchPhotosForPatient(record.id);
@@ -535,17 +527,12 @@ async function fetchPhotosForPatient(patientId) {
 }
 
 function getDriveFiles() {
-  // Prefer the detailed array if available
-  if (currentPatient?.file_details && Array.isArray(currentPatient.file_details) && currentPatient.file_details.length > 0) {
-    return currentPatient.file_details.map(f => ({
-      id: f.fileId,
-      mimeType: f.mimeType,
-      name: f.name, // Might be undefined
-      driveLink: f.driveLink
-    }));
+  // Prefer the live folder fetch when available
+  if (Array.isArray(driveFolderFilesCache) && driveFolderFilesCache.length > 0) {
+    return driveFolderFilesCache;
   }
 
-  return driveFolderFilesCache;
+  return [];
 }
 
 function buildDriveFileUrl(fileObj) {
