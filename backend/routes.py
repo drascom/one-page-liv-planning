@@ -1103,7 +1103,7 @@ def list_drive_folder_files(folder_id: str):
     page_token: Optional[str] = None
     params = {
         "q": f"'{folder_id}' in parents and trashed=false",
-        "fields": "files(id,name,mimeType,webViewLink),nextPageToken",
+        "fields": "files(id,name,mimeType,webViewLink,thumbnailLink),nextPageToken",
         "pageSize": 200,
         "supportsAllDrives": True,
         "includeItemsFromAllDrives": True,

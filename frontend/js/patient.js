@@ -609,6 +609,7 @@ async function fetchDriveFolderFiles(folderId) {
           mimeType: f.mimeType,
           name: f.name,
           driveLink: f.webViewLink,
+          thumbnailLink: f.thumbnailLink,
         }))
       : [];
   } catch (error) {
@@ -1056,7 +1057,8 @@ function renderPhotoGallery() {
     
     galleryContainer.appendChild(card);
 
-    card.style.backgroundImage = `url(/drive-image/${fileId})`;
+    const thumbUrl = fileObj.thumbnailLink || `/drive-image/${fileId}`;
+    card.style.backgroundImage = `url(${thumbUrl})`;
     card.addEventListener("click", () => openPhotoViewer(index, 'drive'));
   });
 }
