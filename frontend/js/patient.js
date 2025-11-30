@@ -275,6 +275,7 @@ let isAdminUser = false;
 let patientProcedures = [];
 let activeProcedure = null;
 let patientPhotos = [];
+let driveFolderFilesCache = [];
 
 function loadActiveContext() {
   if (typeof window === "undefined" || !window.localStorage) {
@@ -433,6 +434,7 @@ async function fetchPatient() {
     patientProcedures = [];
     activeProcedure = null;
     patientPhotos = [];
+    driveFolderFilesCache = [];
     refreshDeleteButtonState();
     renderRelatedBookings(null);
     renderPhotoGallery();
@@ -447,7 +449,19 @@ async function fetchPatient() {
     }
     const record = await response.json();
     currentPatient = record;
-    populatePatientForm(record);
+    driveFolderFilesCache = [];
+    if (record.drive_folder_id) {
+      await fetchDriveFolderFiles(record.drive_folder_id);
+      if (!Array.isArray(record.file_details) || record.file_details.length === 0) {
+        currentPatient.file_details = driveFolderFilesCache.map((f) => ({
+          fileId: f.id,
+          mimeType: f.mimeType,
+          name: f.name,
+          driveLink: f.driveLink,
+        }));
+      }
+    }
+    populatePatientForm(currentPatient);
     await fetchPhotosForPatient(record.id);
     patientStatusEl.textContent = "";
     await fetchProceduresForPatient(record.id);
@@ -527,7 +541,7 @@ function getDriveFiles() {
     }));
   }
 
-  return [];
+  return driveFolderFilesCache;
 }
 
 function buildDriveFileUrl(fileObj) {
@@ -585,6 +599,31 @@ function getDriveImageFiles() {
 function getDriveDocumentFiles() {
   const { pdfs, archives, others } = classifyDriveFiles(getDriveFiles());
   return { pdfs, archives, others };
+}
+
+async function fetchDriveFolderFiles(folderId) {
+  driveFolderFilesCache = [];
+  if (!folderId) return driveFolderFilesCache;
+  try {
+    const response = await fetch(`/drive-image/folder/${folderId}/files`);
+    handleUnauthorized(response);
+    if (!response.ok) {
+      console.warn("Drive folder list failed", response.status);
+      return driveFolderFilesCache;
+    }
+    const payload = await response.json();
+    driveFolderFilesCache = Array.isArray(payload?.files)
+      ? payload.files.map((f) => ({
+          id: f.id,
+          mimeType: f.mimeType,
+          name: f.name,
+          driveLink: f.webViewLink,
+        }))
+      : [];
+  } catch (error) {
+    console.warn("Unable to fetch drive folder files", error);
+  }
+  return driveFolderFilesCache;
 }
 
 // Deprecated alias for compatibility if needed elsewhere

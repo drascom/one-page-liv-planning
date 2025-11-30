@@ -1081,3 +1081,49 @@ def get_drive_file_meta(file_id: str):
         return r.json()
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Google Drive metadata fetch failed: {e}")
+
+
+@drive_router.get("/folder/{folder_id}/files")
+def list_drive_folder_files(folder_id: str):
+    """
+    Lists all files under a given Drive folder. Uses the server's access token and
+    returns id/name/mimeType and the Drive webViewLink when present.
+    """
+    token = get_access_token()
+    if not token:
+        raise HTTPException(
+            status_code=503,
+            detail="Google Drive authentication failed. Please reconnect Google Drive in Settings.",
+        )
+
+    headers = {"Authorization": f"Bearer {token}"}
+    url = "https://www.googleapis.com/drive/v3/files"
+
+    files: List[dict] = []
+    page_token: Optional[str] = None
+    params = {
+        "q": f"'{folder_id}' in parents and trashed=false",
+        "fields": "files(id,name,mimeType,webViewLink),nextPageToken",
+        "pageSize": 200,
+        "supportsAllDrives": True,
+        "includeItemsFromAllDrives": True,
+    }
+
+    try:
+        while True:
+            if page_token:
+                params["pageToken"] = page_token
+            r = requests.get(url, headers=headers, params=params)
+            if r.status_code != 200:
+                raise HTTPException(status_code=r.status_code, detail=r.text or "Google Drive request failed")
+            data = r.json()
+            files.extend(data.get("files", []))
+            page_token = data.get("nextPageToken")
+            if not page_token:
+                break
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Google Drive list failed: {e}")
+
+    return {"files": files}
