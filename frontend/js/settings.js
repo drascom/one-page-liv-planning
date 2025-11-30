@@ -28,11 +28,23 @@ const deletedProceduresStatus = document.getElementById("deleted-procedures-stat
 const refreshDeletedProceduresBtn = document.getElementById("refresh-deleted-procedures-btn");
 let deletedProceduresCache = [];
 const adminCustomerLinks = document.querySelectorAll("[data-admin-customers]");
+const googleAuthBtn = document.getElementById("google-auth-btn");
+const googleAuthStatus = document.getElementById("google-auth-status");
+const settingsMenu = document.querySelector(".settings-menu");
 
 initSessionControls();
 
 const sectionNames = new Set(settingsSections.map((section) => section.dataset.settingsSection));
 const defaultSection = settingsTabs[0]?.dataset.settingsTab ?? null;
+
+function ensureTabIsVisible(tab) {
+  if (!settingsMenu || !tab) {
+    return;
+  }
+  const padding = 12;
+  const targetLeft = Math.max(tab.offsetLeft - padding, 0);
+  settingsMenu.scrollTo({ left: targetLeft, behavior: "smooth" });
+}
 
 function getHashSection() {
   return window.location.hash.replace(/^#/, "");
@@ -47,6 +59,8 @@ function activateSettingsSection(targetSection, { updateHash = true } = {}) {
     tab.setAttribute("aria-selected", isActive ? "true" : "false");
     tab.tabIndex = isActive ? 0 : -1;
   });
+  const activeTab = settingsTabs.find((tab) => tab.dataset.settingsTab === nextSection);
+  ensureTabIsVisible(activeTab);
   settingsSections.forEach((section) => {
     const isActive = section.dataset.settingsSection === nextSection;
     section.hidden = !isActive;
@@ -98,6 +112,9 @@ function initializeSettingsTabs() {
         targetTab.focus();
         activateSettingsSection(targetTab.dataset.settingsTab);
       }
+    });
+    tab.addEventListener("focus", () => {
+      ensureTabIsVisible(tab);
     });
   });
   window.addEventListener("hashchange", () => {
@@ -1319,6 +1336,56 @@ async function initializeUserManagement() {
   await fetchUsers();
 }
 
+async function checkGoogleAuthStatus() {
+  if (!googleAuthStatus) return;
+  try {
+    const response = await fetch(buildApiUrl("/auth/google/status"));
+    handleUnauthorized(response);
+    if (response.ok) {
+      const data = await response.json();
+      if (data.connected) {
+        googleAuthStatus.textContent = "✅ Connected to Google Drive";
+        googleAuthStatus.classList.remove("form-status--danger");
+        googleAuthStatus.classList.add("form-status");
+        if (googleAuthBtn) {
+            googleAuthBtn.textContent = "Reconnect Google Drive";
+        }
+      } else {
+        googleAuthStatus.textContent = "❌ Not connected";
+        googleAuthStatus.classList.add("form-status--danger");
+      }
+    } else {
+       googleAuthStatus.textContent = "Unknown status";
+    }
+  } catch (e) {
+    console.error(e);
+    googleAuthStatus.textContent = "Error checking status";
+  }
+}
+
+if (googleAuthBtn) {
+  googleAuthBtn.addEventListener("click", async () => {
+    try {
+        // We need to redirect to the auth URL provided by the backend
+        const response = await fetch(buildApiUrl("/auth/google/login-url"));
+        handleUnauthorized(response);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.url) {
+                window.location.href = data.url;
+            } else {
+                alert("Failed to get auth URL");
+            }
+        } else {
+            alert("Failed to initiate Google Auth");
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Error starting Google Auth flow");
+    }
+  });
+}
+
 async function initializeSettingsPage() {
   currentUser = await requireAdminUser({ redirectTo: "/" });
   if (!currentUser) {
@@ -1334,6 +1401,7 @@ async function initializeSettingsPage() {
   await fetchDeletedProcedures();
   await initializeUserManagement();
   fetchTokens();
+  checkGoogleAuthStatus();
 }
 
 initializeSettingsPage();
