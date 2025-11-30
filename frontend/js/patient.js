@@ -258,7 +258,8 @@ const documentsEmptyStateEl = document.getElementById("documents-empty");
 
 // Debug Elements
 const adminDebugSection = document.getElementById("admin-debug");
-const debugDriveStringEl = document.getElementById("debug-drive-string");
+const debugDriveFolderEl = document.getElementById("debug-drive-folder");
+const debugDriveFilesEl = document.getElementById("debug-drive-files");
 const debugDriveCountEl = document.getElementById("debug-drive-count");
 const debugTestDriveBtn = document.getElementById("debug-test-drive");
 const debugConsoleEl = document.getElementById("debug-console");
@@ -468,6 +469,9 @@ async function fetchPatient() {
     formStatusEl.textContent = "";
     disableForm(false);
     refreshDeleteButtonState();
+    if (isAdminUser) {
+      updateDebugInfo();
+    }
   } catch (error) {
     console.error(error);
     formStatusEl.textContent = "Unable to load patient details.";
@@ -1571,9 +1575,12 @@ async function initializePatientPage() {
 }
 
 function updateDebugInfo() {
-  if (!currentPatient || !debugDriveStringEl) return;
+  if (!currentPatient || !debugDriveFolderEl || !debugDriveFilesEl || !debugDriveCountEl) return;
   const files = getDriveFiles();
-  debugDriveStringEl.textContent = JSON.stringify(files, null, 2);
+  debugDriveFolderEl.textContent = currentPatient.drive_folder_id || "None";
+  debugDriveFilesEl.textContent = files.length
+    ? files.map((f) => f.name || f.id).join(", ")
+    : "None";
   debugDriveCountEl.textContent = `${files.length} files found`;
 }
 
