@@ -657,6 +657,15 @@ def _deserialize_json_list(value: Optional[str]) -> List[str]:
     return []
 
 
+def _deserialize_json_payload(value: Optional[str]) -> Any:
+    if not value:
+        return []
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError:
+        return []
+
+
 def _row_to_patient(row: sqlite3.Row) -> Dict[str, Any]:
     """Convert a patient row to a dictionary (personal info only)."""
     return {
@@ -669,7 +678,7 @@ def _row_to_patient(row: sqlite3.Row) -> Dict[str, Any]:
         "drive_folder_id": row["drive_folder_id"] if "drive_folder_id" in row.keys() else None,
         "drive_file_ids_string": row["drive_file_ids_string"] if "drive_file_ids_string" in row.keys() else None,
         "drive_links": row["drive_links"] if "drive_links" in row.keys() else None,
-        "file_details": _deserialize_json_list(row["file_details"]) if "file_details" in row.keys() else [],
+        "file_details": _deserialize_json_payload(row["file_details"]) if "file_details" in row.keys() else [],
         "deleted": bool(row["deleted"]),
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
