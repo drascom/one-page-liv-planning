@@ -1022,6 +1022,15 @@ body.app-shell {
   font-size: 1.4rem;
 }
 
+/* Ensure the debug section is actually hidden by default but can be shown */
+.admin-debug {
+  display: block;
+}
+
+.admin-debug[hidden] {
+  display: none !important;
+}
+
 .hero__logout {
   border: none;
   border-radius: 999px;

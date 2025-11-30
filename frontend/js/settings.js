@@ -67,6 +67,38 @@ function initializeSettingsTabs() {
     tab.addEventListener("click", () => {
       activateSettingsSection(tab.dataset.settingsTab);
     });
+
+    tab.addEventListener("keydown", (event) => {
+      const currentIndex = settingsTabs.indexOf(tab);
+      if (currentIndex === -1) {
+        return;
+      }
+      let nextIndex = null;
+      switch (event.key) {
+        case "ArrowRight":
+        case "ArrowDown":
+          nextIndex = (currentIndex + 1) % settingsTabs.length;
+          break;
+        case "ArrowLeft":
+        case "ArrowUp":
+          nextIndex = (currentIndex - 1 + settingsTabs.length) % settingsTabs.length;
+          break;
+        case "Home":
+          nextIndex = 0;
+          break;
+        case "End":
+          nextIndex = settingsTabs.length - 1;
+          break;
+        default:
+          break;
+      }
+      if (nextIndex !== null) {
+        event.preventDefault();
+        const targetTab = settingsTabs[nextIndex];
+        targetTab.focus();
+        activateSettingsSection(targetTab.dataset.settingsTab);
+      }
+    });
   });
   window.addEventListener("hashchange", () => {
     activateSettingsSection(getHashSection(), { updateHash: false });
