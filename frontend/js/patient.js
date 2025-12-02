@@ -231,6 +231,7 @@ const procedureSelect = document.getElementById("procedure-type");
 const packageTypeSelect = document.getElementById("package-type");
 const graftsInput = document.getElementById("grafts");
 const paymentSelect = document.getElementById("payment");
+const outstandingBalanceInput = document.getElementById("outstaning-balance");
 const agencySelect = document.getElementById("agency");
 const consultationSelect = document.getElementById("consultation");
 const consultationsChecklist = document.getElementById("consultations-checklist");
@@ -238,6 +239,11 @@ const formsSelect = document.getElementById("forms");
 const formsChecklist = document.getElementById("forms-checklist");
 const consentsChecklist = document.getElementById("consents-checklist");
 const consentsSelect = document.getElementById("consents");
+const noteInput = document.getElementById("procedure-note-input");
+const addNoteBtn = document.getElementById("add-procedure-note");
+const notesListEl = document.getElementById("procedure-notes-list");
+const driveFolderInput = document.getElementById("drive-folder-id");
+const driveFolderGroup = document.getElementById("drive-folder-group");
 
 const dropZone = document.getElementById("drop-zone");
 const uploadList = document.getElementById("upload-list");
@@ -273,8 +279,10 @@ const requestedProcedureId = requestedProcedureIdParam ? Number(requestedProcedu
 let currentPatient = null;
 let activePhotoIndex = 0;
 let isAdminUser = false;
+let currentUser = null;
 let patientProcedures = [];
 let activeProcedure = null;
+let procedureNotes = [];
 let patientPhotos = [];
 let driveFolderFilesCache = [];
 
@@ -333,6 +341,146 @@ function setMultiValue(selectEl, values) {
   });
 }
 
+function generateNoteId() {
+  return `note_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function normalizeNotes(rawNotes) {
+  if (!Array.isArray(rawNotes)) return [];
+  return rawNotes
+    .map((entry) => {
+      if (!entry) return null;
+      if (typeof entry === "string") {
+        const text = entry.trim();
+        if (!text) return null;
+        return {
+          id: generateNoteId(),
+          text,
+          completed: false,
+          user_id: null,
+          author: null,
+          created_at: new Date().toISOString(),
+        };
+      }
+      const text = String(entry.text || entry.note || "").trim();
+      if (!text) return null;
+      return {
+        id: entry.id || entry._id || generateNoteId(),
+        text,
+        completed: Boolean(entry.completed || entry.done),
+        user_id: entry.user_id ?? null,
+        author: entry.author ?? null,
+        created_at: entry.created_at || new Date().toISOString(),
+      };
+    })
+    .filter(Boolean);
+}
+
+function canDeleteNote(note) {
+  if (!note) return false;
+  if (note.user_id == null) {
+    return true; // legacy/ownerless notes
+  }
+  if (!currentUser) {
+    return false;
+  }
+  return Number(note.user_id) === Number(currentUser.id);
+}
+
+function updateActiveProcedureNotes(nextNotes) {
+  procedureNotes = Array.isArray(nextNotes) ? nextNotes : [];
+  if (activeProcedure) {
+    activeProcedure.notes = procedureNotes;
+    const idx = patientProcedures.findIndex((p) => p.id === activeProcedure.id);
+    if (idx >= 0) {
+      patientProcedures[idx] = { ...patientProcedures[idx], notes: procedureNotes };
+    }
+  }
+  renderNotesList();
+}
+
+function renderNotesList() {
+  if (!notesListEl) return;
+  notesListEl.innerHTML = "";
+  if (!procedureNotes.length) {
+    const empty = document.createElement("li");
+    empty.textContent = "No notes yet.";
+    empty.className = "todo-meta";
+    notesListEl.appendChild(empty);
+    return;
+  }
+  procedureNotes.forEach((note) => {
+    const item = document.createElement("li");
+    item.className = "todo-item";
+
+    const main = document.createElement("div");
+    main.className = "todo-item__main";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = Boolean(note.completed);
+    checkbox.addEventListener("change", () => {
+      note.completed = checkbox.checked;
+      updateActiveProcedureNotes([...procedureNotes]);
+    });
+
+    const textWrapper = document.createElement("div");
+    const textEl = document.createElement("p");
+    textEl.className = "todo-text";
+    if (note.completed) textEl.classList.add("is-completed");
+    textEl.textContent = note.text;
+    const meta = document.createElement("p");
+    meta.className = "todo-meta";
+    const authorLabel =
+      note.user_id != null && currentUser && Number(note.user_id) === Number(currentUser.id)
+        ? "You"
+        : note.author || "Someone";
+    meta.textContent = note.completed
+      ? `Completed • ${authorLabel}`
+      : `Added by ${authorLabel}`;
+    textWrapper.appendChild(textEl);
+    textWrapper.appendChild(meta);
+
+    main.appendChild(checkbox);
+    main.appendChild(textWrapper);
+
+    const actions = document.createElement("div");
+    actions.className = "todo-actions";
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "todo-delete-btn";
+    deleteBtn.textContent = "Delete";
+    deleteBtn.disabled = !canDeleteNote(note);
+    deleteBtn.title = deleteBtn.disabled ? "You can only delete your own notes" : "Delete note";
+    deleteBtn.addEventListener("click", () => {
+      if (!canDeleteNote(note)) return;
+      const remaining = procedureNotes.filter((entry) => entry.id !== note.id);
+      updateActiveProcedureNotes(remaining);
+    });
+    actions.appendChild(deleteBtn);
+
+    item.appendChild(main);
+    item.appendChild(actions);
+    notesListEl.appendChild(item);
+  });
+}
+
+function addNoteFromInput() {
+  if (!noteInput) return;
+  const text = noteInput.value.trim();
+  if (!text) return;
+  const note = {
+    id: generateNoteId(),
+    text,
+    completed: false,
+    user_id: currentUser?.id ?? null,
+    author: currentUser?.username ?? "You",
+    created_at: new Date().toISOString(),
+  };
+  updateActiveProcedureNotes([...procedureNotes, note]);
+  noteInput.value = "";
+}
+
 function populatePatientForm(record) {
   if (!record) {
     return;
@@ -344,6 +492,12 @@ function populatePatientForm(record) {
   emailInput.value = record.email || DEFAULT_CONTACT.email;
   phoneInput.value = record.phone || DEFAULT_CONTACT.phone;
   cityInput.value = record.city || DEFAULT_CONTACT.city;
+  if (driveFolderInput) {
+    driveFolderInput.value = record.drive_folder_id || "";
+  }
+  if (driveFolderGroup) {
+    driveFolderGroup.hidden = !isAdminUser;
+  }
   renderPhotoGallery();
   refreshDeleteButtonState();
   syncHeader(record, activeProcedure);
@@ -361,6 +515,10 @@ function clearProcedureForm() {
   if (agencySelect) {
     agencySelect.value = getFieldOptions("agency")[0]?.value || "";
   }
+  if (outstandingBalanceInput) {
+    outstandingBalanceInput.value = "";
+  }
+  updateActiveProcedureNotes([]);
   setMultiValue(consultationSelect, []);
   refreshConsultationsChecklist();
   setMultiValue(formsSelect, []);
@@ -389,6 +547,11 @@ function populateProcedureForm(procedure) {
   if (agencySelect) {
     agencySelect.value = procedure.agency || getFieldOptions("agency")[0]?.value || "";
   }
+  if (outstandingBalanceInput) {
+    const balance = Number(procedure.outstaning_balance);
+    outstandingBalanceInput.value = Number.isFinite(balance) ? String(balance) : "";
+  }
+  updateActiveProcedureNotes(normalizeNotes(procedure.notes || []));
   if (consultationSelect) {
     const selectedConsultations = Array.isArray(procedure.consultation)
       ? procedure.consultation
@@ -434,6 +597,7 @@ async function fetchPatient() {
     currentPatient = null;
     patientProcedures = [];
     activeProcedure = null;
+    updateActiveProcedureNotes([]);
     patientPhotos = [];
     driveFolderFilesCache = [];
     refreshDeleteButtonState();
@@ -472,6 +636,7 @@ async function fetchPatient() {
     currentPatient = null;
     patientProcedures = [];
     activeProcedure = null;
+    updateActiveProcedureNotes([]);
     patientPhotos = [];
     refreshDeleteButtonState();
     renderRelatedBookings(null);
@@ -672,6 +837,7 @@ async function fetchProceduresForPatient(patientId) {
     proceduresStatusEl.textContent = "Unable to load procedures.";
     patientProcedures = [];
     activeProcedure = null;
+    updateActiveProcedureNotes([]);
     renderRelatedBookings(null);
     clearProcedureForm();
     refreshDeleteButtonState();
@@ -1173,13 +1339,19 @@ function buildPatientPayloadFromForm() {
   if (!currentPatient) {
     return null;
   }
-  return {
+  const payload = {
     first_name: firstNameInput.value.trim() || currentPatient.first_name,
     last_name: lastNameInput.value.trim() || currentPatient.last_name,
     email: emailInput.value.trim(),
     phone: phoneInput.value.trim(),
     city: cityInput.value.trim(),
   };
+  if (isAdminUser) {
+    payload.drive_folder_id = driveFolderInput?.value?.trim() || null;
+  } else {
+    payload.drive_folder_id = currentPatient.drive_folder_id ?? null;
+  }
+  return payload;
 }
 
 function buildProcedurePayloadFromForm() {
@@ -1187,6 +1359,19 @@ function buildProcedurePayloadFromForm() {
     return null;
   }
   const base = activeProcedure || patientProcedures[0] || {};
+  const balanceText = outstandingBalanceInput?.value?.trim() ?? "";
+  let parsedBalance = null;
+  if (balanceText) {
+    const nextValue = Number(balanceText);
+    if (Number.isNaN(nextValue)) {
+      if (procedureFormStatusEl) {
+        procedureFormStatusEl.textContent = "Outstanding balance must be a valid number.";
+      }
+      return null;
+    }
+    parsedBalance = nextValue;
+  }
+  const notes = [...procedureNotes];
   const payload = {
     patient_id: currentPatient.id,
     procedure_date: procedureDateInput.value || base.procedure_date || "",
@@ -1199,6 +1384,8 @@ function buildProcedurePayloadFromForm() {
     consultation: collectMultiValue(consultationSelect),
     forms: collectMultiValue(formsSelect),
     consents: collectMultiValue(consentsSelect),
+    outstaning_balance: parsedBalance,
+    notes,
   };
   return payload;
 }
@@ -1241,6 +1428,10 @@ async function savePatient(event) {
     }
     const refreshedPatient = await fetchPatientById(updateResult.id);
     currentPatient = refreshedPatient;
+    driveFolderFilesCache = [];
+    if (currentPatient.drive_folder_id) {
+      await fetchDriveFolderFiles(currentPatient.drive_folder_id);
+    }
     populatePatientForm(refreshedPatient);
     if (isAdminUser) updateDebugInfo();
     patientStatusEl.textContent = "Patient details saved.";
@@ -1549,11 +1740,23 @@ if (addProcedureBtn) {
     startNewProcedure();
   });
 }
+if (addNoteBtn) {
+  addNoteBtn.addEventListener("click", addNoteFromInput);
+}
+if (noteInput) {
+  noteInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      addNoteFromInput();
+    }
+  });
+}
 
 async function initializePatientPage() {
   await fetchFieldOptions();
   renderOptionControls();
   const user = await fetchCurrentUser().catch(() => null);
+  currentUser = user;
   isAdminUser = Boolean(user?.is_admin);
   if (isAdminUser) {
     settingsLink?.removeAttribute("hidden");

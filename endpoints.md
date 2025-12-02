@@ -16,7 +16,7 @@ The frontend uses the base endpoints below directly and no token is required for
 
 ## `/procedures`
 - `GET /procedures` – List every procedure; filter by `patient_id` to only view items attached to a specific patient.
-- `POST /procedures` – Create a procedure with `{ "patient_id": 123, "name": "Consultation", "procedure_type": "sfue", "status": "scheduled", "procedure_date": "2025-01-02", "payment": "deposit", "notes": "Optional free text" }`.
+- `POST /procedures` – Create a procedure with `{ "patient_id": 123, "name": "Consultation", "procedure_type": "sfue", "status": "scheduled", "procedure_date": "2025-01-02", "payment": "deposit", "outstaning_balance": 500.0, "notes": [{"text": "Pre-op call scheduled"}] }`. Notes are to-do style items tied to the user who created them.
 - `GET /procedures/{id}` – Fetch a single procedure.
 - `PUT /procedures/{id}` – Update procedure details (requires a valid `patient_id`).
 - `DELETE /procedures/{id}` – Remove a procedure; purging a patient also cascades and removes related procedures.

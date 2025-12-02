@@ -130,10 +130,12 @@ def _reset_procedures_table(conn: sqlite3.Connection) -> None:
         "package_type",
         "agency",
         "grafts",
+        "outstaning_balance",
         "payment",
         "consultation",
         "forms",
         "consents",
+        "notes",
         "photo_files",
         "deleted",
         "created_at",
@@ -141,7 +143,7 @@ def _reset_procedures_table(conn: sqlite3.Connection) -> None:
     }
     if columns:
         missing = desired - columns
-        alterable = {"package_type", "agency"}
+        alterable = {"package_type", "agency", "outstaning_balance", "notes"}
         if not missing:
             return
         if missing.issubset(alterable):
@@ -149,6 +151,10 @@ def _reset_procedures_table(conn: sqlite3.Connection) -> None:
                 conn.execute("ALTER TABLE procedures ADD COLUMN package_type TEXT NOT NULL DEFAULT ''")
             if "agency" in missing:
                 conn.execute("ALTER TABLE procedures ADD COLUMN agency TEXT NOT NULL DEFAULT ''")
+            if "outstaning_balance" in missing:
+                conn.execute("ALTER TABLE procedures ADD COLUMN outstaning_balance REAL")
+            if "notes" in missing:
+                conn.execute("ALTER TABLE procedures ADD COLUMN notes TEXT NOT NULL DEFAULT '[]'")
             conn.commit()
             return
     conn.execute("DROP TABLE IF EXISTS procedures")
@@ -164,10 +170,12 @@ def _reset_procedures_table(conn: sqlite3.Connection) -> None:
             package_type TEXT NOT NULL DEFAULT '',
             agency TEXT NOT NULL DEFAULT '',
             grafts TEXT NOT NULL DEFAULT '',
+            outstaning_balance REAL,
             payment TEXT NOT NULL,
             consultation TEXT NOT NULL DEFAULT '[]',
             forms TEXT NOT NULL DEFAULT '[]',
             consents TEXT NOT NULL DEFAULT '[]',
+            notes TEXT NOT NULL DEFAULT '[]',
             photo_files TEXT NOT NULL DEFAULT '[]',
             deleted INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -649,6 +657,97 @@ def _deserialize_json_list(value: Optional[str]) -> List[str]:
     return []
 
 
+def _normalize_note_entry(
+    entry: Any,
+    *,
+    default_author: Optional[str] = None,
+    default_user: Optional[int] = None,
+    existing: Optional[Dict[str, Any]] = None,
+) -> Optional[Dict[str, Any]]:
+    """Normalize a single note entry into a consistent dictionary."""
+    if hasattr(entry, "model_dump"):
+        try:
+            entry = entry.model_dump()
+        except Exception:
+            pass
+    base: Dict[str, Any] = {}
+    if isinstance(entry, dict):
+        base = dict(entry)
+        text = str(
+            base.get("text")
+            or base.get("note")
+            or base.get("value")
+            or base.get("description")
+            or ""
+        ).strip()
+    elif isinstance(entry, str):
+        text = entry.strip()
+    else:
+        return None
+    if not text:
+        return None
+
+    existing_note = existing or {}
+    note_id = str(
+        base.get("id")
+        or base.get("_id")
+        or base.get("uuid")
+        or existing_note.get("id")
+        or secrets.token_hex(8)
+    )
+    created_at = (
+        base.get("created_at")
+        or existing_note.get("created_at")
+        or datetime.utcnow().isoformat() + "Z"
+    )
+    completed = bool(base.get("completed", existing_note.get("completed", False)))
+    user_id_value = base.get("user_id", existing_note.get("user_id", default_user))
+    try:
+        user_id = int(user_id_value) if user_id_value is not None else None
+    except (TypeError, ValueError):
+        user_id = None
+    author = base.get("author", existing_note.get("author", default_author))
+
+    return {
+        "id": note_id,
+        "text": text,
+        "completed": completed,
+        "user_id": user_id if user_id is not None else None,
+        "author": author,
+        "created_at": created_at,
+    }
+
+
+def normalize_notes_payload(
+    notes: Any,
+    *,
+    user_id: Optional[int] = None,
+    author: Optional[str] = None,
+    existing: Optional[List[Dict[str, Any]]] = None,
+) -> List[Dict[str, Any]]:
+    """Normalize a list of raw note entries into structured dictionaries."""
+    existing_map = {
+        note.get("id"): note for note in (existing or []) if isinstance(note, dict) and note.get("id")
+    }
+    if notes is None:
+        return []
+    raw_items = notes if isinstance(notes, list) else [notes]
+    normalized: List[Dict[str, Any]] = []
+    for entry in raw_items:
+        base_existing = None
+        if isinstance(entry, dict) and entry.get("id") in existing_map:
+            base_existing = existing_map.get(entry.get("id"))
+        normalized_entry = _normalize_note_entry(
+            entry,
+            default_author=author,
+            default_user=user_id,
+            existing=base_existing,
+        )
+        if normalized_entry:
+            normalized.append(normalized_entry)
+    return normalized
+
+
 def _deserialize_json_payload(value: Optional[str]) -> Any:
     if not value:
         return []
@@ -680,7 +779,20 @@ def _row_to_procedure(row: sqlite3.Row) -> Dict[str, Any]:
     forms = _deserialize_json_list(row["forms"])
     consents = _deserialize_json_list(row["consents"])
     photo_files = _deserialize_json_list(row["photo_files"])
+    notes_raw = row["notes"] if "notes" in row.keys() and row["notes"] is not None else "[]"
+    try:
+        loaded_notes = json.loads(notes_raw) if notes_raw else []
+    except Exception:
+        loaded_notes = _deserialize_json_list(notes_raw)
+    notes = normalize_notes_payload(loaded_notes)
     procedure_date = _date_only(row["procedure_date"]) or ""
+    balance: Optional[float] = None
+    if "outstaning_balance" in row.keys():
+        raw_balance = row["outstaning_balance"]
+        try:
+            balance = float(raw_balance) if raw_balance is not None else None
+        except (TypeError, ValueError):
+            balance = None
     return {
         "id": row["id"],
         "patient_id": row["patient_id"],
@@ -694,6 +806,8 @@ def _row_to_procedure(row: sqlite3.Row) -> Dict[str, Any]:
         "consultation": _deserialize_consultation(row["consultation"]),
         "forms": forms,
         "consents": consents,
+        "notes": notes,
+        "outstaning_balance": balance,
         "photo_files": photo_files,
         "photos": row["photo_count"]
         if "photo_count" in row.keys() and row["photo_count"] is not None
@@ -1150,6 +1264,15 @@ def _serialize_procedure_payload(data: Dict[str, Any]) -> Dict[str, Any]:
     else:
         consultation_list = list(consultation_value)
 
+    balance_value = data.get("outstaning_balance")
+    if balance_value in (None, "", "null"):
+        normalized_balance = None
+    else:
+        try:
+            normalized_balance = float(balance_value)
+        except (TypeError, ValueError):
+            raise ValueError("outstaning_balance is invalid")
+
     normalized_date = _date_only(data.get("procedure_date"))
     if not normalized_date:
         raise ValueError("procedure_date is required")
@@ -1163,8 +1286,10 @@ def _serialize_procedure_payload(data: Dict[str, Any]) -> Dict[str, Any]:
         "grafts": data.get("grafts", ""),
         "payment": (data.get("payment") or ""),
         "consultation": json.dumps(consultation_list),
+        "outstaning_balance": normalized_balance,
         "forms": json.dumps(data.get("forms") or []),
         "consents": json.dumps(data.get("consents") or []),
+        "notes": json.dumps(normalize_notes_payload(data.get("notes"))),
         "photo_files": json.dumps(data.get("photo_files") or []),
     }
 
@@ -1443,9 +1568,9 @@ def create_procedure(patient_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
         cursor = conn.execute(
             """
             INSERT INTO procedures (
-                patient_id, procedure_date, status, procedure_type, package_type, agency, grafts, payment,
-                consultation, forms, consents, photo_files
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                patient_id, procedure_date, status, procedure_type, package_type, agency, grafts, outstaning_balance, payment,
+                consultation, forms, consents, notes, photo_files
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 patient_id,
@@ -1455,10 +1580,12 @@ def create_procedure(patient_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
                 payload["package_type"],
                 payload["agency"],
                 payload["grafts"],
+                payload["outstaning_balance"],
                 payload["payment"],
                 payload["consultation"],
                 payload["forms"],
                 payload["consents"],
+                payload["notes"],
                 payload["photo_files"],
             ),
         )
@@ -1484,10 +1611,12 @@ def update_procedure(procedure_id: int, data: Dict[str, Any]) -> Optional[Dict[s
                 package_type = ?,
                 agency = ?,
                 grafts = ?,
+                outstaning_balance = ?,
                 payment = ?,
                 consultation = ?,
                 forms = ?,
                 consents = ?,
+                notes = ?,
                 photo_files = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
@@ -1499,10 +1628,12 @@ def update_procedure(procedure_id: int, data: Dict[str, Any]) -> Optional[Dict[s
                 payload["package_type"],
                 payload["agency"],
                 payload["grafts"],
+                payload["outstaning_balance"],
                 payload["payment"],
                 payload["consultation"],
                 payload["forms"],
                 payload["consents"],
+                payload["notes"],
                 payload["photo_files"],
                 procedure_id,
             ),

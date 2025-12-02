@@ -82,6 +82,16 @@
                 <label for="city">City</label>
                 <input id="city" name="city" type="text" required value="fields" placeholder="City" />
               </div>
+              <div class="form-group" id="drive-folder-group" hidden>
+                <label for="drive-folder-id">Drive Folder ID (admin)</label>
+                <input
+                  id="drive-folder-id"
+                  name="driveFolderId"
+                  type="text"
+                  placeholder="Google Drive folder id"
+                  autocomplete="off"
+                />
+              </div>
               <p id="patient-status" class="form-status" role="status"></p>
               <div class="card-actions">
                 <button type="submit" class="btn btn-primary primary-btn" form="patient-form">Save Changes</button>
@@ -161,8 +171,34 @@
                   <select id="payment" name="payment"></select>
                 </div>
                 <div class="form-group">
+                  <label for="outstaning-balance">Outstanding Balance</label>
+                  <input
+                    id="outstaning-balance"
+                    name="outstaningBalance"
+                    type="number"
+                    inputmode="decimal"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div class="form-group">
                   <label for="agency">Agency</label>
                   <select id="agency" name="agency"></select>
+                </div>
+                <div class="form-group">
+                  <label for="procedure-note-input">Notes</label>
+                  <div class="todo-input">
+                    <input
+                      id="procedure-note-input"
+                      name="procedureNoteInput"
+                      type="text"
+                      placeholder="Add a to-do and press Enter"
+                    />
+                    <button type="button" class="btn btn-secondary" id="add-procedure-note">Add</button>
+                  </div>
+                  <ul id="procedure-notes-list" class="todo-list"></ul>
+                  <p class="form-hint">Only your own notes can be deleted.</p>
                 </div>
               </div>
               <p id="procedure-form-status" class="form-status" role="status"></p>

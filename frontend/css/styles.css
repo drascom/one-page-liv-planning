@@ -2537,6 +2537,80 @@ body.app-shell {
   gap: 0.5rem;
 }
 
+.form-hint {
+  margin-top: 0.25rem;
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.todo-input {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.todo-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.todo-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.45rem 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.todo-item__main {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.todo-text {
+  margin: 0;
+  font-weight: 600;
+}
+
+.todo-text.is-completed {
+  text-decoration: line-through;
+  color: #94a3b8;
+}
+
+.todo-meta {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.todo-actions {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.todo-delete-btn {
+  border: none;
+  background: transparent;
+  color: #ef4444;
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.2rem 0.4rem;
+  border-radius: 6px;
+}
+
+.todo-delete-btn:disabled {
+  cursor: not-allowed;
+  color: #cbd5e1;
+}
+
 .photo-viewer img {
   max-width: 90vw;
   max-height: 70vh;

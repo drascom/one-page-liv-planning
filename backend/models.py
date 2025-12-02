@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+import secrets
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field, model_validator
 
 
 class WeeklyPlanBase(BaseModel):
@@ -79,10 +80,48 @@ class ProcedureBase(BaseModel):
     agency: Optional[str] = Field(None, description="Agency or referral source for the procedure")
     grafts: str = Field(..., description="Number of grafts or imported numeric detail")
     payment: Optional[str] = Field(None, description="Payment collection status")
+    outstaning_balance: Optional[float] = Field(
+        None, description="Outstanding balance remaining for the procedure", ge=0
+    )
     consultation: List[str] = Field(default_factory=list, description="Consultations recorded for the procedure")
     forms: List[str] = Field(default_factory=list, description="Completed form identifiers")
     consents: List[str] = Field(default_factory=list, description="Completed consent identifiers")
+    notes: List["ProcedureNote"] = Field(default_factory=list, description="To-do style notes for the procedure")
     photo_files: List[str] = Field(default_factory=list, description="Relative file paths for uploaded photos")
+
+
+class ProcedureNote(BaseModel):
+    """Individual note entry for a procedure."""
+    id: str = Field(default_factory=lambda: secrets.token_hex(8), description="Unique note identifier")
+    text: str = Field(..., min_length=1, description="Note text/content")
+    completed: bool = Field(False, description="Whether the task is completed")
+    user_id: Optional[int] = Field(None, description="Author's user ID")
+    author: Optional[str] = Field(None, description="Author username")
+    created_at: Optional[str] = Field(None, description="Timestamp when the note was created")
+
+    @model_validator(mode="before")
+    @classmethod
+    def coerce_note(cls, value: Any) -> Dict[str, Any]:
+        if isinstance(value, cls):
+            return value.model_dump()
+        if isinstance(value, str):
+            text = value.strip()
+            if not text:
+                return {}
+            return {"text": text}
+        if isinstance(value, dict):
+            text = value.get("text") or value.get("note") or value.get("value")
+            if not text:
+                return {}
+            return {
+                "id": value.get("id") or value.get("_id") or value.get("uuid") or secrets.token_hex(8),
+                "text": str(text).strip(),
+                "completed": bool(value.get("completed", value.get("done", False))),
+                "user_id": value.get("user_id"),
+                "author": value.get("author"),
+                "created_at": value.get("created_at"),
+            }
+        return {}
 
 
 class ProcedureCreate(ProcedureBase):
@@ -365,3 +404,10 @@ class ProcedureBooking(ProcedureBookingBase):
 
     class Config:
         from_attributes = True
+
+
+# Ensure forward refs are resolved for models that reference ProcedureNote
+ProcedureBase.model_rebuild()
+ProcedureCreate.model_rebuild()
+ProcedureCreatePayload.model_rebuild()
+Procedure.model_rebuild()

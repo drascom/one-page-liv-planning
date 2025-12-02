@@ -1415,6 +1415,8 @@ function buildDefaultPatientPayloads() {
     consents: [],
     photos: 0,
     photo_files: [],
+    outstaning_balance: null,
+    notes: [],
   };
 
   return { patientPayload, procedurePayload };

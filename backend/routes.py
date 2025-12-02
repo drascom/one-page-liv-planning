@@ -102,6 +102,48 @@ def _patient_label(patient: Optional[dict]) -> str:
     return name or f"Patient #{patient.get('id')}"
 
 
+def _current_user(request: Request) -> Optional[dict]:
+    return getattr(request.state, "current_user", None)
+
+
+def _normalize_notes_for_request(
+    notes: Optional[List[dict]] = None,
+    *,
+    request: Request,
+    existing_notes: Optional[List[dict]] = None,
+) -> List[dict]:
+    user = _current_user(request)
+    return database.normalize_notes_payload(
+        notes,
+        user_id=user.get("id") if user else None,
+        author=user.get("username") if user else None,
+        existing=existing_notes,
+    )
+
+
+def _ensure_note_delete_permissions(
+    existing_notes: Optional[List[dict]],
+    next_notes: Optional[List[dict]],
+    *,
+    request: Request,
+) -> None:
+    user = _current_user(request)
+    user_id = user.get("id") if user else None
+    next_ids = {entry.get("id") for entry in (next_notes or []) if isinstance(entry, dict) and entry.get("id")}
+    for note in existing_notes or []:
+        note_id = note.get("id")
+        if not note_id or note_id in next_ids:
+            continue
+        owner_id = note.get("user_id")
+        if owner_id is None:
+            continue  # allow cleanup of legacy ownerless notes
+        if user_id is None or owner_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only delete your own notes.",
+            )
+
+
 def _procedure_summary(action: str, procedure: dict, patient: Optional[dict]) -> str:
     patient_name = _patient_label(patient)
     procedure_date = procedure.get("procedure_date") or "unscheduled date"
@@ -285,7 +327,9 @@ async def create_procedure(patient_id: int, payload: ProcedureCreate, request: R
     if not patient:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     try:
-        created = database.create_procedure(patient_id, payload.model_dump())
+        payload_data = payload.model_dump()
+        payload_data["notes"] = _normalize_notes_for_request(payload_data.get("notes"), request=request)
+        created = database.create_procedure(patient_id, payload_data)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     procedure_record = database.fetch_procedure(created["id"])
@@ -313,7 +357,16 @@ async def update_procedure(
     if not procedure or procedure["patient_id"] != patient_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
     try:
-        updated = database.update_procedure(procedure_id, payload.model_dump())
+        existing_notes = procedure.get("notes") or []
+        payload_data = payload.model_dump()
+        normalized_notes = _normalize_notes_for_request(
+            payload_data.get("notes"),
+            request=request,
+            existing_notes=existing_notes,
+        )
+        _ensure_note_delete_permissions(existing_notes, normalized_notes, request=request)
+        payload_data["notes"] = normalized_notes
+        updated = database.update_procedure(procedure_id, payload_data)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     if not updated:
@@ -529,7 +582,9 @@ async def create_procedure_route(payload: ProcedureCreatePayload, request: Reque
     if not patient:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     try:
-        created = database.create_procedure(payload.patient_id, payload.model_dump(exclude={"patient_id"}))
+        payload_data = payload.model_dump(exclude={"patient_id"})
+        payload_data["notes"] = _normalize_notes_for_request(payload_data.get("notes"), request=request)
+        created = database.create_procedure(payload.patient_id, payload_data)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     procedure_record = database.fetch_procedure(created["id"])
@@ -655,7 +710,16 @@ async def update_procedure_route(
     if not existing:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
     try:
-        updated = database.update_procedure(procedure_id, payload.model_dump(exclude={"patient_id"}))
+        existing_notes = existing.get("notes") or []
+        payload_data = payload.model_dump(exclude={"patient_id"})
+        normalized_notes = _normalize_notes_for_request(
+            payload_data.get("notes"),
+            request=request,
+            existing_notes=existing_notes,
+        )
+        _ensure_note_delete_permissions(existing_notes, normalized_notes, request=request)
+        payload_data["notes"] = normalized_notes
+        updated = database.update_procedure(procedure_id, payload_data)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     if not updated:
