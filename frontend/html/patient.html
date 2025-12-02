@@ -191,18 +191,15 @@
                   <div id="consents-checklist" class="checklist form-checklist" role="group"
                     aria-label="Consents checklist"></div>
                   <select id="consents" name="consents" multiple hidden></select>
+                  <h4>Consultations</h4>
+                  <div id="consultations-checklist" class="checklist form-checklist" role="group" aria-label="Consultations checklist"></div>
+                  <select id="consultation" name="consultation" multiple hidden></select>
                 </div> 
                 <div class="form-group">
                   <label>Forms</label>
                   <div id="forms-checklist" class="checklist form-checklist" role="group" aria-label="Forms checklist">
                   </div>
                   <select id="forms" name="forms" multiple hidden></select>
-                </div>
-                <div class="form-group">
-                  <label>Consultations</label>
-                  <div id="consultations-checklist" class="checklist form-checklist" role="group"
-                    aria-label="Consultations checklist"></div>
-                  <select id="consultation" name="consultation" multiple hidden></select>
                 </div>
               </div>
             </section>
@@ -211,10 +208,12 @@
             <section class="notes-section">
               <h3>Procedure Notes</h3>
               <div class="notes-body">
-                <div class="todo-input">
-                  <input id="procedure-note-input" name="procedureNoteInput" type="text"
-                    placeholder="Add a to-do and press Enter" />
-                  <button type="button" class="btn btn-secondary" id="add-procedure-note">Add</button>
+                <div class="form-group">
+                  <label for="procedure-note-input">Add Note</label>
+                  <div class="input-with-button">
+                    <input id="procedure-note-input" name="procedureNoteInput" type="text"
+                      placeholder="Write a note and press Enter" class="text-input" />
+                  </div>
                 </div>
                 <ul id="procedure-notes-list" class="todo-list"></ul>
                 <p class="form-hint">Only your own notes can be deleted.</p>
