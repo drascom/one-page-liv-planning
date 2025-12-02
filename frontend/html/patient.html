@@ -1,55 +1,46 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Patient Record</title>
-    <link rel="stylesheet" href="/static/css/styles.css" />
-    <link rel="stylesheet" href="/static/css/test.css" />
-    <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg" />
-  </head>
-  <body class="patient-page new-patient-page app-shell">
-    <div class="app-layout">
-      <nav class="top-nav top-nav--subpage">
-        <div class="top-nav__brand">
-          <a class="top-nav__brand-link" href="/">
-            <span class="top-nav__brand-icon" aria-hidden="true">❖</span>
-            Liv Planner
-          </a>
-          <span class="top-nav__divider" aria-hidden="true">•</span>
-          <span class="top-nav__section">Patient Record</span>
-        </div>
-        <form class="top-nav__search patient-search" id="patient-search-form" role="search" autocomplete="off">
-          <label class="visually-hidden" for="patient-search">Search patients</label>
-          <span class="search-icon" aria-hidden="true">🔍</span>
-          <input
-            id="patient-search"
-            type="search"
-            name="patientSearch"
-            class="search-input"
-            placeholder="Search by name or surname"
-            enterkeyhint="search"
-          />
-          <button
-            type="button"
-            class="patient-search__clear"
-            id="patient-search-clear"
-            aria-label="Clear search"
-            title="Clear search"
-          >
-            ×
-          </button>
-          <ul class="patient-search__results" id="patient-search-results" role="listbox"></ul>
-        </form>
-        <div class="top-nav__actions">
-          <a class="nav-btn nav-btn--ghost" href="/">Schedule</a>
-          <a class="nav-btn nav-btn--ghost" href="customers.html" data-admin-customers hidden>Customers</a>
-          <a class="nav-btn nav-btn--ghost" href="settings.html" data-admin-link hidden>Settings</a>
-          <button type="button" class="nav-btn nav-btn--primary" data-logout-btn>Logout</button>
-        </div>
-      </nav>
 
-  
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Patient Record</title>
+  <link rel="stylesheet" href="/static/css/styles.css" />
+  <link rel="stylesheet" href="/static/css/test.css" />
+  <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg" />
+</head>
+
+<body class="patient-page new-patient-page app-shell">
+  <div class="app-layout">
+    <nav class="top-nav top-nav--subpage">
+      <div class="top-nav__brand">
+        <a class="top-nav__brand-link" href="/">
+          <span class="top-nav__brand-icon" aria-hidden="true">❖</span>
+          Liv Planner
+        </a>
+        <span class="top-nav__divider" aria-hidden="true">•</span>
+        <span class="top-nav__section">Patient Record</span>
+      </div>
+      <form class="top-nav__search patient-search" id="patient-search-form" role="search" autocomplete="off">
+        <label class="visually-hidden" for="patient-search">Search patients</label>
+        <span class="search-icon" aria-hidden="true">🔍</span>
+        <input id="patient-search" type="search" name="patientSearch" class="search-input"
+          placeholder="Search by name or surname" enterkeyhint="search" />
+        <button type="button" class="patient-search__clear" id="patient-search-clear" aria-label="Clear search"
+          title="Clear search">
+          ×
+        </button>
+        <ul class="patient-search__results" id="patient-search-results" role="listbox"></ul>
+      </form>
+      <div class="top-nav__actions">
+        <a class="nav-btn nav-btn--ghost" href="/">Schedule</a>
+        <a class="nav-btn nav-btn--ghost" href="customers.html" data-admin-customers hidden>Customers</a>
+        <a class="nav-btn nav-btn--ghost" href="settings.html" data-admin-link hidden>Settings</a>
+        <button type="button" class="nav-btn nav-btn--primary" data-logout-btn>Logout</button>
+      </div>
+    </nav>
+
+
     <main class="main-content patient-content new-patient-layout">
       <section class="patient-grid two-column-section">
         <div class="patient-left-column patient-column">
@@ -65,15 +56,18 @@
             <form id="patient-form" class="patient-form form-layout">
               <div class="form-group">
                 <label for="first-name">First Name</label>
-                <input id="first-name" name="firstName" type="text" required value="New" placeholder="Enter first name" />
+                <input id="first-name" name="firstName" type="text" required value="New"
+                  placeholder="Enter first name" />
               </div>
               <div class="form-group">
                 <label for="last-name">Last Name</label>
-                <input id="last-name" name="lastName" type="text" required value="Patient" placeholder="Enter last name" />
+                <input id="last-name" name="lastName" type="text" required value="Patient"
+                  placeholder="Enter last name" />
               </div>
               <div class="form-group">
                 <label for="email">Email</label>
-                <input id="email" name="email" type="email" required value="test@example.com" placeholder="name@example.com" />
+                <input id="email" name="email" type="email" required value="test@example.com"
+                  placeholder="name@example.com" />
               </div>
               <div class="form-group">
                 <label for="phone">Phone</label>
@@ -85,18 +79,14 @@
               </div>
               <div class="form-group" id="drive-folder-group" hidden>
                 <label for="drive-folder-id">Drive Folder ID (admin)</label>
-                <input
-                  id="drive-folder-id"
-                  name="driveFolderId"
-                  type="text"
-                  placeholder="Google Drive folder id"
-                  autocomplete="off"
-                />
+                <input id="drive-folder-id" name="driveFolderId" type="text" placeholder="Google Drive folder id"
+                  autocomplete="off" />
               </div>
               <p id="patient-status" class="form-status" role="status"></p>
               <div class="card-actions">
                 <button type="submit" class="btn btn-primary primary-btn" form="patient-form">Save Changes</button>
-                <button type="button" class="btn btn-danger danger-btn" id="delete-patient-btn" hidden>Delete Patient</button>
+                <button type="button" class="btn btn-danger danger-btn" id="delete-patient-btn" hidden>Delete
+                  Patient</button>
               </div>
             </form>
           </section>
@@ -105,7 +95,6 @@
             <header class="card-header patient-photo-card__header">
               <div>
                 <p class="settings-section__eyebrow">Files</p>
-                <h2>Drive Documents</h2>
               </div>
               <p class="upload-hint">PDF reports and ZIP bundles linked to this patient.</p>
             </header>
@@ -119,7 +108,6 @@
                 <p class="settings-section__eyebrow">Photos</p>
                 <h2>Upload &amp; Gallery</h2>
               </div>
-              <p class="upload-hint">Drag &amp; drop or browse to upload directly into the patient's Drive folder.</p>
             </header>
             <div class="drop-zone" id="drop-zone">
               <input id="photo-input" type="file" multiple accept="image/*" hidden />
@@ -145,23 +133,21 @@
               </div>
               <div class="card-actions">
                 <button type="button" class="btn btn-add secondary-btn" id="add-procedure-btn" hidden>Add</button>
-                <button type="button" class="btn btn-danger danger-btn" id="cancel-procedure-btn" hidden>Delete Procedure</button>
+                <button type="button" class="btn btn-danger danger-btn" id="cancel-procedure-btn" hidden>Delete
+                  Procedure</button>
               </div>
             </header>
             <p id="procedures-status" class="form-status" role="status"></p>
-            <div
-              id="patient-bookings-list"
-              class="tab-menu patient-bookings-sidebar"
-              role="tablist"
-              aria-label="Procedures list"
-            ></div>
+            <div id="patient-bookings-list" class="tab-menu patient-bookings-sidebar" role="tablist"
+              aria-label="Procedures list"></div>
 
             <section class="procedure-details">
               <h3>Surgery Details</h3>
               <div class="form-layout">
                 <div class="form-group">
                   <label for="procedure-date">Procedure Date</label>
-                  <input id="procedure-date" name="procedureDate" type="date" value="2025-11-01" placeholder="YYYY-MM-DD" />
+                  <input id="procedure-date" name="procedureDate" type="date" value="2025-11-01"
+                    placeholder="YYYY-MM-DD" />
                 </div>
                 <div class="form-group">
                   <label for="status">Status</label>
@@ -177,16 +163,8 @@
                 </div>
                 <div class="form-group">
                   <label for="grafts">Grafts</label>
-                  <input
-                    id="grafts"
-                    name="grafts"
-                    type="number"
-                    inputmode="numeric"
-                    step="1"
-                    min="0"
-                    value="2500"
-                    placeholder="e.g. 2500"
-                  />
+                  <input id="grafts" name="grafts" type="number" inputmode="numeric" step="1" min="0" value="2500"
+                    placeholder="e.g. 2500" />
                 </div>
                 <div class="form-group">
                   <label for="payment">Payment</label>
@@ -194,15 +172,8 @@
                 </div>
                 <div class="form-group">
                   <label for="outstaning-balance">Outstanding Balance</label>
-                  <input
-                    id="outstaning-balance"
-                    name="outstaningBalance"
-                    type="number"
-                    inputmode="decimal"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                  />
+                  <input id="outstaning-balance" name="outstaningBalance" type="number" inputmode="decimal" step="0.01"
+                    min="0" placeholder="0.00" />
                 </div>
                 <div class="form-group">
                   <label for="agency">Agency</label>
@@ -215,54 +186,38 @@
             <section class="forms-consents">
               <h3>Forms &amp; Consents</h3>
               <div class="form-layout">
+                 <div class="form-group">
+                  <label>Consents</label>
+                  <div id="consents-checklist" class="checklist form-checklist" role="group"
+                    aria-label="Consents checklist"></div>
+                  <select id="consents" name="consents" multiple hidden></select>
+                </div> 
                 <div class="form-group">
                   <label>Forms</label>
-                  <div id="forms-checklist" class="checklist form-checklist" role="group" aria-label="Forms checklist"></div>
+                  <div id="forms-checklist" class="checklist form-checklist" role="group" aria-label="Forms checklist">
+                  </div>
                   <select id="forms" name="forms" multiple hidden></select>
                 </div>
                 <div class="form-group">
-                  <label>Consents</label>
-                  <div
-                    id="consents-checklist"
-                    class="checklist form-checklist"
-                    role="group"
-                    aria-label="Consents checklist"
-                  ></div>
-                  <select id="consents" name="consents" multiple hidden></select>
+                  <label>Consultations</label>
+                  <div id="consultations-checklist" class="checklist form-checklist" role="group"
+                    aria-label="Consultations checklist"></div>
+                  <select id="consultation" name="consultation" multiple hidden></select>
                 </div>
               </div>
             </section>
+          
 
             <section class="notes-section">
               <h3>Procedure Notes</h3>
               <div class="notes-body">
                 <div class="todo-input">
-                  <input
-                    id="procedure-note-input"
-                    name="procedureNoteInput"
-                    type="text"
-                    placeholder="Add a to-do and press Enter"
-                  />
+                  <input id="procedure-note-input" name="procedureNoteInput" type="text"
+                    placeholder="Add a to-do and press Enter" />
                   <button type="button" class="btn btn-secondary" id="add-procedure-note">Add</button>
                 </div>
                 <ul id="procedure-notes-list" class="todo-list"></ul>
                 <p class="form-hint">Only your own notes can be deleted.</p>
-              </div>
-            </section>
-
-            <section class="consultations">
-              <h3>Consultations</h3>
-              <div class="form-layout">
-                <div class="form-group">
-                  <label>Consultations</label>
-                  <div
-                    id="consultations-checklist"
-                    class="checklist form-checklist"
-                    role="group"
-                    aria-label="Consultations checklist"
-                  ></div>
-                  <select id="consultation" name="consultation" multiple hidden></select>
-                </div>
               </div>
             </section>
 
@@ -285,7 +240,8 @@
           <p><strong>Parsed IDs:</strong> <span id="debug-drive-count"></span></p>
           <p><strong>Last API Error:</strong> <span id="debug-api-error" style="color: red;">None</span></p>
           <button type="button" class="btn btn-secondary" id="debug-test-drive">Test First Image Fetch</button>
-          <pre id="debug-console" style="background: #eee; padding: 10px; margin-top: 10px; font-size: 12px; overflow: auto; max-height: 200px;"></pre>
+          <pre id="debug-console"
+            style="background: #eee; padding: 10px; margin-top: 10px; font-size: 12px; overflow: auto; max-height: 200px;"></pre>
         </div>
       </section>
     </main>
@@ -294,30 +250,23 @@
       <button type="button" class="photo-viewer__close" id="photo-viewer-close" aria-label="Close viewer">
         ×
       </button>
-      <button
-        type="button"
-        class="photo-viewer__nav photo-viewer__nav--prev"
-        id="photo-viewer-prev"
-        aria-label="Previous photo"
-      >
+      <button type="button" class="photo-viewer__nav photo-viewer__nav--prev" id="photo-viewer-prev"
+        aria-label="Previous photo">
         ←
       </button>
       <img id="photo-viewer-image" alt="Patient photo" />
       <p id="photo-viewer-caption"></p>
-      <button
-        type="button"
-        class="photo-viewer__nav photo-viewer__nav--next"
-        id="photo-viewer-next"
-        aria-label="Next photo"
-      >
+      <button type="button" class="photo-viewer__nav photo-viewer__nav--next" id="photo-viewer-next"
+        aria-label="Next photo">
         →
       </button>
       <button type="button" class="photo-viewer__delete" id="photo-viewer-delete">Delete photo</button>
     </div>
-    </div>
+  </div>
 
-    <script src="/app-config.js"></script>
-    <script src="/static/js/nav-search.js" type="module"></script>
-    <script src="/static/js/patient.js" type="module"></script>
-  </body>
+  <script src="/app-config.js"></script>
+  <script src="/static/js/nav-search.js" type="module"></script>
+  <script src="/static/js/patient.js" type="module"></script>
+</body>
+
 </html>
