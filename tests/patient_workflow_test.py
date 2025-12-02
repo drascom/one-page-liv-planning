@@ -94,7 +94,7 @@ def create_procedure(client: httpx.Client, patient_id: int) -> Dict[str, Any]:
         "procedure_date": scheduled_date,
         "status": "reserved",
         "procedure_type": "sfue",
-        "grafts": "",
+        "grafts": 0,
         "payment": "waiting",
         "consultation": [],
         "forms": [],

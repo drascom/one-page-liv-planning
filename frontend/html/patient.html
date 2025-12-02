@@ -6,6 +6,7 @@
     <title>Patient Record</title>
     <link rel="stylesheet" href="/static/css/styles.css" />
     <link rel="stylesheet" href="/static/css/test.css" />
+    <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg" />
   </head>
   <body class="patient-page new-patient-page app-shell">
     <div class="app-layout">
@@ -100,6 +101,18 @@
             </form>
           </section>
 
+          <section class="patient-media-section patient-card card patient-documents-card">
+            <header class="card-header patient-photo-card__header">
+              <div>
+                <p class="settings-section__eyebrow">Files</p>
+                <h2>Drive Documents</h2>
+              </div>
+              <p class="upload-hint">PDF reports and ZIP bundles linked to this patient.</p>
+            </header>
+            <p class="document-empty" id="documents-empty">No PDF or ZIP files available.</p>
+            <div class="document-grid" id="documents-list"></div>
+          </section>
+
           <section class="patient-media-section patient-photo-card patient-card card">
             <header class="card-header patient-photo-card__header">
               <div>
@@ -164,7 +177,16 @@
                 </div>
                 <div class="form-group">
                   <label for="grafts">Grafts</label>
-                  <input id="grafts" name="grafts" type="text" inputmode="numeric" value="2500" placeholder="e.g. 2500" />
+                  <input
+                    id="grafts"
+                    name="grafts"
+                    type="number"
+                    inputmode="numeric"
+                    step="1"
+                    min="0"
+                    value="2500"
+                    placeholder="e.g. 2500"
+                  />
                 </div>
                 <div class="form-group">
                   <label for="payment">Payment</label>
@@ -185,20 +207,6 @@
                 <div class="form-group">
                   <label for="agency">Agency</label>
                   <select id="agency" name="agency"></select>
-                </div>
-                <div class="form-group">
-                  <label for="procedure-note-input">Notes</label>
-                  <div class="todo-input">
-                    <input
-                      id="procedure-note-input"
-                      name="procedureNoteInput"
-                      type="text"
-                      placeholder="Add a to-do and press Enter"
-                    />
-                    <button type="button" class="btn btn-secondary" id="add-procedure-note">Add</button>
-                  </div>
-                  <ul id="procedure-notes-list" class="todo-list"></ul>
-                  <p class="form-hint">Only your own notes can be deleted.</p>
                 </div>
               </div>
               <p id="procedure-form-status" class="form-status" role="status"></p>
@@ -225,6 +233,23 @@
               </div>
             </section>
 
+            <section class="notes-section">
+              <h3>Procedure Notes</h3>
+              <div class="notes-body">
+                <div class="todo-input">
+                  <input
+                    id="procedure-note-input"
+                    name="procedureNoteInput"
+                    type="text"
+                    placeholder="Add a to-do and press Enter"
+                  />
+                  <button type="button" class="btn btn-secondary" id="add-procedure-note">Add</button>
+                </div>
+                <ul id="procedure-notes-list" class="todo-list"></ul>
+                <p class="form-hint">Only your own notes can be deleted.</p>
+              </div>
+            </section>
+
             <section class="consultations">
               <h3>Consultations</h3>
               <div class="form-layout">
@@ -241,17 +266,6 @@
               </div>
             </section>
 
-            <section class="patient-media-section patient-card card patient-documents-card">
-              <header class="card-header patient-photo-card__header">
-                <div>
-                  <p class="settings-section__eyebrow">Files</p>
-                  <h2>Drive Documents</h2>
-                </div>
-                <p class="upload-hint">PDF reports and ZIP bundles linked to this patient.</p>
-              </header>
-              <p class="document-empty" id="documents-empty">No PDF or ZIP files available.</p>
-              <div class="document-grid" id="documents-list"></div>
-            </section>
             <div class="card-actions procedures-card__actions">
               <button type="submit" class="btn btn-primary primary-btn" form="patient-form">Save Changes</button>
             </div>

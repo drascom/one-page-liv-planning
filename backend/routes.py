@@ -54,8 +54,6 @@ from .models import (
     ProcedureListResponse,
     ProcedureSearchResult,
     DeletedProcedureRecord,
-    Photo,
-    PhotoCreate,
     Payment,
     PaymentCreate,
     PatientSearchResult,
@@ -72,7 +70,6 @@ from .settings import get_settings
 router = APIRouter(prefix="/plans", tags=["plans"])
 patients_router = APIRouter(prefix="/patients", tags=["patients"])
 procedures_router = APIRouter(prefix="/procedures", tags=["procedures"])
-upload_router = APIRouter(prefix="/uploads", tags=["uploads"])
 api_tokens_router = APIRouter(prefix="/api-tokens", tags=["api tokens"])
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
 field_options_router = APIRouter(prefix="/field-options", tags=["field options"])
@@ -287,19 +284,6 @@ def list_deleted_patients(_: dict = Depends(require_admin_user)) -> List[Patient
     return [Patient(**record) for record in records]
 
 
-def _remove_patient_files(file_names: list[str]) -> None:
-    for name in file_names or []:
-        try:
-            target = UPLOAD_ROOT / Path(name)
-            if target.exists():
-                target.unlink()
-            parent = target.parent
-            if parent.exists() and not any(parent.iterdir()):
-                parent.rmdir()
-        except OSError:
-            continue
-
-
 @patients_router.get("/{patient_id}", response_model=Patient)
 def get_patient(patient_id: int) -> Patient:
     """Return the patient identified by ``patient_id``."""
@@ -393,35 +377,6 @@ async def delete_procedure(patient_id: int, procedure_id: int, request: Request)
     return OperationResult(success=True, id=procedure_id)
 
 
-@patients_router.get("/{patient_id}/photos", response_model=List[Photo])
-def list_patient_photos(patient_id: int) -> List[Photo]:
-    """Return photo records linked to a patient."""
-    patient = database.fetch_patient(patient_id, include_deleted=True)
-    if not patient:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
-    photos = database.list_photos_for_patient(patient_id)
-    return [Photo(**photo) for photo in photos]
-
-
-@patients_router.post("/{patient_id}/photos", response_model=Photo, status_code=status.HTTP_201_CREATED)
-def create_patient_photo(patient_id: int, payload: PhotoCreate) -> Photo:
-    """Create a photo record (metadata only; files are handled via /uploads)."""
-    patient = database.fetch_patient(patient_id)
-    if not patient:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
-    record = database.create_photo(patient_id, payload.name, payload.file_path, payload.taken_at)
-    return Photo(**record)
-
-
-@patients_router.delete("/{patient_id}/photos/{photo_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_patient_photo_record(patient_id: int, photo_id: int) -> None:
-    """Delete a photo record linked to the patient."""
-    photo = next((item for item in database.list_photos_for_patient(patient_id) if item["id"] == photo_id), None)
-    if not photo:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Photo not found")
-    database.delete_photo(photo_id)
-
-
 @patients_router.get("/{patient_id}/payments", response_model=List[Payment])
 def list_patient_payments(patient_id: int) -> List[Payment]:
     """Return payments linked to a patient."""
@@ -505,7 +460,6 @@ async def merge_patients_route(payload: PatientMergeRequest, request: Request) -
         id=payload.target_patient_id,
         archived_patient_ids=merge_result.get("archived_patient_ids", []),
         moved_procedures=merge_result.get("moved_procedures", 0),
-        moved_photos=merge_result.get("moved_photos", 0),
         moved_payments=merge_result.get("moved_payments", 0),
     )
 
@@ -545,8 +499,6 @@ def purge_patient_route(patient_id: int, _: dict = Depends(require_admin_user)) 
     record = database.fetch_patient(patient_id, include_deleted=True)
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
-    photo_paths = [photo["file_path"] for photo in database.list_photos_for_patient(patient_id)]
-    _remove_patient_files(photo_paths)
     deleted = database.purge_patient(patient_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to delete patient")
@@ -983,19 +935,6 @@ def delete_api_token(token_id: int, current_user: dict = Depends(require_admin_u
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Token not found")
 
-
-def _sanitize_segment(segment: str) -> str:
-    value = re.sub(r"[^a-z0-9_-]+", "-", segment.lower()).strip("-")
-    return value or "patient"
-
-
-def _sanitize_relative_path(value: str) -> Path:
-    candidate = Path(value.strip("/"))
-    if candidate.is_absolute() or ".." in candidate.parts:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file path")
-    return candidate
-
-
 def _get_casefold_query_param(request: Request, name: str) -> Optional[str]:
     """Return a query parameter value regardless of key casing."""
     desired = name.lower()
@@ -1003,62 +942,6 @@ def _get_casefold_query_param(request: Request, name: str) -> Optional[str]:
         if key.lower() == desired:
             return value
     return None
-
-
-@upload_router.post("/{patient_last_name}", status_code=status.HTTP_201_CREATED)
-async def upload_patient_photos(
-    patient_last_name: str,
-    patient_id: Optional[int] = None,
-    files: List[UploadFile] = File(...),
-) -> dict[str, object]:
-    """Persist uploaded photos under uploads/<last-name>/."""
-    if not files:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No files provided")
-
-    safe_folder = _sanitize_segment(patient_last_name)
-    target_dir = UPLOAD_ROOT / safe_folder
-    target_dir.mkdir(parents=True, exist_ok=True)
-
-    saved_files: List[str] = []
-    relative_paths: List[str] = []
-    for index, upload in enumerate(files):
-        filename = upload.filename or f"upload-{index}"
-        destination = target_dir / filename
-        contents = await upload.read()
-        destination.write_bytes(contents)
-        saved_files.append(filename)
-        relative_paths.append(f"{safe_folder}/{filename}")
-
-    updated_photos = None
-    if patient_id is not None:
-        updated_photos = database.append_patient_photos(patient_id, relative_paths)
-        if updated_photos is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
-
-    return {
-        "patientFolder": safe_folder,
-        "files": saved_files,
-        "filePaths": relative_paths,
-        "photoFiles": updated_photos,
-    }
-
-
-@upload_router.delete("/{patient_id}", response_model=dict)
-def delete_patient_photo(patient_id: int, file: str) -> dict[str, object]:
-    """Remove a photo from disk and unregister it from the patient record."""
-    relative = _sanitize_relative_path(file)
-    absolute_path = UPLOAD_ROOT / relative
-    if absolute_path.exists():
-        absolute_path.unlink()
-        # Remove empty folder if nothing remains
-        parent = absolute_path.parent
-        if parent.exists() and not any(parent.iterdir()):
-            parent.rmdir()
-
-    updated = database.remove_patient_photo(patient_id, str(relative))
-    if updated is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
-    return {"photoFiles": updated}
 
 
 @status_router.get("/connection-check")

@@ -58,7 +58,6 @@ const ACTIVE_PATIENT_KEY = "activePatient";
 const API_BASE_URL =
   window.APP_CONFIG?.backendUrl ??
   `${window.location.protocol}//${window.location.host}`;
-const UPLOADS_BASE_URL = new URL("/uploaded-files/", API_BASE_URL).toString();
 const BOOKING_DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
   month: "short",
   day: "numeric",
@@ -245,20 +244,6 @@ const notesListEl = document.getElementById("procedure-notes-list");
 const driveFolderInput = document.getElementById("drive-folder-id");
 const driveFolderGroup = document.getElementById("drive-folder-group");
 
-const dropZone = document.getElementById("drop-zone");
-const uploadList = document.getElementById("upload-list");
-const uploadStatus = document.getElementById("upload-status");
-const fileInput = document.getElementById("photo-input");
-const browseButton = document.getElementById("browse-button");
-const galleryContainer = document.getElementById("photo-gallery");
-const galleryEmptyState = document.getElementById("photo-empty");
-const viewerEl = document.getElementById("photo-viewer");
-const viewerImage = document.getElementById("photo-viewer-image");
-const viewerCaption = document.getElementById("photo-viewer-caption");
-const viewerCloseBtn = document.getElementById("photo-viewer-close");
-const viewerPrevBtn = document.getElementById("photo-viewer-prev");
-const viewerNextBtn = document.getElementById("photo-viewer-next");
-const viewerDeleteBtn = document.getElementById("photo-viewer-delete");
 const documentsListEl = document.getElementById("documents-list");
 const documentsEmptyStateEl = document.getElementById("documents-empty");
 
@@ -277,13 +262,11 @@ const requestedProcedureIdParam = params.get("procedure");
 const requestedProcedureId = requestedProcedureIdParam ? Number(requestedProcedureIdParam) : null;
 
 let currentPatient = null;
-let activePhotoIndex = 0;
 let isAdminUser = false;
 let currentUser = null;
 let patientProcedures = [];
 let activeProcedure = null;
 let procedureNotes = [];
-let patientPhotos = [];
 let driveFolderFilesCache = [];
 
 function loadActiveContext() {
@@ -485,8 +468,6 @@ function populatePatientForm(record) {
   if (!record) {
     return;
   }
-  record.photo_files = record.photo_files ?? [];
-  currentPatient.photo_files = record.photo_files;
   firstNameInput.value = record.first_name || "";
   lastNameInput.value = record.last_name || "";
   emailInput.value = record.email || DEFAULT_CONTACT.email;
@@ -498,7 +479,6 @@ function populatePatientForm(record) {
   if (driveFolderGroup) {
     driveFolderGroup.hidden = !isAdminUser;
   }
-  renderPhotoGallery();
   refreshDeleteButtonState();
   syncHeader(record, activeProcedure);
 }
@@ -542,7 +522,8 @@ function populateProcedureForm(procedure) {
   if (packageTypeSelect) {
     packageTypeSelect.value = procedure.package_type || getFieldOptions("package_type")[0]?.value || "";
   }
-  graftsInput.value = procedure.grafts || "";
+  const graftsNumber = Number(procedure.grafts);
+  graftsInput.value = Number.isFinite(graftsNumber) && graftsNumber >= 0 ? String(graftsNumber) : "";
   paymentSelect.value = procedure.payment || getFieldOptions("payment")[0]?.value || "";
   if (agencySelect) {
     agencySelect.value = procedure.agency || getFieldOptions("agency")[0]?.value || "";
@@ -598,11 +579,10 @@ async function fetchPatient() {
     patientProcedures = [];
     activeProcedure = null;
     updateActiveProcedureNotes([]);
-    patientPhotos = [];
     driveFolderFilesCache = [];
+    renderDriveAssets();
     refreshDeleteButtonState();
     renderRelatedBookings(null);
-    renderPhotoGallery();
     return;
   }
   try {
@@ -615,11 +595,11 @@ async function fetchPatient() {
     const record = await response.json();
     currentPatient = record;
     driveFolderFilesCache = [];
+    renderDriveAssets();
     if (record.drive_folder_id) {
-      await fetchDriveFolderFiles(record.drive_folder_id);
+        await fetchDriveFolderFiles(record.drive_folder_id);
     }
     populatePatientForm(currentPatient);
-    await fetchPhotosForPatient(record.id);
     patientStatusEl.textContent = "";
     await fetchProceduresForPatient(record.id);
     formStatusEl.textContent = "";
@@ -637,27 +617,15 @@ async function fetchPatient() {
     patientProcedures = [];
     activeProcedure = null;
     updateActiveProcedureNotes([]);
-    patientPhotos = [];
+    driveFolderFilesCache = [];
+    renderDriveAssets();
     refreshDeleteButtonState();
     renderRelatedBookings(null);
-    renderPhotoGallery();
   }
 }
 
 function collectMultiValue(selectEl) {
   return Array.from(selectEl.selectedOptions).map((option) => option.value);
-}
-
-function parsePhotos(value) {
-  if (!value || value.toLowerCase() === "none") {
-    return 0;
-  }
-  const numeric = Number(value);
-  return Number.isFinite(numeric) && numeric >= 0 ? numeric : 0;
-}
-
-function getPhotoFiles() {
-  return patientPhotos.map((photo) => photo.file_path);
 }
 
 async function fetchPatientById(patientId) {
@@ -676,19 +644,6 @@ async function fetchProcedureById(procedureId) {
     throw new Error(`Unable to load procedure (${response.status})`);
   }
   return response.json();
-}
-
-async function fetchPhotosForPatient(patientId) {
-  const response = await fetch(buildApiUrl(`/patients/${patientId}/photos`));
-  handleUnauthorized(response);
-  if (!response.ok) {
-    throw new Error(`Unable to load photos (${response.status})`);
-  }
-  const payload = await response.json();
-  patientPhotos = Array.isArray(payload) ? payload : [];
-  updatePhotoCountInput();
-  renderPhotoGallery();
-  return patientPhotos;
 }
 
 function getDriveFiles() {
@@ -759,6 +714,7 @@ function getDriveDocumentFiles() {
 
 async function fetchDriveFolderFiles(folderId) {
   driveFolderFilesCache = [];
+  renderDriveAssets();
   if (!folderId) return driveFolderFilesCache;
   try {
     const response = await fetch(`/drive-image/folder/${folderId}/files`);
@@ -780,6 +736,7 @@ async function fetchDriveFolderFiles(folderId) {
   } catch (error) {
     console.warn("Unable to fetch drive folder files", error);
   }
+  renderDriveAssets();
   return driveFolderFilesCache;
 }
 
@@ -1080,17 +1037,6 @@ function startNewProcedure() {
   }
 }
 
-function buildPhotoUrl(relativePath) {
-  if (!relativePath) {
-    return "";
-  }
-  return new URL(relativePath, UPLOADS_BASE_URL).toString();
-}
-
-function updatePhotoCountInput() {
-  // No longer needed as the photos input field has been removed
-}
-
 function renderDriveDocuments(pdfFiles = [], archiveFiles = [], otherFiles = []) {
   if (!documentsListEl || !documentsEmptyStateEl) return;
 
@@ -1189,150 +1135,9 @@ function renderDriveDocuments(pdfFiles = [], archiveFiles = [], otherFiles = [])
   });
 }
 
-function renderPhotoGallery() {
-  if (!galleryContainer) return;
-
-  const localFiles = getPhotoFiles();
-  const { images: driveImages, pdfs: drivePdfs, archives: driveArchives, others: driveOthers } = classifyDriveFiles(getDriveFiles());
-  const totalCount = localFiles.length + driveImages.length;
-
-  galleryContainer.innerHTML = "";
-
-  if (galleryEmptyState) {
-    galleryEmptyState.textContent = totalCount
-      ? `${totalCount} photo${totalCount > 1 ? "s" : ""} available`
-      : "No photos uploaded yet.";
-  }
-
-  // Always render documents, even if there are no photos to show
-  renderDriveDocuments(drivePdfs, driveArchives, driveOthers);
-
-  if (totalCount === 0) {
-    return;
-  }
-
-  // Render Local Photos
-  localFiles.forEach((relativePath, index) => {
-    const card = document.createElement("div");
-    card.className = "photo-thumb";
-    card.style.backgroundImage = `url(${buildPhotoUrl(relativePath)})`;
-    card.addEventListener("click", () => openPhotoViewer(index, 'local'));
-
-    const deleteBtn = document.createElement("button");
-    deleteBtn.type = "button";
-    deleteBtn.className = "photo-thumb__delete";
-    deleteBtn.textContent = "Delete";
-    deleteBtn.addEventListener("click", (event) => {
-      event.stopPropagation();
-      deletePhoto(relativePath);
-    });
-
-    card.appendChild(deleteBtn);
-    galleryContainer.appendChild(card);
-  });
-
-  // Render Drive Photos
-  driveImages.forEach((fileObj, index) => {
-    const fileId = fileObj.id;
-    const card = document.createElement("div");
-    card.className = "photo-thumb";
-    
-    const driveBadge = document.createElement("span");
-    driveBadge.className = "drive-badge";
-    driveBadge.textContent = "Drive";
-    driveBadge.style.cssText = "position: absolute; bottom: 4px; left: 4px; background: rgba(0,0,0,0.6); color: white; font-size: 10px; padding: 2px 4px; border-radius: 4px;";
-    card.appendChild(driveBadge);
-    
-    galleryContainer.appendChild(card);
-
-    const thumbUrl = fileObj.thumbnailLink || `/drive-image/${fileId}`;
-    card.style.backgroundImage = `url(${thumbUrl})`;
-    card.addEventListener("click", () => openPhotoViewer(index, 'drive'));
-  });
-}
-
-function openPhotoViewer(index, source = 'local') {
-  const localFiles = getPhotoFiles();
-  const driveFiles = getDriveImageFiles();
-  
-  if (!viewerEl || !viewerImage) {
-    return;
-  }
-
-  let imageUrl = "";
-  let caption = "";
-
-  if (source === 'local') {
-    if (!localFiles.length) return;
-    activePhotoIndex = (index + localFiles.length) % localFiles.length;
-    imageUrl = buildPhotoUrl(localFiles[activePhotoIndex]);
-    caption = `Local Photo ${activePhotoIndex + 1} of ${localFiles.length}`;
-    // Store context for navigation
-    viewerEl.dataset.source = 'local';
-    viewerEl.dataset.index = activePhotoIndex;
-    viewerDeleteBtn.hidden = false;
-  } else {
-    if (!driveFiles.length) return;
-    const driveIndex = (index + driveFiles.length) % driveFiles.length;
-    const fileObj = driveFiles[driveIndex];
-    const fileId = fileObj.id;
-    
-    // Drive viewer is limited to image-type files
-    
-    imageUrl = `/drive-image/${fileId}`;
-    caption = `Drive Photo ${driveIndex + 1} of ${driveFiles.length}`;
-    viewerEl.dataset.source = 'drive';
-    viewerEl.dataset.index = driveIndex;
-    viewerDeleteBtn.hidden = true; // Cannot delete drive photos from here yet
-  }
-
-  viewerImage.src = imageUrl;
-  if (viewerCaption) {
-    viewerCaption.textContent = caption;
-  }
-  viewerEl.hidden = false;
-}
-
-function closePhotoViewer() {
-  if (viewerEl) {
-    viewerEl.hidden = true;
-  }
-}
-
-function showRelativePhoto(step) {
-  const source = viewerEl.dataset.source || 'local';
-  const currentIndex = parseInt(viewerEl.dataset.index || '0', 10);
-  
-  if (source === 'local') {
-    openPhotoViewer(currentIndex + step, 'local');
-  } else {
-    openPhotoViewer(currentIndex + step, 'drive');
-  }
-}
-
-async function deletePhoto(relativePath) {
-  if (!currentPatient) return;
-  try {
-    const deleteUrl = new URL(`/uploads/${currentPatient.id}`, API_BASE_URL);
-    deleteUrl.searchParams.set("file", relativePath);
-    const response = await fetch(deleteUrl, { method: "DELETE" });
-    handleUnauthorized(response);
-    if (!response.ok) {
-      throw new Error(`Failed to delete photo (${response.status})`);
-    }
-    await fetchPhotosForPatient(currentPatient.id);
-    if (getPhotoFiles().length === 0) {
-      closePhotoViewer();
-    } else if (activePhotoIndex >= getPhotoFiles().length) {
-      activePhotoIndex = getPhotoFiles().length - 1;
-      showRelativePhoto(0);
-    } else {
-      showRelativePhoto(0);
-    }
-  } catch (error) {
-    console.error(error);
-    uploadStatus.textContent = `Unable to delete photo: ${error.message}`;
-  }
+function renderDriveAssets() {
+  const { pdfs, archives, others } = classifyDriveFiles(getDriveFiles());
+  renderDriveDocuments(pdfs, archives, others);
 }
 
 function buildPatientPayloadFromForm() {
@@ -1371,6 +1176,17 @@ function buildProcedurePayloadFromForm() {
     }
     parsedBalance = nextValue;
   }
+  const graftsValue = graftsInput.value.trim();
+  let graftsNumber = 0;
+  if (graftsValue) {
+    graftsNumber = Number(graftsValue);
+    if (Number.isNaN(graftsNumber) || graftsNumber < 0) {
+      if (procedureFormStatusEl) {
+        procedureFormStatusEl.textContent = "Grafts must be a valid number.";
+      }
+      return null;
+    }
+  }
   const notes = [...procedureNotes];
   const payload = {
     patient_id: currentPatient.id,
@@ -1378,7 +1194,7 @@ function buildProcedurePayloadFromForm() {
     status: statusSelect.value,
     procedure_type: procedureSelect.value,
     package_type: packageTypeSelect?.value || "",
-    grafts: graftsInput.value.trim(),
+    grafts: graftsNumber,
     payment: paymentSelect.value,
     agency: agencySelect?.value || "",
     consultation: collectMultiValue(consultationSelect),
@@ -1485,121 +1301,10 @@ async function savePatient(event) {
 
 formEl.addEventListener("submit", savePatient);
 
-function appendUploadedFileItem(file) {
-  const item = document.createElement("li");
-  const sizeInKb = Math.round(file.size / 1024);
-  item.textContent = `${file.name} (${sizeInKb} KB)`;
-  uploadList.appendChild(item);
-}
-
-async function uploadFiles(fileList) {
-  if (!currentPatient) {
-    uploadStatus.textContent = "Load a patient before uploading.";
-    return;
-  }
-  if (!currentPatient.drive_folder_id) {
-    uploadStatus.textContent = "Set a Drive folder ID for this patient before uploading.";
-    return;
-  }
-  const files = Array.from(fileList).slice(0, 10);
-  if (!files.length) return;
-  const formData = new FormData();
-  files.forEach((file) => formData.append("files", file));
-  uploadStatus.textContent = "Uploading to Drive...";
-  try {
-    const uploadUrl = new URL(`/drive-image/folder/${encodeURIComponent(currentPatient.drive_folder_id)}/upload`, API_BASE_URL);
-    const response = await fetch(uploadUrl, {
-      method: "POST",
-      body: formData,
-    });
-    handleUnauthorized(response);
-    if (!response.ok) {
-      throw new Error(`Upload failed (${response.status})`);
-    }
-    files.forEach(appendUploadedFileItem);
-    await fetchDriveFolderFiles(currentPatient.drive_folder_id);
-    renderPhotoGallery();
-    uploadStatus.textContent = `Uploaded ${files.length} file(s) to Drive.`;
-  } catch (error) {
-    console.error(error);
-    uploadStatus.textContent = `Unable to upload to Drive: ${error.message}`;
-  }
-}
-
-function setDropState(active) {
-  dropZone.classList.toggle("drop-zone--active", active);
-}
-
-dropZone.addEventListener("click", (event) => {
-  if (event.target.closest("button")) {
-    return;
-  }
-  fileInput.click();
-});
-dropZone.addEventListener("dragover", (event) => {
-  event.preventDefault();
-  setDropState(true);
-});
-dropZone.addEventListener("dragleave", (event) => {
-  event.preventDefault();
-  setDropState(false);
-});
-dropZone.addEventListener("drop", (event) => {
-  event.preventDefault();
-  setDropState(false);
-  uploadFiles(event.dataTransfer.files);
-});
-
-browseButton.addEventListener("click", (event) => {
-  event.preventDefault();
-  event.stopPropagation();
-  fileInput.click();
-});
-fileInput.addEventListener("change", () => {
-  uploadFiles(fileInput.files);
-  fileInput.value = "";
-});
-
 if (procedureDateInput) {
   procedureDateInput.addEventListener("input", handleProcedureDateInputChange);
   procedureDateInput.addEventListener("change", handleProcedureDateInputChange);
 }
-
-if (viewerCloseBtn) {
-  viewerCloseBtn.addEventListener("click", closePhotoViewer);
-}
-if (viewerPrevBtn) {
-  viewerPrevBtn.addEventListener("click", () => showRelativePhoto(-1));
-}
-if (viewerNextBtn) {
-  viewerNextBtn.addEventListener("click", () => showRelativePhoto(1));
-}
-if (viewerDeleteBtn) {
-  viewerDeleteBtn.addEventListener("click", () => {
-    const files = getPhotoFiles();
-    if (files.length) {
-      deletePhoto(files[activePhotoIndex]);
-    }
-  });
-}
-if (viewerEl) {
-  viewerEl.addEventListener("click", (event) => {
-    if (event.target === viewerEl) {
-      closePhotoViewer();
-    }
-  });
-}
-
-window.addEventListener("keydown", (event) => {
-  if (!viewerEl || viewerEl.hidden) return;
-  if (event.key === "Escape") {
-    closePhotoViewer();
-  } else if (event.key === "ArrowRight") {
-    showRelativePhoto(1);
-  } else if (event.key === "ArrowLeft") {
-    showRelativePhoto(-1);
-  }
-});
 
 function refreshDeletePatientButtonState() {
   if (!deletePatientBtn) {

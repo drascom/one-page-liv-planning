@@ -47,7 +47,6 @@ class Patient(PatientBase):
     deleted: bool = Field(False, description="Whether the record is hidden (soft deleted)")
     created_at: str = Field(..., description="Timestamp when the patient was created")
     updated_at: str = Field(..., description="Timestamp when the patient was last updated")
-    photo_count: int = Field(0, description="Number of photo records linked to the patient", ge=0)
 
     class Config:
         from_attributes = True
@@ -78,7 +77,7 @@ class ProcedureBase(BaseModel):
     procedure_type: str = Field(..., description="Buckets used to filter procedures")
     package_type: Optional[str] = Field(None, description="Package/bundle selection for the procedure")
     agency: Optional[str] = Field(None, description="Agency or referral source for the procedure")
-    grafts: str = Field(..., description="Number of grafts or imported numeric detail")
+    grafts: float = Field(..., description="Number of grafts or imported numeric detail", ge=0)
     payment: Optional[str] = Field(None, description="Payment collection status")
     outstaning_balance: Optional[float] = Field(
         None, description="Outstanding balance remaining for the procedure", ge=0
@@ -87,7 +86,6 @@ class ProcedureBase(BaseModel):
     forms: List[str] = Field(default_factory=list, description="Completed form identifiers")
     consents: List[str] = Field(default_factory=list, description="Completed consent identifiers")
     notes: List["ProcedureNote"] = Field(default_factory=list, description="To-do style notes for the procedure")
-    photo_files: List[str] = Field(default_factory=list, description="Relative file paths for uploaded photos")
 
 
 class ProcedureNote(BaseModel):
@@ -135,7 +133,6 @@ class ProcedureCreatePayload(ProcedureCreate):
 class Procedure(ProcedureBase):
     id: int = Field(..., description="Database identifier for the procedure")
     patient_id: int = Field(..., description="Identifier for the patient this procedure belongs to")
-    photos: int = Field(0, description="Number of uploaded photos", ge=0)
     deleted: bool = Field(False, description="Whether the record is hidden (soft deleted)")
     created_at: str = Field(..., description="Timestamp when the procedure was created")
     updated_at: str = Field(..., description="Timestamp when the procedure was last updated")
@@ -176,27 +173,7 @@ class ProcedureMetadataSearchResponse(BaseModel):
     procedure_type: Optional[str] = Field(None, description="Procedure type identifier")
     package_type: Optional[str] = Field(None, description="Package selection for the procedure")
     agency: Optional[str] = Field(None, description="Agency or referral source")
-    grafts: Optional[str] = Field(None, description="Stored graft count/detail")
-
-
-class PhotoBase(BaseModel):
-    """Photo model for patient photos."""
-    name: str = Field(..., description="Photo name/description")
-    file_path: str = Field(..., description="Relative path to the photo file")
-    taken_at: Optional[str] = Field(None, description="When the photo was taken")
-
-
-class PhotoCreate(PhotoBase):
-    pass
-
-
-class Photo(PhotoBase):
-    id: int = Field(..., description="Database identifier for the photo")
-    patient_id: int = Field(..., description="Identifier for the patient this photo belongs to")
-    created_at: str = Field(..., description="Timestamp when the photo was uploaded")
-
-    class Config:
-        from_attributes = True
+    grafts: Optional[float] = Field(None, description="Stored graft count/detail", ge=0)
 
 
 class PaymentBase(BaseModel):
@@ -231,7 +208,6 @@ class PatientSearchResult(BaseModel):
     deleted: Optional[bool] = Field(None, description="Whether the record is soft deleted")
     created_at: Optional[str] = Field(None, description="Timestamp when the patient was created")
     updated_at: Optional[str] = Field(None, description="Timestamp when the patient was last updated")
-    photo_count: Optional[int] = Field(None, description="Number of photos linked to the patient")
     procedures: List[Procedure] = Field(default_factory=list, description="Procedures linked to the patient")
 
 
@@ -307,7 +283,6 @@ class OperationResult(BaseModel):
 class MergePatientsResult(OperationResult):
     archived_patient_ids: List[int] = Field(default_factory=list, description="Patient IDs that were archived")
     moved_procedures: int = Field(0, description="Number of procedures reassigned to the target patient", ge=0)
-    moved_photos: int = Field(0, description="Number of photos reassigned to the target patient", ge=0)
     moved_payments: int = Field(0, description="Number of payments reassigned to the target patient", ge=0)
 
 

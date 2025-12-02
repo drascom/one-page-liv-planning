@@ -51,7 +51,7 @@ def _create_procedure(client: TestClient, patient_id: int, *, date: str = "2025-
         "status": "reserved",
         "procedure_type": "sfue",
         "package_type": "small",
-        "grafts": "",
+        "grafts": 0,
         "payment": "waiting",
         "consultation": [],
         "forms": [],
@@ -72,7 +72,7 @@ def test_procedure_crud_and_filtering(client: TestClient):
         "status": "reserved",
         "procedure_type": "sfue",
         "package_type": "small",
-        "grafts": "",
+        "grafts": 0,
         "payment": "waiting",
         "consultation": [],
         "forms": [],
@@ -126,7 +126,7 @@ def test_procedures_removed_with_patient(client: TestClient):
         "/procedures",
         json={
             "patient_id": patient_id,
-            "grafts": "",
+            "grafts": 0,
             "procedure_type": "sfue",
             "package_type": "small",
             "status": "scheduled",
@@ -156,7 +156,7 @@ def test_admin_manages_deleted_procedures(client: TestClient):
         "procedure_date": "2025-02-01",
         "status": "reserved",
         "procedure_type": "sfue",
-        "grafts": "",
+        "grafts": 0,
         "payment": "waiting",
         "consultation": [],
         "forms": [],
@@ -204,7 +204,7 @@ def test_procedure_recovery_requires_patient(client: TestClient):
         "procedure_date": "2025-03-04",
         "status": "reserved",
         "procedure_type": "sfue",
-        "grafts": "",
+        "grafts": 0,
         "payment": "waiting",
         "consultation": [],
         "forms": [],
@@ -238,7 +238,7 @@ def test_procedure_search_returns_success_and_message(client: TestClient):
         "procedure_date": "2025-04-05",
         "status": "reserved",
         "procedure_type": "sfue",
-        "grafts": "",
+        "grafts": 0,
         "payment": "waiting",
         "consultation": [],
         "forms": [],
@@ -322,7 +322,7 @@ def test_search_procedure_by_metadata_and_delete(client: TestClient):
         "status": "reserved",
         "procedure_type": "sfue",
         "package_type": "small",
-        "grafts": "3000",
+        "grafts": 3000,
         "payment": "waiting",
         "consultation": [],
         "forms": [],
@@ -346,7 +346,7 @@ def test_search_procedure_by_metadata_and_delete(client: TestClient):
     assert body["procedure_type"] == "sfue"
     assert body["package_type"] == "small"
     assert body["agency"] == ""
-    assert body["grafts"] == "3000"
+    assert body["grafts"] == 3000
 
     status_only_request = {
         "status": "reserved",
@@ -363,7 +363,7 @@ def test_search_procedure_by_metadata_and_delete(client: TestClient):
     assert status_body["procedure_type"] == "sfue"
     assert status_body["package_type"] == "small"
     assert status_body["agency"] == ""
-    assert status_body["grafts"] == "3000"
+    assert status_body["grafts"] == 3000
 
     deleted = client.delete(f"/procedures/{procedure_id}")
     assert deleted.status_code == 200
@@ -397,7 +397,7 @@ def test_procedure_creation_rejects_blank_date(client: TestClient):
         "status": "reserved",
         "procedure_type": "sfue",
         "package_type": "small",
-        "grafts": "",
+        "grafts": 0,
         "payment": "waiting",
         "consultation": [],
         "forms": [],

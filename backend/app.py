@@ -22,7 +22,6 @@ from .routes import (
     router as plans_router,
     search_router,
     status_router,
-    upload_router,
 )
 from .google_routes import router as google_auth_router
 from .realtime import realtime_router
@@ -56,13 +55,11 @@ app.add_middleware(
     allow_credentials=True,
 )
 app.mount("/static", StaticFiles(directory=str(settings.static_root)), name="static")
-app.mount("/uploaded-files", StaticFiles(directory=str(settings.uploads_root)), name="uploaded-files")
 
 PROTECTED_FRONTEND_PREFIXES: tuple[str, ...] = (
     "/plans",
     "/patients",
     "/procedures",
-    "/uploads",
     "/field-options",
     "/api-tokens",
 )
@@ -133,7 +130,6 @@ def create_app() -> FastAPI:
     api.include_router(procedures_router, dependencies=auth_dependency, include_in_schema=False)
     api.include_router(api_tokens_router, dependencies=auth_dependency)
     api.include_router(audit_router, dependencies=auth_dependency)
-    api.include_router(upload_router, dependencies=auth_dependency, include_in_schema=False)
     api.include_router(field_options_router, dependencies=auth_dependency, include_in_schema=False)
     api.include_router(status_router, dependencies=auth_dependency)
     api.include_router(drive_router, dependencies=auth_dependency)
@@ -143,7 +139,6 @@ def create_app() -> FastAPI:
         plans_router,
         patients_router,
         procedures_router,
-        upload_router,
         field_options_router,
         status_router,
         search_router,
@@ -170,7 +165,6 @@ def create_app() -> FastAPI:
         allow_credentials=True,
     )
     api.mount("/static", StaticFiles(directory=str(settings.static_root)), name="static")
-    api.mount("/uploaded-files", StaticFiles(directory=str(settings.uploads_root)), name="uploaded-files")
     _register_frontend_security_middleware(api)
     return api
 
@@ -183,7 +177,6 @@ app.include_router(patients_router, dependencies=auth_dependency, include_in_sch
 app.include_router(procedures_router, dependencies=auth_dependency, include_in_schema=False)
 app.include_router(api_tokens_router, dependencies=auth_dependency)
 app.include_router(audit_router, dependencies=auth_dependency)
-app.include_router(upload_router, dependencies=auth_dependency, include_in_schema=False)
 app.include_router(field_options_router, dependencies=auth_dependency, include_in_schema=False)
 app.include_router(status_router, dependencies=auth_dependency)
 app.include_router(drive_router, dependencies=auth_dependency)
@@ -193,7 +186,6 @@ for protected_router in (
     plans_router,
     patients_router,
     procedures_router,
-    upload_router,
     field_options_router,
     status_router,
     search_router,

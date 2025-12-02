@@ -1407,7 +1407,7 @@ function buildDefaultPatientPayloads() {
     status: defaultStatus,
     procedure_type: defaultProcedure,
     package_type: defaultPackageType,
-    grafts: "",
+    grafts: 0,
     payment: defaultPayment,
     agency: defaultAgency,
     consultation: [],

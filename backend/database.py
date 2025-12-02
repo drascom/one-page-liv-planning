@@ -120,7 +120,9 @@ def _reset_patients_table(conn: sqlite3.Connection) -> None:
 
 def _reset_procedures_table(conn: sqlite3.Connection) -> None:
     cursor = conn.execute("PRAGMA table_info(procedures)")
-    columns = {row[1] for row in cursor.fetchall()}
+    column_rows = cursor.fetchall()
+    columns = {row[1] for row in column_rows}
+    column_types = {row[1]: (row[2] or "").upper() for row in column_rows}
     desired = {
         "id",
         "patient_id",
@@ -136,7 +138,6 @@ def _reset_procedures_table(conn: sqlite3.Connection) -> None:
         "forms",
         "consents",
         "notes",
-        "photo_files",
         "deleted",
         "created_at",
         "updated_at",
@@ -144,9 +145,11 @@ def _reset_procedures_table(conn: sqlite3.Connection) -> None:
     if columns:
         missing = desired - columns
         alterable = {"package_type", "agency", "outstaning_balance", "notes"}
-        if not missing:
+        grafts_type = column_types.get("grafts", "")
+        grafts_numeric = grafts_type in {"REAL", "INTEGER", "NUMERIC", "FLOAT", "DOUBLE"}
+        if not missing and grafts_numeric:
             return
-        if missing.issubset(alterable):
+        if missing.issubset(alterable) and grafts_numeric:
             if "package_type" in missing:
                 conn.execute("ALTER TABLE procedures ADD COLUMN package_type TEXT NOT NULL DEFAULT ''")
             if "agency" in missing:
@@ -157,8 +160,12 @@ def _reset_procedures_table(conn: sqlite3.Connection) -> None:
                 conn.execute("ALTER TABLE procedures ADD COLUMN notes TEXT NOT NULL DEFAULT '[]'")
             conn.commit()
             return
-    conn.execute("DROP TABLE IF EXISTS procedures")
-    conn.execute("DROP TABLE IF EXISTS surgeries")
+        _migrate_procedures_table(conn, columns)
+        return
+    _create_procedures_table(conn)
+
+
+def _create_procedures_table(conn: sqlite3.Connection) -> None:
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS procedures (
@@ -169,14 +176,13 @@ def _reset_procedures_table(conn: sqlite3.Connection) -> None:
             procedure_type TEXT NOT NULL,
             package_type TEXT NOT NULL DEFAULT '',
             agency TEXT NOT NULL DEFAULT '',
-            grafts TEXT NOT NULL DEFAULT '',
+            grafts REAL NOT NULL DEFAULT 0,
             outstaning_balance REAL,
             payment TEXT NOT NULL,
             consultation TEXT NOT NULL DEFAULT '[]',
             forms TEXT NOT NULL DEFAULT '[]',
             consents TEXT NOT NULL DEFAULT '[]',
             notes TEXT NOT NULL DEFAULT '[]',
-            photo_files TEXT NOT NULL DEFAULT '[]',
             deleted INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -187,20 +193,57 @@ def _reset_procedures_table(conn: sqlite3.Connection) -> None:
     conn.execute("CREATE INDEX IF NOT EXISTS idx_procedures_patient_id ON procedures(patient_id)")
 
 
-def _create_photos_table(conn: sqlite3.Connection) -> None:
+def _migrate_procedures_table(conn: sqlite3.Connection, existing_columns: set[str]) -> None:
+    """Recreate procedures table to enforce numeric grafts while preserving data."""
+    conn.execute("ALTER TABLE procedures RENAME TO procedures_legacy")
+    _create_procedures_table(conn)
+    def col(name: str, default_sql: str) -> str:
+        return name if name in existing_columns else f"{default_sql} AS {name}"
+
     conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS photos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            patient_id INTEGER NOT NULL,
-            name TEXT NOT NULL,
-            taken_at TEXT,
-            file_path TEXT NOT NULL,
-            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(patient_id) REFERENCES patients(id) ON DELETE CASCADE
+        f"""
+        INSERT INTO procedures (
+            id,
+            patient_id,
+            procedure_date,
+            status,
+            procedure_type,
+            package_type,
+            agency,
+            grafts,
+            outstaning_balance,
+            payment,
+            consultation,
+            forms,
+            consents,
+            notes,
+            deleted,
+            created_at,
+            updated_at
         )
+        SELECT
+            id,
+            patient_id,
+            procedure_date,
+            status,
+            procedure_type,
+            {col('package_type', "''")},
+            {col('agency', "''")},
+            CAST({col('grafts', '0')} AS REAL),
+            {col('outstaning_balance', 'NULL')},
+            payment,
+            {col('consultation', "'[]'")},
+            {col('forms', "'[]'")},
+            {col('consents', "'[]'")},
+            {col('notes', "'[]'")},
+            {col('deleted', '0')},
+            {col('created_at', 'CURRENT_TIMESTAMP')},
+            {col('updated_at', 'CURRENT_TIMESTAMP')}
+        FROM procedures_legacy
         """
     )
+    conn.execute("DROP TABLE procedures_legacy")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_procedures_patient_id ON procedures(patient_id)")
 
 
 def _create_payments_table(conn: sqlite3.Connection) -> None:
@@ -338,7 +381,6 @@ def init_db() -> None:
         _create_weekly_plans(conn)
         _reset_patients_table(conn)
         _reset_procedures_table(conn)
-        _create_photos_table(conn)
         _create_payments_table(conn)
         _create_procedure_bookings(conn)
         _create_field_options(conn)
@@ -770,7 +812,6 @@ def _row_to_patient(row: sqlite3.Row) -> Dict[str, Any]:
         "deleted": bool(row["deleted"]),
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
-        "photo_count": row["photo_count"] if "photo_count" in row.keys() else 0,
     }
 
 
@@ -778,7 +819,6 @@ def _row_to_procedure(row: sqlite3.Row) -> Dict[str, Any]:
     """Convert a procedure row to a dictionary."""
     forms = _deserialize_json_list(row["forms"])
     consents = _deserialize_json_list(row["consents"])
-    photo_files = _deserialize_json_list(row["photo_files"])
     notes_raw = row["notes"] if "notes" in row.keys() and row["notes"] is not None else "[]"
     try:
         loaded_notes = json.loads(notes_raw) if notes_raw else []
@@ -793,6 +833,10 @@ def _row_to_procedure(row: sqlite3.Row) -> Dict[str, Any]:
             balance = float(raw_balance) if raw_balance is not None else None
         except (TypeError, ValueError):
             balance = None
+    try:
+        grafts_value = float(row["grafts"])
+    except (TypeError, ValueError):
+        grafts_value = 0
     return {
         "id": row["id"],
         "patient_id": row["patient_id"],
@@ -801,32 +845,16 @@ def _row_to_procedure(row: sqlite3.Row) -> Dict[str, Any]:
         "procedure_type": row["procedure_type"],
         "package_type": (row["package_type"] if "package_type" in row.keys() else "") or "",
         "agency": (row["agency"] if "agency" in row.keys() else "") or "",
-        "grafts": row["grafts"],
+        "grafts": grafts_value,
         "payment": row["payment"],
         "consultation": _deserialize_consultation(row["consultation"]),
         "forms": forms,
         "consents": consents,
         "notes": notes,
         "outstaning_balance": balance,
-        "photo_files": photo_files,
-        "photos": row["photo_count"]
-        if "photo_count" in row.keys() and row["photo_count"] is not None
-        else len(photo_files),
         "deleted": bool(row["deleted"]),
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
-    }
-
-
-def _row_to_photo(row: sqlite3.Row) -> Dict[str, Any]:
-    """Convert a photo row to a dictionary."""
-    return {
-        "id": row["id"],
-        "patient_id": row["patient_id"],
-        "name": row["name"],
-        "taken_at": row["taken_at"],
-        "file_path": row["file_path"],
-        "created_at": row["created_at"],
     }
 
 
@@ -934,11 +962,7 @@ def _fetch_patient_rows(include_deleted: bool = False, only_deleted: bool = Fals
     with closing(get_connection()) as conn:
         cursor = conn.execute(
             f"""
-            SELECT
-                patients.*,
-                (
-                    SELECT COUNT(*) FROM photos WHERE photos.patient_id = patients.id
-                ) AS photo_count
+            SELECT patients.*
             FROM patients
             {where_clause}
             {order_clause}
@@ -950,11 +974,7 @@ def _fetch_patient_rows(include_deleted: bool = False, only_deleted: bool = Fals
 def fetch_patient(patient_id: int, *, include_deleted: bool = False) -> Optional[Dict[str, Any]]:
     with closing(get_connection()) as conn:
         query = """
-            SELECT
-                patients.*,
-                (
-                    SELECT COUNT(*) FROM photos WHERE photos.patient_id = patients.id
-                ) AS photo_count
+            SELECT patients.*
             FROM patients
             WHERE id = ?
         """
@@ -1038,7 +1058,7 @@ def find_procedure_by_metadata(
     procedure_date: Optional[str],
     *,
     status: Optional[str] = None,
-    grafts_number: Optional[str] = None,
+    grafts_number: Optional[str | float] = None,
     package_type: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """Locate a single procedure by optional patient/date/status metadata."""
@@ -1057,8 +1077,12 @@ def find_procedure_by_metadata(
         clauses.append("LOWER(status) = ?")
         params.append(status.lower().strip())
     if grafts_number:
+        try:
+            normalized_grafts = float(grafts_number)
+        except (TypeError, ValueError):
+            raise ValueError("grafts_number is invalid")
         clauses.append("grafts = ?")
-        params.append(str(grafts_number).strip())
+        params.append(normalized_grafts)
     if package_type:
         clauses.append("LOWER(package_type) = ?")
         params.append(package_type.lower().strip())
@@ -1097,11 +1121,7 @@ def list_procedures(
     with closing(get_connection()) as conn:
         cursor = conn.execute(
             f"""
-            SELECT
-                procedures.*,
-                (
-                    SELECT COUNT(*) FROM photos WHERE photos.patient_id = procedures.patient_id
-                ) AS photo_count
+            SELECT procedures.*
             FROM procedures
             {where}
             ORDER BY
@@ -1264,6 +1284,15 @@ def _serialize_procedure_payload(data: Dict[str, Any]) -> Dict[str, Any]:
     else:
         consultation_list = list(consultation_value)
 
+    grafts_value = data.get("grafts", 0)
+    if grafts_value in ("", None):
+        grafts_number: float = 0
+    else:
+        try:
+            grafts_number = float(grafts_value)
+        except (TypeError, ValueError):
+            raise ValueError("grafts is invalid")
+
     balance_value = data.get("outstaning_balance")
     if balance_value in (None, "", "null"):
         normalized_balance = None
@@ -1283,14 +1312,13 @@ def _serialize_procedure_payload(data: Dict[str, Any]) -> Dict[str, Any]:
         "procedure_type": data.get("procedure_type", ""),
         "package_type": data.get("package_type") or "",
         "agency": data.get("agency") or "",
-        "grafts": data.get("grafts", ""),
+        "grafts": grafts_number,
         "payment": (data.get("payment") or ""),
         "consultation": json.dumps(consultation_list),
         "outstaning_balance": normalized_balance,
         "forms": json.dumps(data.get("forms") or []),
         "consents": json.dumps(data.get("consents") or []),
         "notes": json.dumps(normalize_notes_payload(data.get("notes"))),
-        "photo_files": json.dumps(data.get("photo_files") or []),
     }
 
 
@@ -1423,7 +1451,6 @@ def merge_patients(
 
     payload = _serialize_patient_payload(merged_values)
     moved_procedures = 0
-    moved_photos = 0
     moved_payments = 0
 
     with closing(get_connection()) as conn:
@@ -1463,12 +1490,6 @@ def merge_patients(
             )
             moved_procedures += proc_cursor.rowcount
 
-            photo_cursor = conn.execute(
-                "UPDATE photos SET patient_id = ? WHERE patient_id = ?",
-                (target_patient_id, source_id),
-            )
-            moved_photos += photo_cursor.rowcount
-
             payment_cursor = conn.execute(
                 "UPDATE payments SET patient_id = ? WHERE patient_id = ?",
                 (target_patient_id, source_id),
@@ -1491,7 +1512,6 @@ def merge_patients(
         "patient": updated_patient,
         "archived_patient_ids": normalized_sources,
         "moved_procedures": moved_procedures,
-        "moved_photos": moved_photos,
         "moved_payments": moved_payments,
     }
 
@@ -1523,11 +1543,7 @@ def find_procedure_by_patient_and_date(
     with closing(get_connection()) as conn:
         cursor = conn.execute(
             """
-            SELECT
-                procedures.*,
-                (
-                    SELECT COUNT(*) FROM photos WHERE photos.patient_id = procedures.patient_id
-                ) AS photo_count
+            SELECT procedures.*
             FROM procedures
             WHERE patient_id = ?
               AND procedure_date = ?
@@ -1545,11 +1561,7 @@ def fetch_procedure(procedure_id: int, *, include_deleted: bool = False) -> Opti
     """Fetch a single procedure by ID."""
     with closing(get_connection()) as conn:
         query = """
-            SELECT
-                procedures.*,
-                (
-                    SELECT COUNT(*) FROM photos WHERE photos.patient_id = procedures.patient_id
-                ) AS photo_count
+            SELECT procedures.*
             FROM procedures
             WHERE id = ?
         """
@@ -1569,8 +1581,8 @@ def create_procedure(patient_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
             """
             INSERT INTO procedures (
                 patient_id, procedure_date, status, procedure_type, package_type, agency, grafts, outstaning_balance, payment,
-                consultation, forms, consents, notes, photo_files
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                consultation, forms, consents, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 patient_id,
@@ -1586,7 +1598,6 @@ def create_procedure(patient_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
                 payload["forms"],
                 payload["consents"],
                 payload["notes"],
-                payload["photo_files"],
             ),
         )
         conn.commit()
@@ -1617,7 +1628,6 @@ def update_procedure(procedure_id: int, data: Dict[str, Any]) -> Optional[Dict[s
                 forms = ?,
                 consents = ?,
                 notes = ?,
-                photo_files = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
             """,
@@ -1634,7 +1644,6 @@ def update_procedure(procedure_id: int, data: Dict[str, Any]) -> Optional[Dict[s
                 payload["forms"],
                 payload["consents"],
                 payload["notes"],
-                payload["photo_files"],
                 procedure_id,
             ),
         )
@@ -1687,42 +1696,6 @@ def purge_procedure(procedure_id: int) -> bool:
 def fetch_deleted_procedures() -> List[Dict[str, Any]]:
     """Return every soft-deleted procedure."""
     return list_procedures(include_deleted=True, only_deleted=True)
-
-
-# Photo management functions
-def create_photo(patient_id: int, name: str, file_path: str, taken_at: Optional[str] = None) -> Dict[str, Any]:
-    """Create a new photo record for a patient."""
-    with closing(get_connection()) as conn:
-        cursor = conn.execute(
-            """
-            INSERT INTO photos (patient_id, name, file_path, taken_at)
-            VALUES (?, ?, ?, ?)
-            """,
-            (patient_id, name, file_path, taken_at),
-        )
-        conn.commit()
-        photo_id = cursor.lastrowid
-        cursor = conn.execute("SELECT * FROM photos WHERE id = ?", (photo_id,))
-        row = cursor.fetchone()
-        return _row_to_photo(row) if row else {}
-
-
-def list_photos_for_patient(patient_id: int) -> List[Dict[str, Any]]:
-    """List all photos for a specific patient."""
-    with closing(get_connection()) as conn:
-        cursor = conn.execute(
-            "SELECT * FROM photos WHERE patient_id = ? ORDER BY created_at DESC",
-            (patient_id,),
-        )
-        return [_row_to_photo(row) for row in cursor.fetchall()]
-
-
-def delete_photo(photo_id: int) -> bool:
-    """Delete a photo record."""
-    with closing(get_connection()) as conn:
-        cursor = conn.execute("DELETE FROM photos WHERE id = ?", (photo_id,))
-        conn.commit()
-        return cursor.rowcount > 0
 
 
 # Payment management functions
@@ -1780,51 +1753,6 @@ def purge_patient(patient_id: int) -> bool:
         cursor = conn.execute("DELETE FROM patients WHERE id = ?", (patient_id,))
         conn.commit()
         return cursor.rowcount > 0
-
-
-# Legacy photo functions - kept for backward compatibility with routes
-# These work with the photos table now
-def append_patient_photos(patient_id: int, relative_paths: List[str]) -> Optional[List[str]]:
-    """Add photos to a patient (creates photo records in photos table)."""
-    if not relative_paths:
-        return fetch_patient_photos(patient_id)
-
-    # Verify patient exists
-    patient = fetch_patient(patient_id)
-    if not patient or patient.get("deleted"):
-        return None
-
-    # Create photo records
-    for path in relative_paths:
-        create_photo(patient_id, path, path)
-
-    return fetch_patient_photos(patient_id)
-
-
-def remove_patient_photo(patient_id: int, relative_path: str) -> Optional[List[str]]:
-    """Remove a photo from a patient."""
-    patient = fetch_patient(patient_id)
-    if not patient or patient.get("deleted"):
-        return None
-
-    # Find and delete the photo record
-    photos = list_photos_for_patient(patient_id)
-    for photo in photos:
-        if photo["file_path"] == relative_path:
-            delete_photo(photo["id"])
-            break
-
-    return fetch_patient_photos(patient_id)
-
-
-def fetch_patient_photos(patient_id: int) -> Optional[List[str]]:
-    """Fetch all photo file paths for a patient."""
-    patient = fetch_patient(patient_id)
-    if not patient or patient.get("deleted"):
-        return None
-
-    photos = list_photos_for_patient(patient_id)
-    return [photo["file_path"] for photo in photos]
 
 
 def _generate_token_value(length: int = 48) -> str:
@@ -1943,7 +1871,7 @@ def _seed_demo_procedures(conn: sqlite3.Connection, patient_ids: List[int], rng:
         """
         INSERT INTO procedures (
             patient_id, procedure_date, status, procedure_type, package_type, agency, grafts, payment,
-            consultation, forms, consents, photo_files
+            consultation, forms, consents, notes
         ) VALUES (?, ?, 'reserved', 'sfue', 'small', 'want_hair', '2500', 'waiting', '[]', '[]', '[]', '[]')
         """,
         (
