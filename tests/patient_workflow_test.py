@@ -99,7 +99,6 @@ def create_procedure(client: httpx.Client, patient_id: int) -> Dict[str, Any]:
         "consultation": [],
         "forms": [],
         "consents": [],
-        "photo_files": [],
     }
     response = _request(client, "POST", "/procedures", json=payload)
     procedure = response.json()

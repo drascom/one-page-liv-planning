@@ -852,6 +852,7 @@ def _row_to_procedure(row: sqlite3.Row) -> Dict[str, Any]:
         "consents": consents,
         "notes": notes,
         "outstaning_balance": balance,
+        "photos": 0,
         "deleted": bool(row["deleted"]),
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],

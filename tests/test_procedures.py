@@ -56,7 +56,6 @@ def _create_procedure(client: TestClient, patient_id: int, *, date: str = "2025-
         "consultation": [],
         "forms": [],
         "consents": [],
-        "photo_files": [],
     }
     created = client.post("/procedures", json=payload)
     assert created.status_code == 201
@@ -77,7 +76,6 @@ def test_procedure_crud_and_filtering(client: TestClient):
         "consultation": [],
         "forms": [],
         "consents": [],
-        "photo_files": [],
     }
 
     created = client.post("/procedures", json=create_payload)
@@ -135,7 +133,6 @@ def test_procedures_removed_with_patient(client: TestClient):
             "consultation": [],
             "forms": [],
             "consents": [],
-            "photo_files": [],
         },
     )
     assert response.status_code == 201
@@ -161,7 +158,6 @@ def test_admin_manages_deleted_procedures(client: TestClient):
         "consultation": [],
         "forms": [],
         "consents": [],
-        "photo_files": [],
     }
     created = client.post("/procedures", json=payload)
     assert created.status_code == 201
@@ -209,7 +205,6 @@ def test_procedure_recovery_requires_patient(client: TestClient):
         "consultation": [],
         "forms": [],
         "consents": [],
-        "photo_files": [],
     }
     created = client.post("/procedures", json=payload)
     assert created.status_code == 201
@@ -243,7 +238,6 @@ def test_procedure_search_returns_success_and_message(client: TestClient):
         "consultation": [],
         "forms": [],
         "consents": [],
-        "photo_files": [],
     }
     created = client.post("/procedures", json=payload)
     assert created.status_code == 201
@@ -327,7 +321,6 @@ def test_search_procedure_by_metadata_and_delete(client: TestClient):
         "consultation": [],
         "forms": [],
         "consents": [],
-        "photo_files": [],
     }
     created = client.post("/procedures", json=payload)
     assert created.status_code == 201
@@ -402,7 +395,6 @@ def test_procedure_creation_rejects_blank_date(client: TestClient):
         "consultation": [],
         "forms": [],
         "consents": [],
-        "photo_files": [],
     }
     response = client.post("/procedures", json=payload)
     assert response.status_code == 422

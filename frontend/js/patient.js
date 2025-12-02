@@ -244,6 +244,20 @@ const notesListEl = document.getElementById("procedure-notes-list");
 const driveFolderInput = document.getElementById("drive-folder-id");
 const driveFolderGroup = document.getElementById("drive-folder-group");
 
+const dropZone = document.getElementById("drop-zone");
+const uploadList = document.getElementById("upload-list");
+const uploadStatus = document.getElementById("upload-status");
+const fileInput = document.getElementById("photo-input");
+const browseButton = document.getElementById("browse-button");
+const galleryContainer = document.getElementById("photo-gallery");
+const galleryEmptyState = document.getElementById("photo-empty");
+const viewerEl = document.getElementById("photo-viewer");
+const viewerImage = document.getElementById("photo-viewer-image");
+const viewerCaption = document.getElementById("photo-viewer-caption");
+const viewerCloseBtn = document.getElementById("photo-viewer-close");
+const viewerPrevBtn = document.getElementById("photo-viewer-prev");
+const viewerNextBtn = document.getElementById("photo-viewer-next");
+const viewerDeleteBtn = document.getElementById("photo-viewer-delete");
 const documentsListEl = document.getElementById("documents-list");
 const documentsEmptyStateEl = document.getElementById("documents-empty");
 
@@ -268,6 +282,7 @@ let patientProcedures = [];
 let activeProcedure = null;
 let procedureNotes = [];
 let driveFolderFilesCache = [];
+let activeDrivePhotoIndex = 0;
 
 function loadActiveContext() {
   if (typeof window === "undefined" || !window.localStorage) {
@@ -1134,9 +1149,57 @@ function renderDriveDocuments(pdfFiles = [], archiveFiles = [], otherFiles = [])
   });
 }
 
+function renderDriveGallery(images = getDriveImageFiles()) {
+  if (!galleryContainer || !galleryEmptyState) return;
+  galleryContainer.innerHTML = "";
+  if (!images.length) {
+    galleryEmptyState.textContent = "No Google Drive photos yet.";
+    return;
+  }
+  galleryEmptyState.textContent = `${images.length} photo${images.length === 1 ? "" : "s"} available`;
+  images.forEach((fileObj, index) => {
+    const card = document.createElement("div");
+    card.className = "photo-thumb";
+    const thumbUrl = fileObj.thumbnailLink || `/drive-image/${fileObj.id}`;
+    card.style.backgroundImage = `url(${thumbUrl})`;
+    const badge = document.createElement("span");
+    badge.className = "drive-badge";
+    badge.textContent = "Drive";
+    card.appendChild(badge);
+    card.addEventListener("click", () => openDrivePhotoViewer(index));
+    galleryContainer.appendChild(card);
+  });
+}
+
+function openDrivePhotoViewer(index) {
+  if (!viewerEl || !viewerImage) return;
+  const driveImages = getDriveImageFiles();
+  if (!driveImages.length) return;
+  activeDrivePhotoIndex = (index + driveImages.length) % driveImages.length;
+  const file = driveImages[activeDrivePhotoIndex];
+  viewerImage.src = `/drive-image/${file.id}`;
+  if (viewerCaption) {
+    viewerCaption.textContent = file.name || `Photo ${activeDrivePhotoIndex + 1}`;
+  }
+  viewerEl.hidden = false;
+}
+
+function closeDrivePhotoViewer() {
+  if (viewerEl) {
+    viewerEl.hidden = true;
+  }
+}
+
+function showRelativeDrivePhoto(step) {
+  const driveImages = getDriveImageFiles();
+  if (!driveImages.length) return;
+  openDrivePhotoViewer(activeDrivePhotoIndex + step);
+}
+
 function renderDriveAssets() {
-  const { pdfs, archives, others } = classifyDriveFiles(getDriveFiles());
+  const { images, pdfs, archives, others } = classifyDriveFiles(getDriveFiles());
   renderDriveDocuments(pdfs, archives, others);
+  renderDriveGallery(images);
 }
 
 function buildPatientPayloadFromForm() {
@@ -1299,6 +1362,51 @@ async function savePatient(event) {
 }
 
 formEl.addEventListener("submit", savePatient);
+
+function appendUploadedFileItem(file) {
+  if (!uploadList) return;
+  const item = document.createElement("li");
+  const sizeInKb = Math.round(file.size / 1024);
+  item.textContent = `${file.name} (${sizeInKb} KB)`;
+  uploadList.appendChild(item);
+}
+
+async function uploadFiles(fileList) {
+  if (!currentPatient || !uploadStatus) {
+    return;
+  }
+  if (!currentPatient.drive_folder_id) {
+    uploadStatus.textContent = "Set a Drive folder ID before uploading.";
+    return;
+  }
+  const files = Array.from(fileList).slice(0, 10);
+  if (!files.length) return;
+  const formData = new FormData();
+  files.forEach((file) => formData.append("files", file));
+  uploadStatus.textContent = "Uploading to Drive...";
+  try {
+    const uploadUrl = new URL(
+      `/drive-image/folder/${encodeURIComponent(currentPatient.drive_folder_id)}/upload`,
+      API_BASE_URL
+    );
+    const response = await fetch(uploadUrl, { method: "POST", body: formData });
+    handleUnauthorized(response);
+    if (!response.ok) {
+      throw new Error(`Upload failed (${response.status})`);
+    }
+    files.forEach(appendUploadedFileItem);
+    await fetchDriveFolderFiles(currentPatient.drive_folder_id);
+    uploadStatus.textContent = `Uploaded ${files.length} file${files.length === 1 ? "" : "s"}.`;
+  } catch (error) {
+    console.error(error);
+    uploadStatus.textContent = `Unable to upload: ${error.message}`;
+  }
+}
+
+function setDropState(active) {
+  if (!dropZone) return;
+  dropZone.classList.toggle("drop-zone--active", active);
+}
 
 if (procedureDateInput) {
   procedureDateInput.addEventListener("input", handleProcedureDateInputChange);
@@ -1524,3 +1632,69 @@ function logDebug(msg) {
 }
 
 initializePatientPage();
+if (viewerCloseBtn) {
+  viewerCloseBtn.addEventListener("click", closeDrivePhotoViewer);
+}
+if (viewerPrevBtn) {
+  viewerPrevBtn.addEventListener("click", () => showRelativeDrivePhoto(-1));
+}
+if (viewerNextBtn) {
+  viewerNextBtn.addEventListener("click", () => showRelativeDrivePhoto(1));
+}
+if (viewerDeleteBtn) {
+  viewerDeleteBtn.hidden = true;
+}
+if (viewerEl) {
+  viewerEl.addEventListener("click", (event) => {
+    if (event.target === viewerEl) {
+      closeDrivePhotoViewer();
+    }
+  });
+}
+window.addEventListener("keydown", (event) => {
+  if (!viewerEl || viewerEl.hidden) return;
+  if (event.key === "Escape") {
+    closeDrivePhotoViewer();
+  } else if (event.key === "ArrowRight") {
+    showRelativeDrivePhoto(1);
+  } else if (event.key === "ArrowLeft") {
+    showRelativeDrivePhoto(-1);
+  }
+});
+if (dropZone && fileInput) {
+  dropZone.addEventListener("click", (event) => {
+    if (event.target.closest("button")) return;
+    fileInput.click();
+  });
+  dropZone.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    setDropState(true);
+  });
+  dropZone.addEventListener("dragleave", (event) => {
+    event.preventDefault();
+    setDropState(false);
+  });
+  dropZone.addEventListener("drop", (event) => {
+    event.preventDefault();
+    setDropState(false);
+    if (event.dataTransfer?.files) {
+      uploadFiles(event.dataTransfer.files);
+    }
+  });
+}
+
+if (browseButton && fileInput) {
+  browseButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    fileInput.click();
+  });
+}
+
+if (fileInput) {
+  fileInput.addEventListener("change", () => {
+    if (fileInput.files) {
+      uploadFiles(fileInput.files);
+      fileInput.value = "";
+    }
+  });
+}

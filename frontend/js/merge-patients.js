@@ -373,9 +373,8 @@ async function submitMerge(event) {
     if (viewPatientBtn) {
       viewPatientBtn.hidden = false;
     }
-    if (result?.moved_procedures || result?.moved_photos) {
+    if (result?.moved_procedures) {
       if (summaryProceduresEl) summaryProceduresEl.textContent = String(result.moved_procedures || 0);
-      if (summaryPhotosEl) summaryPhotosEl.textContent = String(result.moved_photos || 0);
     }
   } catch (error) {
     console.error(error);

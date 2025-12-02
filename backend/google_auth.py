@@ -4,7 +4,6 @@ import logging
 from typing import Optional
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
-from google_auth_oauthlib.flow import InstalledAppFlow
 from .settings import BASE_DIR
 
 # Setup logging
@@ -79,41 +78,10 @@ def get_google_credentials() -> Optional[Credentials]:
                 creds = None
 
         if not creds:
-            # Check for client config in environment variables
-            client_id = os.getenv('GOOGLE_CLIENT_ID')
-            client_secret = os.getenv('GOOGLE_CLIENT_SECRET')
-            project_id = os.getenv('GOOGLE_PROJECT_ID')
-            redirect_uris = os.getenv('GOOGLE_REDIRECT_URIS', 'http://localhost').split(',')
-            auth_uri = os.getenv('GOOGLE_AUTH_URI', 'https://accounts.google.com/o/oauth2/auth')
-            token_uri = os.getenv('GOOGLE_TOKEN_URI', 'https://oauth2.googleapis.com/token')
-            
-            if client_id and client_secret:
-                client_config = {
-                    "installed": {
-                        "client_id": client_id,
-                        "project_id": project_id,
-                        "auth_uri": auth_uri,
-                        "token_uri": token_uri,
-                        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-                        "client_secret": client_secret,
-                        "redirect_uris": redirect_uris
-                    }
-                }
-                
-                try:
-                    flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
-                    # This will open a browser window for authentication
-                    # Using port 8080 to ensure the redirect URI is consistent
-                    # Ensure http://localhost:8080/ is whitelisted in Google Cloud Console
-                    logger.info("Opening browser for authentication. Ensure http://localhost:8080/ is whitelisted in Google Cloud Console.")
-                    creds = flow.run_local_server(port=8080)
-                    _persist_token_json(creds.to_json())
-                except Exception as e:
-                    logger.error(f"Error during OAuth flow: {e}")
-                    return None
-            else:
-                logger.warning("Google Client ID/Secret not found in environment variables.")
-                return None
+            logger.warning(
+                "Google Drive token not found. Visit Settings → Connect Google Drive to authenticate."
+            )
+            return None
 
         # Save the credentials for the next run (print to console to be added to ENV)
         if creds:
