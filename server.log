@@ -1,0 +1,185 @@
+INFO:     Started server process [96886]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+ERROR:    [Errno 48] error while attempting to bind on address ('0.0.0.0Initializing database at: /Users/drascom/Projects/one-page-liv-crm/backend/liv_planning.db
+INFO:     127.0.0.1:61065 - "GET /settings.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61065 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61065 - "GET /app-config.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61066 - "GET /static/js/settings.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:61065 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61065 - "GET /field-options HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:61066 - "GET /patients/deleted HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61065 - "GET /field-options/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61066 - "GET /procedures/deleted HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61066 - "GET /auth/users HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61066 - "GET /api-tokens HTTP/1.1" 307 Temporary Redirect
+ERROR:backend.google_auth:Error loading token from environment: Authorized user info was not in the expected format, missing fields refresh_token.
+WARNING:backend.google_auth:Google Drive token not found. Visit Settings → Connect Google Drive to authenticate.
+INFO:     127.0.0.1:61065 - "GET /auth/google/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61066 - "GET /api-tokens/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61092 - "POST /n8n/import HTTP/1.1" 422 Unprocessable Content
+INFO:     127.0.0.1:61697 - "GET /settings.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61697 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61697 - "GET /app-config.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61698 - "GET /static/js/settings.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:61698 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61698 - "GET /field-options HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:61697 - "GET /patients/deleted HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61697 - "GET /field-options/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61698 - "GET /procedures/deleted HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61698 - "GET /auth/users HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61698 - "GET /api-tokens HTTP/1.1" 307 Temporary Redirect
+ERROR:backend.google_auth:Error loading token from environment: Authorized user info was not in the expected format, missing fields refresh_token.
+WARNING:backend.google_auth:Google Drive token not found. Visit Settings → Connect Google Drive to authenticate.
+INFO:     127.0.0.1:61697 - "GET /auth/google/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61698 - "GET /api-tokens/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61720 - "POST /n8n/import HTTP/1.1" 422 Unprocessable Content
+INFO:     127.0.0.1:61720 - "GET /settings.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61720 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61735 - "GET /app-config.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61720 - "GET /static/css/styles.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61737 - "GET /static/js/nav-search.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61739 - "GET /static/js/settings.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61720 - "GET /static/js/session.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61720 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61720 - "GET /field-options HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:61737 - "GET /static/img/favicon.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61739 - "GET /patients/deleted HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61720 - "GET /field-options/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61720 - "GET /procedures/deleted HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61720 - "GET /auth/users HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61720 - "GET /api-tokens HTTP/1.1" 307 Temporary Redirect
+ERROR:backend.google_auth:Error loading token from environment: Authorized user info was not in the expected format, missing fields refresh_token.
+WARNING:backend.google_auth:Google Drive token not found. Visit Settings → Connect Google Drive to authenticate.
+INFO:     127.0.0.1:61739 - "GET /auth/google/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61720 - "GET /api-tokens/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /settings.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61782 - "GET /app-config.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /field-options HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:61783 - "GET /patients/deleted HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61783 - "GET /field-options/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61783 - "GET /procedures/deleted HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61783 - "GET /auth/users HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61783 - "GET /api-tokens HTTP/1.1" 307 Temporary Redirect
+ERROR:backend.google_auth:Error loading token from environment: Authorized user info was not in the expected format, missing fields refresh_token.
+WARNING:backend.google_auth:Google Drive token not found. Visit Settings → Connect Google Drive to authenticate.
+INFO:     127.0.0.1:61782 - "GET /auth/google/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61783 - "GET /api-tokens/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61783 - "GET /settings.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61783 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61783 - "GET /app-config.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61783 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61783 - "GET /field-options HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:61782 - "GET /patients/deleted HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61783 - "GET /field-options/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /procedures/deleted HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /auth/users HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /api-tokens HTTP/1.1" 307 Temporary Redirect
+ERROR:backend.google_auth:Error loading token from environment: Authorized user info was not in the expected format, missing fields refresh_token.
+WARNING:backend.google_auth:Google Drive token not found. Visit Settings → Connect Google Drive to authenticate.
+INFO:     127.0.0.1:61783 - "GET /auth/google/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /api-tokens/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /settings.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61782 - "GET /app-config.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /field-options HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:61783 - "GET /patients/deleted HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61783 - "GET /field-options/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /procedures/deleted HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /auth/users HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /api-tokens HTTP/1.1" 307 Temporary Redirect
+ERROR:backend.google_auth:Error loading token from environment: Authorized user info was not in the expected format, missing fields refresh_token.
+WARNING:backend.google_auth:Google Drive token not found. Visit Settings → Connect Google Drive to authenticate.
+INFO:     127.0.0.1:61783 - "GET /auth/google/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /api-tokens/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /settings.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61782 - "GET /app-config.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /field-options HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:61783 - "GET /patients/deleted HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61783 - "GET /field-options/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /procedures/deleted HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /auth/users HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /api-tokens HTTP/1.1" 307 Temporary Redirect
+ERROR:backend.google_auth:Error loading token from environment: Authorized user info was not in the expected format, missing fields refresh_token.
+WARNING:backend.google_auth:Google Drive token not found. Visit Settings → Connect Google Drive to authenticate.
+INFO:     127.0.0.1:61783 - "GET /auth/google/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /api-tokens/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /settings.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61782 - "GET /app-config.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /field-options HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:61783 - "GET /patients/deleted HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61783 - "GET /field-options/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /procedures/deleted HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /auth/users HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /api-tokens HTTP/1.1" 307 Temporary Redirect
+ERROR:backend.google_auth:Error loading token from environment: Authorized user info was not in the expected format, missing fields refresh_token.
+WARNING:backend.google_auth:Google Drive token not found. Visit Settings → Connect Google Drive to authenticate.
+INFO:     127.0.0.1:61783 - "GET /auth/google/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61782 - "GET /api-tokens/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61857 - "GET /settings.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61857 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61857 - "GET /app-config.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61857 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61857 - "GET /field-options HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:61858 - "GET /patients/deleted HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61857 - "GET /field-options/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61857 - "GET /procedures/deleted HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61857 - "GET /auth/users HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61857 - "GET /api-tokens HTTP/1.1" 307 Temporary Redirect
+ERROR:backend.google_auth:Error loading token from environment: Authorized user info was not in the expected format, missing fields refresh_token.
+WARNING:backend.google_auth:Google Drive token not found. Visit Settings → Connect Google Drive to authenticate.
+INFO:     127.0.0.1:61858 - "GET /auth/google/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61857 - "GET /api-tokens/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61857 - "GET /settings.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61857 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61857 - "GET /app-config.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61857 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61857 - "GET /field-options HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:61858 - "GET /patients/deleted HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61858 - "GET /field-options/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61857 - "GET /procedures/deleted HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61857 - "GET /auth/users HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61857 - "GET /api-tokens HTTP/1.1" 307 Temporary Redirect
+ERROR:backend.google_auth:Error loading token from environment: Authorized user info was not in the expected format, missing fields refresh_token.
+WARNING:backend.google_auth:Google Drive token not found. Visit Settings → Connect Google Drive to authenticate.
+INFO:     127.0.0.1:61858 - "GET /auth/google/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61857 - "GET /api-tokens/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61857 - "GET /settings.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61857 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61857 - "GET /app-config.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61857 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61857 - "GET /field-options HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:61858 - "GET /patients/deleted HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61857 - "GET /field-options/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61858 - "GET /procedures/deleted HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61858 - "GET /auth/users HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61858 - "GET /api-tokens HTTP/1.1" 307 Temporary Redirect
+ERROR:backend.google_auth:Error loading token from environment: Authorized user info was not in the expected format, missing fields refresh_token.
+WARNING:backend.google_auth:Google Drive token not found. Visit Settings → Connect Google Drive to authenticate.
+INFO:     127.0.0.1:61857 - "GET /auth/google/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61858 - "GET /api-tokens/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61858 - "GET /settings.html HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61858 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61858 - "GET /app-config.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61858 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61858 - "GET /field-options HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:61857 - "GET /patients/deleted HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61858 - "GET /field-options/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61857 - "GET /procedures/deleted HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61857 - "GET /auth/users HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61857 - "GET /api-tokens HTTP/1.1" 307 Temporary Redirect
+ERROR:backend.google_auth:Error loading token from environment: Authorized user info was not in the expected format, missing fields refresh_token.
+WARNING:backend.google_auth:Google Drive token not found. Visit Settings → Connect Google Drive to authenticate.
+INFO:     127.0.0.1:61858 - "GET /auth/google/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61857 - "GET /api-tokens/ HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [96886]

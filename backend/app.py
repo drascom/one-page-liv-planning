@@ -22,6 +22,7 @@ from .routes import (
     router as plans_router,
     search_router,
     status_router,
+    n8n_router,
 )
 from .google_routes import router as google_auth_router
 from .realtime import realtime_router
@@ -135,6 +136,8 @@ def create_app() -> FastAPI:
     api.include_router(drive_router, dependencies=auth_dependency)
     api.include_router(google_auth_router)
     api.include_router(realtime_router, include_in_schema=False)
+    api.include_router(n8n_router, dependencies=auth_dependency) # Add the n8n router
+
     for protected_router in (
         plans_router,
         patients_router,
@@ -182,6 +185,8 @@ app.include_router(status_router, dependencies=auth_dependency)
 app.include_router(drive_router, dependencies=auth_dependency)
 app.include_router(google_auth_router)
 app.include_router(realtime_router, include_in_schema=False)
+app.include_router(n8n_router, dependencies=auth_dependency) # Add the n8n router
+
 for protected_router in (
     plans_router,
     patients_router,

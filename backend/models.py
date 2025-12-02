@@ -144,6 +144,7 @@ class Procedure(ProcedureBase):
 class ProcedureSearchResult(BaseModel):
     success: bool = Field(..., description="Whether a matching procedure was found")
     message: Optional[str] = Field(None, description="Details when the procedure is missing")
+    msg: Optional[str] = Field(None, description="Short status message for integrations")
     procedure: Optional[Procedure] = Field(None, description="Matched procedure when success is true")
 
 
@@ -168,6 +169,8 @@ class ProcedureMetadataSearchResponse(BaseModel):
     success: bool = Field(..., description="Whether a matching procedure was found")
     procedure_id: Optional[int] = Field(None, description="Identifier of the deleted procedure")
     message: Optional[str] = Field(None, description="Additional details about the operation")
+    msg: Optional[str] = Field(None, description="Short status message for integrations")
+    full_name: Optional[str] = Field(None, description="Echo of the provided full_name search parameter")
     procedure_date: Optional[str] = Field(None, description="ISO procedure date when a match is found")
     status: Optional[str] = Field(None, description="Workflow status for the procedure")
     procedure_type: Optional[str] = Field(None, description="Procedure type identifier")
@@ -216,6 +219,8 @@ class DataIntegrityReport(BaseModel):
 class PatientSearchResult(BaseModel):
     success: bool = Field(..., description="Indicates whether the patient was found")
     message: Optional[str] = Field(None, description="Human readable message (e.g. when the patient is missing)")
+    msg: Optional[str] = Field(None, description="Short status message for integrations")
+    full_name: Optional[str] = Field(None, description="Echo of the provided full_name search parameter")
     id: Optional[int] = Field(None, description="Database identifier for the matching patient")
     first_name: Optional[str] = Field(None, description="Patient first name when found")
     last_name: Optional[str] = Field(None, description="Patient last name when found")
@@ -334,6 +339,10 @@ class FieldOption(BaseModel):
 
 class FieldOptionUpdate(BaseModel):
     options: List[FieldOption]
+
+
+class N8nImportPayload(BaseModel):
+    import_date: date = Field(..., description="ISO date for the n8n import", alias="date")
 
 
 class LoginRequest(BaseModel):

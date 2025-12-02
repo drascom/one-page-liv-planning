@@ -64,6 +64,7 @@ from .models import (
     UserRoleUpdate,
     WeeklyPlan,
     WeeklyPlanCreate,
+    N8nImportPayload,
 )
 from .realtime import publish_event
 from .settings import get_settings
@@ -79,6 +80,7 @@ search_router = APIRouter(tags=["search"])
 config_router = APIRouter(tags=["config"])
 audit_router = APIRouter(prefix="/api-requests", tags=["api requests"])
 drive_router = APIRouter(prefix="/drive-image", tags=["drive"])
+n8n_router = APIRouter(prefix="/n8n", tags=["n8n"])
 
 settings = get_settings()
 UPLOAD_ROOT = settings.uploads_root
@@ -89,6 +91,8 @@ REQUIRED_MIN_OPTION_COUNTS: Dict[str, int] = {
     "agency": 1,
     "payment": 1,
 }
+
+NOT_FOUND_MSG = "not found"
 
 
 def _patient_label(patient: Optional[dict]) -> str:
@@ -597,14 +601,18 @@ def search_procedure_route(
     if procedure_id is not None:
         record = database.fetch_procedure(procedure_id, include_deleted=include_deleted)
         if not record:
-            return ProcedureSearchResult(success=False, message="Procedure not found")
+            return ProcedureSearchResult(success=False, message="Procedure not found", msg=NOT_FOUND_MSG)
         if patient_id is not None and record["patient_id"] != patient_id:
-            return ProcedureSearchResult(success=False, message="Procedure does not belong to this patient")
+            return ProcedureSearchResult(
+                success=False,
+                message="Procedure does not belong to this patient",
+                msg=NOT_FOUND_MSG,
+            )
         return ProcedureSearchResult(success=True, procedure=Procedure(**record))
     assert patient_id is not None
     patient = database.fetch_patient(patient_id, include_deleted=True)
     if not patient:
-        return ProcedureSearchResult(success=False, message="Patient record not found")
+        return ProcedureSearchResult(success=False, message="Patient record not found", msg=NOT_FOUND_MSG)
     record = None
     if procedure_date:
         try:
@@ -622,7 +630,7 @@ def search_procedure_route(
         )
         record = procedures[0] if procedures else None
     if not record:
-        return ProcedureSearchResult(success=False, message="Procedure not found")
+        return ProcedureSearchResult(success=False, message="Procedure not found", msg=NOT_FOUND_MSG)
     return ProcedureSearchResult(success=True, procedure=Procedure(**record))
 
 
@@ -751,8 +759,9 @@ async def delete_procedure_route(procedure_id: int, request: Request) -> Operati
 @procedures_router.post("/search-by-meta", response_model=ProcedureMetadataSearchResponse)
 def search_procedure_by_metadata(payload: ProcedureMetadataDeleteRequest) -> ProcedureMetadataSearchResponse:
     """Return a procedure id when metadata matches."""
+    requested_full_name = (payload.full_name or "").strip()
     provided_filters = [
-        (payload.full_name or "").strip(),
+        requested_full_name,
         (payload.date or "").strip(),
         (payload.status or "").strip(),
         (payload.grafts_number or "").strip(),
@@ -764,10 +773,15 @@ def search_procedure_by_metadata(payload: ProcedureMetadataDeleteRequest) -> Pro
             detail="Provide at least one search field (full_name, date, status, grafts_number, or package_type).",
         )
     patient_id = None
-    if payload.full_name:
-        patient = database.find_patient_by_full_name(payload.full_name)
+    if requested_full_name:
+        patient = database.find_patient_by_full_name(requested_full_name)
         if not patient:
-            return ProcedureMetadataSearchResponse(success=False, message="Patient record not found")
+            return ProcedureMetadataSearchResponse(
+                success=False,
+                message="Patient record not found",
+                msg=NOT_FOUND_MSG,
+                full_name=requested_full_name,
+            )
         patient_id = patient["id"]
     try:
         match = database.find_procedure_by_metadata(
@@ -780,9 +794,15 @@ def search_procedure_by_metadata(payload: ProcedureMetadataDeleteRequest) -> Pro
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     if not match:
-        return ProcedureMetadataSearchResponse(success=False, message="Procedure not found")
+        return ProcedureMetadataSearchResponse(
+            success=False,
+            message="Procedure not found",
+            msg=NOT_FOUND_MSG,
+            full_name=requested_full_name or None,
+        )
     return ProcedureMetadataSearchResponse(
         success=True,
+        full_name=requested_full_name or None,
         procedure_id=match["id"],
         procedure_date=match.get("procedure_date"),
         status=match.get("status"),
@@ -1037,15 +1057,23 @@ def search_patients_route(
         raw_value = full_name
     else:
         raw_value = " ".join(part for part in (name, surname) if part)
+    requested_full_name = raw_value.strip()
     normalized_value = " ".join(raw_value.split())
+    response_full_name = requested_full_name or normalized_value or None
     if not normalized_value:
-        return PatientSearchResult(success=False, message="Name is missing")
+        return PatientSearchResult(success=False, message="Name is missing", full_name=response_full_name)
     try:
         record = database.find_patient_by_full_name(normalized_value)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     if not record:
-        return PatientSearchResult(success=False, message="Patient record not found", procedures=[])
+        return PatientSearchResult(
+            success=False,
+            message="Patient record not found",
+            msg=NOT_FOUND_MSG,
+            full_name=response_full_name,
+            procedures=[],
+        )
     patient = Patient(**record)
     patient_data = patient.model_dump()
     procedure_records = database.list_procedures_for_patient(patient.id)
@@ -1053,6 +1081,7 @@ def search_patients_route(
     return PatientSearchResult(
         success=True,
         **patient_data,
+        full_name=response_full_name,
         procedures=procedures,
     )
 
@@ -1218,3 +1247,79 @@ async def upload_drive_files(folder_id: str, files: List[UploadFile] = File(...)
             raise HTTPException(status_code=502, detail=f"Drive upload failed: {exc}")
 
     return {"files": uploaded}
+
+
+@n8n_router.post("/import", status_code=status.HTTP_200_OK)
+async def proxy_n8n_import(
+    payload: N8nImportPayload,
+    request: Request,
+    _: dict = Depends(require_admin_user),
+) -> Dict[str, str]:
+    """
+    Proxies requests to the n8n webhook to trigger an import.
+    """
+    test_webhook_url = "https://n8n.drascom.uk/webhook-test/start-import/n8n-form"
+    prod_webhook_url = "https://n8n.drascom.uk/webhook/start-import/n8n-form"
+    headers = {"Content-Type": "application/json"}
+
+    errors = []
+    # Attempt to send to test webhook
+    try:
+        test_response = requests.post(
+            test_webhook_url,
+            headers=headers,
+            json={"date": payload.import_date.isoformat()},
+            timeout=10,
+        )
+        test_response.raise_for_status()
+        database.log_api_request(
+            f"{n8n_router.prefix}/import (test)",
+            "POST",
+            payload.model_dump(),
+            {"status_code": test_response.status_code, "response": test_response.text},
+        )
+    except requests.exceptions.RequestException as e:
+        print(f"n8n test webhook failed: {e}")
+        errors.append(f"Test webhook failed: {e}")
+        database.log_api_request(
+            f"{n8n_router.prefix}/import (test)",
+            "POST",
+            payload.model_dump(),
+            {"error": str(e)},
+            is_error=True,
+        )
+
+    # Attempt to send to prod webhook
+    try:
+        prod_response = requests.post(
+            prod_webhook_url,
+            headers=headers,
+            json={"date": payload.import_date.isoformat()},
+            timeout=10,
+        )
+        prod_response.raise_for_status()
+        database.log_api_request(
+            f"{n8n_router.prefix}/import (prod)",
+            "POST",
+            payload.model_dump(),
+            {"status_code": prod_response.status_code, "response": prod_response.text},
+        )
+    except requests.exceptions.RequestException as e:
+        print(f"n8n prod webhook failed: {e}")
+        errors.append(f"Prod webhook failed: {e}")
+        database.log_api_request(
+            f"{n8n_router.prefix}/import (prod)",
+            "POST",
+            payload.model_dump(),
+            {"error": str(e)},
+            is_error=True,
+        )
+
+    if len(errors) == 2:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Both n8n import webhooks failed.",
+        )
+    elif errors:
+        return {"status": "partial_success", "message": f"Partial success: {'; '.join(errors)}"}
+    return {"status": "success", "message": "Import started successfully."}

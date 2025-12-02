@@ -1516,37 +1516,25 @@ async function handleN8nImport(event) {
     const payload = JSON.stringify({ date: n8nImportDate.value });
     const headers = { "Content-Type": "application/json" };
     
-    // Fire to both webhooks
-    const [testResponse, prodResponse] = await Promise.allSettled([
-      fetch("https://n8n.drascom.uk/webhook-test/start-import/n8n-form", {
-        method: "POST",
-        headers,
-        body: payload,
-      }),
-      fetch("https://n8n.drascom.uk/webhook/start-import/n8n-form", {
-        method: "POST",
-        headers,
-        body: payload,
-      })
-    ]);
+    const response = await fetch(buildApiUrl("/n8n/import"), {
+      method: "POST",
+      headers,
+      body: payload,
+    });
+    handleUnauthorized(response);
 
-    const errors = [];
-    if (testResponse.status === 'rejected' || !testResponse.value.ok) {
-      errors.push('Test webhook failed');
-    }
-    if (prodResponse.status === 'rejected' || !prodResponse.value.ok) {
-      errors.push('Prod webhook failed');
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => ({}));
+      throw new Error(errorPayload.detail || "Import failed.");
     }
 
-    if (errors.length === 2) {
-      throw new Error("Both import webhooks failed.");
-    }
+    const data = await response.json();
 
     if (n8nImportStatus) {
-       if (errors.length === 0) {
+       if (data.status === "success") {
           n8nImportStatus.textContent = "Import started successfully (both).";
        } else {
-          n8nImportStatus.textContent = `Partial success: ${errors.join(", ")}`;
+          n8nImportStatus.textContent = data.message || "Import started with warnings.";
        }
     }
     if (n8nImportDate) n8nImportDate.value = "";
