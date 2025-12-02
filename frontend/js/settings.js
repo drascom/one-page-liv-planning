@@ -36,6 +36,14 @@ const n8nImportDate = document.getElementById("n8n-import-date");
 const n8nImportBtn = document.getElementById("n8n-import-btn");
 const n8nImportStatus = document.getElementById("n8n-import-status");
 const settingsMenu = document.querySelector(".settings-menu");
+const runIntegrityCheckBtn = document.getElementById("run-integrity-check-btn");
+const dataIntegrityStatus = document.getElementById("data-integrity-status");
+const dataIntegrityResults = document.getElementById("data-integrity-results");
+const dataIntegrityDefaultText = runIntegrityCheckBtn?.textContent?.trim() ?? "Run Check";
+
+if (dataIntegrityResults) {
+  dataIntegrityResults.innerHTML = `<p class="upload-hint">Run the integrity check to surface missing records.</p>`;
+}
 
 initSessionControls();
 
@@ -725,6 +733,7 @@ async function initializeFieldOptions() {
 
 purgePatientsBtn?.addEventListener("click", purgeAllPatients);
 resetFieldOptionsBtn?.addEventListener("click", resetAllFieldOptions);
+runIntegrityCheckBtn?.addEventListener("click", runDataIntegrityCheck);
 
 function setPurgeStatus(message) {
   if (!purgePatientsStatus) return;
@@ -810,6 +819,101 @@ function setDeletedProceduresStatus(message) {
         deletedProceduresStatus.textContent = "";
       }
     }, 5000);
+  }
+}
+
+function renderDataIntegrityResults(report) {
+  if (!dataIntegrityResults) return;
+  const issues = Array.isArray(report?.issues) ? report.issues : [];
+  const totalPatients = Number(report?.total_patients ?? 0);
+  const totalProcedures = Number(report?.total_procedures ?? 0);
+  const issueCount = Number(report?.issue_count ?? issues.length);
+  const checkedAt = report?.checked_at ? new Date(report.checked_at).toLocaleString() : null;
+  const summaryText = `Patients: ${totalPatients} • Procedures: ${totalProcedures}`;
+
+  if (!issues.length) {
+    dataIntegrityResults.innerHTML = `<p class="photo-empty">No missing records detected.</p>`;
+  } else {
+    const cards = issues
+      .map((issue) => {
+        const message = escapeHtml(String(issue?.message ?? "Data issue detected"));
+        const issueTypeRaw = String(issue?.issue_type ?? issue?.entity ?? "record");
+        const issueType = escapeHtml(issueTypeRaw.replace(/_/g, " "));
+        const entityLabel = escapeHtml(String(issue?.entity ?? "record"));
+        const ids = [];
+        const recordId = issue?.record_id;
+        const patientId = issue?.patient_id;
+        if (recordId) {
+          ids.push(`#${recordId}`);
+        }
+        if (patientId && patientId !== recordId) {
+          ids.push(`Patient ${patientId}`);
+        }
+        const meta = ids.length ? `<p class="token-created">${escapeHtml(ids.join(" • "))}</p>` : "";
+        const missingFields = Array.isArray(issue?.missing_fields) ? issue.missing_fields : [];
+        const missing = missingFields.length
+          ? `<p class="token-created">Missing: ${missingFields
+              .map((field) => `<code>${escapeHtml(String(field))}</code>`)
+              .join(", ")}</p>`
+          : "";
+        return `
+          <div class="token-card">
+            <div>
+              <p class="token-name">${message}</p>
+              <p class="token-created">${entityLabel} • ${issueType}</p>
+              ${meta}
+              ${missing}
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+    const truncationNotice = report?.truncated
+      ? `<p class="upload-hint">Showing first ${issues.length} of ${issueCount} issues.</p>`
+      : "";
+    dataIntegrityResults.innerHTML = cards + truncationNotice;
+  }
+
+  if (dataIntegrityStatus) {
+    const issueLabel = issueCount
+      ? `${issueCount} issue${issueCount === 1 ? "" : "s"} found`
+      : "No issues found";
+    const prefix = checkedAt ? `Checked ${checkedAt} • ${issueLabel}` : issueLabel;
+    dataIntegrityStatus.textContent = `${prefix} • ${summaryText}`;
+  }
+}
+
+async function runDataIntegrityCheck() {
+  if (!runIntegrityCheckBtn) return;
+  if (dataIntegrityStatus) {
+    dataIntegrityStatus.textContent = "Checking records...";
+  }
+  if (dataIntegrityResults) {
+    dataIntegrityResults.innerHTML = `<p class="option-card__loading">Scanning records...</p>`;
+  }
+  runIntegrityCheckBtn.disabled = true;
+  runIntegrityCheckBtn.textContent = "Checking...";
+  try {
+    const response = await fetch(buildApiUrl("/status/data-integrity"));
+    handleUnauthorized(response);
+    if (!response.ok) {
+      const errorPayload = await response.json().catch(() => ({}));
+      throw new Error(errorPayload?.detail || "Unable to run integrity check.");
+    }
+    const payload = await response.json();
+    renderDataIntegrityResults(payload);
+  } catch (error) {
+    console.error(error);
+    const message = error?.message || "Unable to run integrity check.";
+    if (dataIntegrityStatus) {
+      dataIntegrityStatus.textContent = message;
+    }
+    if (dataIntegrityResults) {
+      dataIntegrityResults.innerHTML = `<p class="form-status form-status--danger">${escapeHtml(message)}</p>`;
+    }
+  } finally {
+    runIntegrityCheckBtn.disabled = false;
+    runIntegrityCheckBtn.textContent = dataIntegrityDefaultText;
   }
 }
 

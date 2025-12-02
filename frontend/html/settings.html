@@ -240,6 +240,16 @@
               </div>
             </form>
           </section>
+
+          <section class="patient-card">
+            <h3>Data Integrity Check</h3>
+            <p>Scan patient and surgery tables for missing required information.</p>
+            <div class="form-actions" style="justify-content: flex-start">
+              <button type="button" class="secondary-btn" id="run-integrity-check-btn">Run Check</button>
+              <span id="data-integrity-status" class="form-status" aria-live="polite"></span>
+            </div>
+            <div id="data-integrity-results" class="token-list"></div>
+          </section>
         </section>
 
         <section class="settings-section" id="settings-panel-deleted" role="tabpanel"

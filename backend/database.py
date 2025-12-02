@@ -1176,6 +1176,91 @@ def fetch_api_requests(limit: int = 100) -> List[Dict[str, Any]]:
         ]
 
 
+def run_data_integrity_check(limit: int = 50) -> Dict[str, Any]:
+    """Scan patient/procedure tables for missing required data."""
+    safe_limit = max(1, min(limit, 500))
+    checked_at = datetime.utcnow().isoformat() + "Z"
+
+    def _blank(value: Any) -> bool:
+        if value is None:
+            return True
+        if isinstance(value, str):
+            return not value.strip()
+        return False
+
+    issue_entries: List[Dict[str, Any]] = []
+    with closing(get_connection()) as conn:
+        patients = conn.execute(
+            "SELECT id, first_name, last_name, email, phone, city FROM patients"
+        ).fetchall()
+        procedures = conn.execute(
+            """
+            SELECT id, patient_id, procedure_date, status, procedure_type, payment, grafts
+            FROM procedures
+            """
+        ).fetchall()
+
+    patient_ids = {row["id"] for row in patients}
+    for patient in patients:
+        missing_fields = [
+            field
+            for field in ("first_name", "last_name", "email", "phone", "city")
+            if _blank(patient[field])
+        ]
+        if missing_fields:
+            issue_entries.append(
+                {
+                    "issue_type": "patient_missing_fields",
+                    "entity": "patient",
+                    "record_id": patient["id"],
+                    "patient_id": patient["id"],
+                    "missing_fields": missing_fields,
+                    "message": f"Patient #{patient['id']} missing required fields: {', '.join(missing_fields)}",
+                }
+            )
+
+    for procedure in procedures:
+        missing_fields = [
+            field
+            for field in ("procedure_date", "status", "procedure_type", "payment")
+            if _blank(procedure[field])
+        ]
+        if procedure["grafts"] is None:
+            missing_fields.append("grafts")
+        if missing_fields:
+            issue_entries.append(
+                {
+                    "issue_type": "procedure_missing_fields",
+                    "entity": "procedure",
+                    "record_id": procedure["id"],
+                    "patient_id": procedure["patient_id"],
+                    "missing_fields": missing_fields,
+                    "message": f"Procedure #{procedure['id']} missing required fields: {', '.join(missing_fields)}",
+                }
+            )
+        if procedure["patient_id"] not in patient_ids:
+            issue_entries.append(
+                {
+                    "issue_type": "missing_patient_record",
+                    "entity": "procedure",
+                    "record_id": procedure["id"],
+                    "patient_id": procedure["patient_id"],
+                    "missing_fields": [],
+                    "message": f"Procedure #{procedure['id']} references missing patient #{procedure['patient_id']}",
+                }
+            )
+
+    issue_entries.sort(key=lambda entry: (entry.get("entity") or "", entry.get("record_id") or 0))
+    return {
+        "checked_at": checked_at,
+        "total_patients": len(patients),
+        "total_procedures": len(procedures),
+        "issue_count": len(issue_entries),
+        "truncated": len(issue_entries) > safe_limit,
+        "issues": issue_entries[:safe_limit],
+    }
+
+
 def record_activity_event(event: Dict[str, Any], limit: int = 10) -> None:
     """Persist an activity event and prune older rows to keep the table small."""
     payload_data = event.get("data") or {}

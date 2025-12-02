@@ -57,6 +57,7 @@ from .models import (
     Payment,
     PaymentCreate,
     PatientSearchResult,
+    DataIntegrityReport,
     User,
     UserCreate,
     UserPasswordUpdate,
@@ -310,16 +311,26 @@ async def create_procedure(patient_id: int, payload: ProcedureCreate, request: R
     patient = database.fetch_patient(patient_id)
     if not patient:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    request_payload = None
     try:
         payload_data = payload.model_dump()
         payload_data["notes"] = _normalize_notes_for_request(payload_data.get("notes"), request=request)
+        request_payload = {"patient_id": patient_id, **payload_data}
         created = database.create_procedure(patient_id, payload_data)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     procedure_record = database.fetch_procedure(created["id"])
     if procedure_record:
         await _emit_procedure_event("created", procedure_record, request, patient=patient)
-    return OperationResult(success=True, id=created["id"], message="Procedure created")
+    result = OperationResult(success=True, id=created["id"], message="Procedure created")
+    if request_payload is not None:
+        database.log_api_request(
+            f"/patients/{patient_id}/procedures",
+            "POST",
+            request_payload,
+            result.model_dump(),
+        )
+    return result
 
 
 @patients_router.get("/{patient_id}/procedures/{procedure_id}", response_model=Procedure)
@@ -340,6 +351,7 @@ async def update_procedure(
     procedure = database.fetch_procedure(procedure_id, include_deleted=True)
     if not procedure or procedure["patient_id"] != patient_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
+    request_payload = None
     try:
         existing_notes = procedure.get("notes") or []
         payload_data = payload.model_dump()
@@ -350,6 +362,7 @@ async def update_procedure(
         )
         _ensure_note_delete_permissions(existing_notes, normalized_notes, request=request)
         payload_data["notes"] = normalized_notes
+        request_payload = {"patient_id": patient_id, **payload_data}
         updated = database.update_procedure(procedure_id, payload_data)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
@@ -358,7 +371,15 @@ async def update_procedure(
     refreshed = database.fetch_procedure(procedure_id)
     if refreshed:
         await _emit_procedure_event("updated", refreshed, request)
-    return OperationResult(success=True, id=procedure_id, message="Procedure updated")
+    result = OperationResult(success=True, id=procedure_id, message="Procedure updated")
+    if request_payload is not None:
+        database.log_api_request(
+            f"/patients/{patient_id}/procedures/{procedure_id}",
+            "PUT",
+            request_payload,
+            result.model_dump(),
+        )
+    return result
 
 
 @patients_router.delete(
@@ -374,7 +395,14 @@ async def delete_procedure(patient_id: int, procedure_id: int, request: Request)
     if not removed:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
     await _emit_procedure_event("deleted", procedure, request)
-    return OperationResult(success=True, id=procedure_id)
+    result = OperationResult(success=True, id=procedure_id)
+    database.log_api_request(
+        f"/patients/{patient_id}/procedures/{procedure_id}",
+        "DELETE",
+        {"patient_id": patient_id, "procedure_id": procedure_id},
+        result.model_dump(),
+    )
+    return result
 
 
 @patients_router.get("/{patient_id}/payments", response_model=List[Payment])
@@ -533,16 +561,21 @@ async def create_procedure_route(payload: ProcedureCreatePayload, request: Reque
     patient = database.fetch_patient(payload.patient_id)
     if not patient:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    request_payload = None
     try:
         payload_data = payload.model_dump(exclude={"patient_id"})
         payload_data["notes"] = _normalize_notes_for_request(payload_data.get("notes"), request=request)
+        request_payload = {"patient_id": payload.patient_id, **payload_data}
         created = database.create_procedure(payload.patient_id, payload_data)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     procedure_record = database.fetch_procedure(created["id"])
     if procedure_record:
         await _emit_procedure_event("created", procedure_record, request, patient=patient)
-    return OperationResult(success=True, id=created["id"], message="Procedure created")
+    result = OperationResult(success=True, id=created["id"], message="Procedure created")
+    if request_payload is not None:
+        database.log_api_request("/procedures", "POST", request_payload, result.model_dump())
+    return result
 
 
 @procedures_router.get("/search", response_model=ProcedureSearchResult)
@@ -661,6 +694,7 @@ async def update_procedure_route(
     existing = database.fetch_procedure(procedure_id, include_deleted=True)
     if not existing:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
+    request_payload = None
     try:
         existing_notes = existing.get("notes") or []
         payload_data = payload.model_dump(exclude={"patient_id"})
@@ -671,6 +705,7 @@ async def update_procedure_route(
         )
         _ensure_note_delete_permissions(existing_notes, normalized_notes, request=request)
         payload_data["notes"] = normalized_notes
+        request_payload = {"patient_id": payload.patient_id, **payload_data}
         updated = database.update_procedure(procedure_id, payload_data)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
@@ -679,7 +714,15 @@ async def update_procedure_route(
     refreshed = database.fetch_procedure(procedure_id)
     if refreshed:
         await _emit_procedure_event("updated", refreshed, request)
-    return OperationResult(success=True, id=procedure_id, message="Procedure updated")
+    result = OperationResult(success=True, id=procedure_id, message="Procedure updated")
+    if request_payload is not None:
+        database.log_api_request(
+            f"/procedures/{procedure_id}",
+            "PUT",
+            request_payload,
+            result.model_dump(),
+        )
+    return result
 
 
 @procedures_router.delete(
@@ -695,7 +738,14 @@ async def delete_procedure_route(procedure_id: int, request: Request) -> Operati
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
     await _emit_procedure_event("deleted", procedure, request)
-    return OperationResult(success=True, id=procedure_id)
+    result = OperationResult(success=True, id=procedure_id)
+    database.log_api_request(
+        f"/procedures/{procedure_id}",
+        "DELETE",
+        {"procedure_id": procedure_id},
+        result.model_dump(),
+    )
+    return result
 
 
 @procedures_router.post("/search-by-meta", response_model=ProcedureMetadataSearchResponse)
@@ -948,6 +998,13 @@ def _get_casefold_query_param(request: Request, name: str) -> Optional[str]:
 def verify_api_connection(_: ApiToken = Depends(require_api_token)) -> dict[str, str]:
     """Confirm that an API token is valid for integrations."""
     return {"detail": "API token verified"}
+
+
+@status_router.get("/data-integrity", response_model=DataIntegrityReport)
+def run_data_integrity_check_route(_: dict = Depends(require_admin_user)) -> DataIntegrityReport:
+    """Analyze patient/procedure tables for missing required records."""
+    report = database.run_data_integrity_check()
+    return DataIntegrityReport(**report)
 
 
 @status_router.get("/activity-feed", response_model=List[ActivityEvent])

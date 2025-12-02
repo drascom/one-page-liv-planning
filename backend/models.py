@@ -195,6 +195,24 @@ class Payment(PaymentBase):
         from_attributes = True
 
 
+class DataIntegrityIssue(BaseModel):
+    issue_type: str = Field(..., description="Classification for the missing/invalid data")
+    entity: str = Field(..., description="Entity/table where the issue was detected")
+    record_id: Optional[int] = Field(None, description="Primary key of the affected record")
+    patient_id: Optional[int] = Field(None, description="Linked patient identifier when available")
+    missing_fields: List[str] = Field(default_factory=list, description="Fields that were empty or invalid")
+    message: str = Field(..., description="Readable explanation of the issue")
+
+
+class DataIntegrityReport(BaseModel):
+    checked_at: str = Field(..., description="Timestamp when the integrity check ran")
+    total_patients: int = Field(..., ge=0, description="Number of patient records scanned")
+    total_procedures: int = Field(..., ge=0, description="Number of procedure records scanned")
+    issue_count: int = Field(..., ge=0, description="Total number of issues detected")
+    truncated: bool = Field(False, description="Whether the reported list was truncated")
+    issues: List[DataIntegrityIssue] = Field(default_factory=list, description="Detected issues")
+
+
 class PatientSearchResult(BaseModel):
     success: bool = Field(..., description="Indicates whether the patient was found")
     message: Optional[str] = Field(None, description="Human readable message (e.g. when the patient is missing)")
