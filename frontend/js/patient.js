@@ -556,7 +556,6 @@ function disableForm(disabled) {
   Array.from(formEl.elements).forEach((element) => {
     element.disabled = disabled;
   });
-  browseButton.disabled = disabled;
   if (addProcedureBtn) {
     addProcedureBtn.disabled = disabled;
   }
