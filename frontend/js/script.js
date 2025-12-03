@@ -734,6 +734,7 @@ function buildWeeksForPatients(patients) {
       lastName: patient.last_name,
       status: patient.status,
       procedureType: patient.procedure_type,
+      packageType: patient.package_type,
       grafts: patient.grafts,
       forms: patient.forms,
       consents: patient.consents,
@@ -1198,6 +1199,26 @@ function createCheckCell(value, label, countText = "") {
 
 function formatPhotos(value) {
   return value > 0 ? String(value) : "None";
+}
+
+function resolvePackageLabel(packageValue, procedureType) {
+  return (
+    getOptionLabel("package_type", packageValue) ||
+    packageValue ||
+    getOptionLabel("procedure_type", procedureType) ||
+    procedureType ||
+    ""
+  );
+}
+
+function createPackagePill(label) {
+  if (!label) {
+    return null;
+  }
+  const pill = document.createElement("span");
+  pill.className = "package-pill";
+  pill.textContent = label;
+  return pill;
 }
 
 function formatMonthLabelFromDate(date) {
@@ -1735,13 +1756,28 @@ function renderWeek(week) {
 
       const patientCell = document.createElement("td");
       patientCell.classList.add("col-patient");
-      patientCell.dataset.label = "Patient";
       if (isGroupedDay) {
         patientCell.colSpan = 1;
       }
       const patientName = document.createElement("span");
       patientName.textContent = day.patientName;
       patientName.className = "patient-name";
+      const patientMeta = document.createElement("div");
+      patientMeta.className = "patient-meta";
+      const statusText = getOptionLabel("status", day.status) || day.status || "—";
+      const statusBadge = document.createElement("span");
+      statusBadge.textContent = statusText;
+      statusBadge.className = `status-badge ${getStatusClass(day.status)}`;
+      const inlineStatusBadge = statusBadge.cloneNode(true);
+      inlineStatusBadge.classList.add("patient-meta__pill");
+      patientMeta.appendChild(inlineStatusBadge);
+      const packageLabel = resolvePackageLabel(day.packageType, day.procedureType);
+      const desktopPackageBadge = packageLabel ? createPackagePill(packageLabel) : null;
+      if (packageLabel) {
+        const inlinePackageBadge = createPackagePill(packageLabel);
+        inlinePackageBadge.classList.add("patient-meta__pill");
+        patientMeta.appendChild(inlinePackageBadge);
+      }
       const expandBtn = document.createElement("button");
       expandBtn.type = "button";
       expandBtn.className = "mobile-expand";
@@ -1755,20 +1791,15 @@ function renderWeek(week) {
         const isExpanded = row.classList.toggle("is-expanded");
         expandBtn.setAttribute("aria-expanded", isExpanded ? "true" : "false");
       });
-      patientCell.append(patientName, expandBtn);
+      patientCell.append(patientName, patientMeta, expandBtn);
 
       const statusCell = document.createElement("td");
-      const badge = document.createElement("span");
-      badge.textContent = getOptionLabel("status", day.status) || day.status || "—";
-      badge.className = `status-badge ${getStatusClass(day.status)}`;
-      statusCell.appendChild(badge);
+      statusCell.appendChild(statusBadge);
       statusCell.classList.add("col-status");
       statusCell.dataset.label = "Status";
-      const mobileType = document.createElement("span");
-      mobileType.className = "mobile-procedure-type";
-      mobileType.textContent =
-        getOptionLabel("procedure_type", day.procedureType) || day.procedureType || "—";
-      statusCell.appendChild(mobileType);
+      if (desktopPackageBadge) {
+        statusCell.appendChild(desktopPackageBadge);
+      }
 
       const procedureCell = document.createElement("td");
       procedureCell.textContent =
