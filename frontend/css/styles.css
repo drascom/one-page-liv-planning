@@ -2077,6 +2077,14 @@ body.app-shell {
   border: 1px solid #e2e8f0; */
 }
 
+.patient-content.merge-content {
+  padding: 1.5rem;
+}
+
+.patient-card.merge-card {
+  padding: 2rem;
+}
+
 .customer-content {
   width: min(1200px, 96%);
   margin: 0 auto 3rem;
