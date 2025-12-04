@@ -45,6 +45,7 @@ from .models import (
     LoginRequest,
     Patient,
     PatientCreate,
+    PatientUpdate,
     PatientMergeRequest,
     MergePatientsResult,
     OperationResult,
@@ -112,6 +113,29 @@ def _patient_label(patient: Optional[dict]) -> str:
 
 def _current_user(request: Request) -> Optional[dict]:
     return getattr(request.state, "current_user", None)
+
+
+def _merge_procedure_payload(existing: dict, incoming: dict) -> dict:
+    """Merge incoming procedure fields onto existing record, keeping unspecified values."""
+    allowed_keys = {
+        "procedure_date",
+        "status",
+        "procedure_type",
+        "package_type",
+        "agency",
+        "grafts",
+        "payment",
+        "consultation",
+        "forms",
+        "consents",
+        "notes",
+        "outstanding_balance",
+    }
+    merged = {key: existing.get(key) for key in allowed_keys}
+    for key, value in incoming.items():
+        if key in merged:
+            merged[key] = value
+    return merged
 
 
 def _normalize_notes_for_request(
@@ -364,16 +388,18 @@ async def update_procedure(
     request_payload = None
     try:
         existing_notes = procedure.get("notes") or []
-        payload_data = payload.model_dump()
-        normalized_notes = _normalize_notes_for_request(
-            payload_data.get("notes"),
-            request=request,
-            existing_notes=existing_notes,
-        )
-        _ensure_note_delete_permissions(existing_notes, normalized_notes, request=request)
-        payload_data["notes"] = normalized_notes
+        payload_data = payload.model_dump(exclude_unset=True)
+        if "notes" in payload_data:
+            normalized_notes = _normalize_notes_for_request(
+                payload_data.get("notes"),
+                request=request,
+                existing_notes=existing_notes,
+            )
+            _ensure_note_delete_permissions(existing_notes, normalized_notes, request=request)
+            payload_data["notes"] = normalized_notes
+        merged_payload = _merge_procedure_payload(procedure, payload_data)
         request_payload = {"patient_id": patient_id, **payload_data}
-        updated = database.update_procedure(procedure_id, payload_data)
+        updated = database.update_procedure(procedure_id, merged_payload)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     if not updated:
@@ -454,17 +480,24 @@ async def create_patient(payload: PatientCreate, request: Request) -> OperationR
 
 
 @patients_router.put("/{patient_id}", response_model=OperationResult)
-async def update_patient(patient_id: int, payload: PatientCreate, request: Request) -> OperationResult:
+async def update_patient(patient_id: int, payload: PatientUpdate, request: Request) -> OperationResult:
     """Update the patient record identified by ``patient_id``."""
     existing = database.fetch_patient(patient_id)
     if not existing:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
-    patient_payload = _coerce_patient_payload(payload.model_dump())
+    incoming = payload.model_dump(exclude_unset=True)
+    merged = {**existing, **incoming}
+    patient_payload = _coerce_patient_payload(merged)
     updated = database.update_patient(patient_id, patient_payload.model_dump())
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     result = OperationResult(success=True, id=patient_id, message="Patient updated")
-    database.log_api_request(f"/patients/{patient_id}", "PUT", patient_payload.model_dump(), result.model_dump())
+    database.log_api_request(
+        f"/patients/{patient_id}",
+        "PUT",
+        incoming,
+        result.model_dump(),
+    )
     refreshed = database.fetch_patient(patient_id)
     if refreshed:
         await _emit_patient_event("updated", refreshed, request)
@@ -711,16 +744,18 @@ async def update_procedure_route(
     request_payload = None
     try:
         existing_notes = existing.get("notes") or []
-        payload_data = payload.model_dump(exclude={"patient_id"})
-        normalized_notes = _normalize_notes_for_request(
-            payload_data.get("notes"),
-            request=request,
-            existing_notes=existing_notes,
-        )
-        _ensure_note_delete_permissions(existing_notes, normalized_notes, request=request)
-        payload_data["notes"] = normalized_notes
+        payload_data = payload.model_dump(exclude={"patient_id"}, exclude_unset=True)
+        if "notes" in payload_data:
+            normalized_notes = _normalize_notes_for_request(
+                payload_data.get("notes"),
+                request=request,
+                existing_notes=existing_notes,
+            )
+            _ensure_note_delete_permissions(existing_notes, normalized_notes, request=request)
+            payload_data["notes"] = normalized_notes
+        merged_payload = _merge_procedure_payload(existing, payload_data)
         request_payload = {"patient_id": payload.patient_id, **payload_data}
-        updated = database.update_procedure(procedure_id, payload_data)
+        updated = database.update_procedure(procedure_id, merged_payload)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     if not updated:

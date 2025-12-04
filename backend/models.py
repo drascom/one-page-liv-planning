@@ -42,6 +42,16 @@ class PatientCreate(PatientBase):
     pass
 
 
+class PatientUpdate(BaseModel):
+    """Partial patient update payload (all fields optional)."""
+    first_name: Optional[str] = Field(None, description="Patient first name")
+    last_name: Optional[str] = Field(None, description="Patient last name")
+    email: Optional[str] = Field(None, description="Preferred contact email")
+    phone: Optional[str] = Field(None, description="Preferred phone number")
+    city: Optional[str] = Field(None, description="Patient city")
+    drive_folder_id: Optional[str] = Field(None, description="The ID of the patient's folder")
+
+
 class Patient(PatientBase):
     id: int = Field(..., description="Database identifier for the patient")
     deleted: bool = Field(False, description="Whether the record is hidden (soft deleted)")

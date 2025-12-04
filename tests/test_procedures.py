@@ -393,6 +393,51 @@ def test_search_procedure_by_metadata_requires_filters(client: TestClient):
     assert "Provide at least one search field" in response.json()["detail"]
 
 
+def test_partial_update_preserves_existing_lists(client: TestClient):
+    patient_id = _create_patient(client)
+    payload = {
+        "patient_id": patient_id,
+        "procedure_date": "2025-12-04",
+        "status": "reserved",
+        "procedure_type": "hair transplant",
+        "package_type": "big",
+        "grafts": 3000,
+        "payment": "waiting",
+        "consultation": ["consultation1"],
+        "forms": ["form1"],
+        "consents": ["consent1"],
+        "notes": [{"text": "initial note"}],
+    }
+    created = client.post("/procedures", json=payload)
+    assert created.status_code == 201
+    procedure_id = created.json()["id"]
+
+    update_payload = {
+        "patient_id": patient_id,
+        "procedure_date": "2025-12-04",
+        "status": "confirmed",
+        "procedure_type": "hair transplant",
+        "package_type": "big",
+        "grafts": 3000,
+        "outstanding_balance": 1111,
+        "agency": "want_hair",
+        "notes": [{"text": "updated note", "completed": True}],
+    }
+    updated = client.put(f"/procedures/{procedure_id}", json=update_payload)
+    assert updated.status_code == 200
+
+    fetched = client.get(f"/procedures/{procedure_id}")
+    assert fetched.status_code == 200
+    body = fetched.json()
+    assert body["status"] == "confirmed"
+    assert body["payment"] == "waiting"
+    assert body["outstanding_balance"] == 1111
+    assert body["consultation"] == ["consultation1"]
+    assert body["forms"] == ["form1"]
+    assert body["consents"] == ["consent1"]
+    assert any(note["text"] == "updated note" for note in body["notes"])
+
+
 def test_procedure_creation_rejects_blank_date(client: TestClient):
     patient_id = _create_patient(client)
     payload = {
