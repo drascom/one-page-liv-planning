@@ -544,7 +544,7 @@ function populateProcedureForm(procedure) {
     agencySelect.value = procedure.agency || getFieldOptions("agency")[0]?.value || "";
   }
   if (outstandingBalanceInput) {
-    const balance = Number(procedure.outstanding_balance ?? procedure.outstaning_balance);
+    const balance = Number(procedure.outstanding_balance);
     outstandingBalanceInput.value = Number.isFinite(balance) ? String(balance) : "";
   }
   updateActiveProcedureNotes(normalizeNotes(procedure.notes || []));

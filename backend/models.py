@@ -83,8 +83,6 @@ class ProcedureBase(BaseModel):
         None,
         description="Outstanding balance remaining for the procedure",
         ge=0,
-        validation_alias=AliasChoices("outstanding_balance", "outstaning_balance"),
-        serialization_alias="outstanding_balance",
     )
     consultation: List[str] = Field(default_factory=list, description="Consultations recorded for the procedure")
     forms: List[str] = Field(default_factory=list, description="Completed form identifiers")
@@ -185,8 +183,6 @@ class ProcedureMetadataSearchResponse(BaseModel):
         None,
         description="Outstanding balance for the procedure",
         ge=0,
-        validation_alias=AliasChoices("outstanding_balance", "outstaning_balance"),
-        serialization_alias="outstanding_balance",
     )
     procedure: Optional[Procedure] = Field(None, description="Full procedure payload when a match is found")
 
