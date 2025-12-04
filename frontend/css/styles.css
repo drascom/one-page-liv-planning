@@ -350,11 +350,20 @@ body.app-shell {
   color: #64748b;
 }
 
-.activity-toast {
+.activity-toast-stack {
   position: fixed;
-  top: 50%;
+  top: 0.6rem;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 1100;
+  pointer-events: none;
+}
+
+.activity-toast {
+  position: relative;
   background: #16a34a;
   color: #ffffff;
   padding: 0.9rem 1.1rem;
@@ -363,9 +372,9 @@ body.app-shell {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  z-index: 9999;
   min-width: 260px;
   max-width: 90vw;
+  pointer-events: auto;
 }
 
 .activity-toast__message {
@@ -385,8 +394,34 @@ body.app-shell {
   line-height: 1;
 }
 
-.activity-toast[hidden] {
-  display: none;
+.activity-toast--enter {
+  animation: activity-toast-in 0.35s ease forwards;
+}
+
+.activity-toast--exit {
+  animation: activity-toast-out 0.25s ease forwards;
+}
+
+@keyframes activity-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes activity-toast-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-14px);
+  }
 }
 
 

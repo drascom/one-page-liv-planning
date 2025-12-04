@@ -173,9 +173,8 @@ let searchQuery = "";
 let patientRecords = [];
 let procedureRecords = [];
 let activityEvents = [];
-let activityToastEl = null;
-let activityToastMessageEl = null;
-let activityToastTimer = null;
+let activityToastStackEl = null;
+const activityToastTimers = new Map();
 let realtimeSocket = null;
 let realtimeReconnectTimer = null;
 let realtimeConnectionState = "idle";
@@ -427,50 +426,76 @@ function addActivityEvent(event) {
   renderActivityFeed();
 }
 
-function ensureActivityToast() {
-  if (activityToastEl) {
+function ensureActivityToastStack() {
+  if (activityToastStackEl) {
     return;
   }
-  activityToastEl = document.createElement("div");
-  activityToastEl.className = "activity-toast";
-  activityToastEl.hidden = true;
+  activityToastStackEl = document.createElement("div");
+  activityToastStackEl.className = "activity-toast-stack";
+  document.body.appendChild(activityToastStackEl);
+}
 
-  activityToastMessageEl = document.createElement("div");
-  activityToastMessageEl.className = "activity-toast__message";
+function removeToastImmediately(toastEl) {
+  if (!toastEl) {
+    return;
+  }
+  const timer = activityToastTimers.get(toastEl);
+  if (timer) {
+    clearTimeout(timer);
+    activityToastTimers.delete(toastEl);
+  }
+  toastEl.remove();
+}
+
+function dismissActivityToast(toastEl) {
+  if (!toastEl) {
+    return;
+  }
+  const timer = activityToastTimers.get(toastEl);
+  if (timer) {
+    clearTimeout(timer);
+    activityToastTimers.delete(toastEl);
+  }
+  toastEl.classList.remove("activity-toast--enter");
+  toastEl.classList.add("activity-toast--exit");
+  toastEl.addEventListener(
+    "animationend",
+    () => {
+      toastEl.remove();
+    },
+    { once: true }
+  );
+}
+
+function showActivityToast(message) {
+  ensureActivityToastStack();
+  if (!activityToastStackEl) {
+    return;
+  }
+
+  const toastEl = document.createElement("div");
+  toastEl.className = "activity-toast activity-toast--enter";
+
+  const messageEl = document.createElement("div");
+  messageEl.className = "activity-toast__message";
+  messageEl.textContent = message || "New activity received";
 
   const closeBtn = document.createElement("button");
   closeBtn.type = "button";
   closeBtn.className = "activity-toast__close";
   closeBtn.setAttribute("aria-label", "Dismiss notification");
   closeBtn.textContent = "×";
-  closeBtn.addEventListener("click", hideActivityToast);
+  closeBtn.addEventListener("click", () => dismissActivityToast(toastEl));
 
-  activityToastEl.append(activityToastMessageEl, closeBtn);
-  document.body.appendChild(activityToastEl);
-}
+  toastEl.append(messageEl, closeBtn);
+  activityToastStackEl.appendChild(toastEl);
 
-function hideActivityToast() {
-  if (!activityToastEl) {
-    return;
-  }
-  activityToastEl.hidden = true;
-  if (activityToastTimer) {
-    clearTimeout(activityToastTimer);
-    activityToastTimer = null;
-  }
-}
+  const timer = setTimeout(() => dismissActivityToast(toastEl), 5000);
+  activityToastTimers.set(toastEl, timer);
 
-function showActivityToast(message) {
-  ensureActivityToast();
-  if (!activityToastEl || !activityToastMessageEl) {
-    return;
+  while (activityToastStackEl.children.length > 3) {
+    removeToastImmediately(activityToastStackEl.firstElementChild);
   }
-  activityToastMessageEl.textContent = message || "New activity received";
-  activityToastEl.hidden = false;
-  if (activityToastTimer) {
-    clearTimeout(activityToastTimer);
-  }
-  activityToastTimer = setTimeout(hideActivityToast, 5000);
 }
 
 function showConflictNotice(message, actionCallback = null) {
