@@ -827,12 +827,15 @@ def _row_to_procedure(row: sqlite3.Row) -> Dict[str, Any]:
     notes = normalize_notes_payload(loaded_notes)
     procedure_date = _date_only(row["procedure_date"]) or ""
     balance: Optional[float] = None
-    if "outstaning_balance" in row.keys():
-        raw_balance = row["outstaning_balance"]
-        try:
-            balance = float(raw_balance) if raw_balance is not None else None
-        except (TypeError, ValueError):
-            balance = None
+    balance_raw = None
+    for key in ("outstanding_balance", "outstaning_balance"):
+        if key in row.keys():
+            balance_raw = row[key]
+            break
+    try:
+        balance = float(balance_raw) if balance_raw is not None else None
+    except (TypeError, ValueError):
+        balance = None
     try:
         grafts_value = float(row["grafts"])
     except (TypeError, ValueError):
@@ -851,6 +854,7 @@ def _row_to_procedure(row: sqlite3.Row) -> Dict[str, Any]:
         "forms": forms,
         "consents": consents,
         "notes": notes,
+        "outstanding_balance": balance,
         "outstaning_balance": balance,
         "photos": 0,
         "deleted": bool(row["deleted"]),
@@ -1379,14 +1383,14 @@ def _serialize_procedure_payload(data: Dict[str, Any]) -> Dict[str, Any]:
         except (TypeError, ValueError):
             raise ValueError("grafts is invalid")
 
-    balance_value = data.get("outstaning_balance")
+    balance_value = data.get("outstanding_balance", data.get("outstaning_balance"))
     if balance_value in (None, "", "null"):
         normalized_balance = None
     else:
         try:
             normalized_balance = float(balance_value)
         except (TypeError, ValueError):
-            raise ValueError("outstaning_balance is invalid")
+            raise ValueError("outstanding_balance is invalid")
 
     normalized_date = _date_only(data.get("procedure_date"))
     if not normalized_date:

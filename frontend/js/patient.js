@@ -230,7 +230,7 @@ const procedureSelect = document.getElementById("procedure-type");
 const packageTypeSelect = document.getElementById("package-type");
 const graftsInput = document.getElementById("grafts");
 const paymentSelect = document.getElementById("payment");
-const outstandingBalanceInput = document.getElementById("outstaning-balance");
+const outstandingBalanceInput = document.getElementById("outstanding-balance");
 const agencySelect = document.getElementById("agency");
 const consultationSelect = document.getElementById("consultation");
 const consultationsChecklist = document.getElementById("consultations-checklist");
@@ -544,7 +544,7 @@ function populateProcedureForm(procedure) {
     agencySelect.value = procedure.agency || getFieldOptions("agency")[0]?.value || "";
   }
   if (outstandingBalanceInput) {
-    const balance = Number(procedure.outstaning_balance);
+    const balance = Number(procedure.outstanding_balance ?? procedure.outstaning_balance);
     outstandingBalanceInput.value = Number.isFinite(balance) ? String(balance) : "";
   }
   updateActiveProcedureNotes(normalizeNotes(procedure.notes || []));
@@ -1262,7 +1262,7 @@ function buildProcedurePayloadFromForm() {
     consultation: collectMultiValue(consultationSelect),
     forms: collectMultiValue(formsSelect),
     consents: collectMultiValue(consentsSelect),
-    outstaning_balance: parsedBalance,
+    outstanding_balance: parsedBalance,
     notes,
   };
   return payload;

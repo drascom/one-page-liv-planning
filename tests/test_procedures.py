@@ -317,7 +317,7 @@ def test_search_procedure_by_metadata_and_delete(client: TestClient):
         "procedure_type": "sfue",
         "package_type": "small",
         "grafts": 3000,
-        "outstaning_balance": 123.45,
+        "outstanding_balance": 123.45,
         "payment": "waiting",
         "consultation": [],
         "forms": [],
@@ -341,7 +341,7 @@ def test_search_procedure_by_metadata_and_delete(client: TestClient):
     assert body["package_type"] == "small"
     assert body["agency"] == ""
     assert body["grafts"] == 3000
-    assert body["outstaning_balance"] == 123.45
+    assert body["outstanding_balance"] == 123.45
     assert isinstance(body["procedure"], dict)
     assert body["procedure"]["id"] == procedure_id
     assert body["procedure"]["patient_id"] == patient_id
@@ -364,7 +364,7 @@ def test_search_procedure_by_metadata_and_delete(client: TestClient):
     assert status_body["package_type"] == "small"
     assert status_body["agency"] == ""
     assert status_body["grafts"] == 3000
-    assert status_body["outstaning_balance"] == 123.45
+    assert status_body["outstanding_balance"] == 123.45
     assert status_body["procedure"]["id"] == procedure_id
     assert status_body["procedure"]["patient_id"] == patient_id
     assert status_body["procedure"]["status"] == "reserved"

@@ -819,7 +819,7 @@ def search_procedure_by_metadata(
         package_type=match.get("package_type"),
         agency=match.get("agency"),
         grafts=match.get("grafts"),
-        outstaning_balance=match.get("outstaning_balance"),
+        outstanding_balance=match.get("outstanding_balance", match.get("outstaning_balance")),
         procedure=match,
     )
 

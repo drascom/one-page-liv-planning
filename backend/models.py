@@ -79,8 +79,12 @@ class ProcedureBase(BaseModel):
     grafts: float = Field(..., description="Number of grafts or imported numeric detail", ge=0)
     agency: Optional[str] = Field(None, description="Agency or referral source for the procedure")
     payment: Optional[str] = Field(None, description="Payment collection status")
-    outstaning_balance: Optional[float] = Field(
-        None, description="Outstanding balance remaining for the procedure", ge=0
+    outstanding_balance: Optional[float] = Field(
+        None,
+        description="Outstanding balance remaining for the procedure",
+        ge=0,
+        validation_alias=AliasChoices("outstanding_balance", "outstaning_balance"),
+        serialization_alias="outstanding_balance",
     )
     consultation: List[str] = Field(default_factory=list, description="Consultations recorded for the procedure")
     forms: List[str] = Field(default_factory=list, description="Completed form identifiers")
@@ -177,7 +181,13 @@ class ProcedureMetadataSearchResponse(BaseModel):
     package_type: Optional[str] = Field(None, description="Package selection for the procedure")
     agency: Optional[str] = Field(None, description="Agency or referral source")
     grafts: Optional[float] = Field(None, description="Stored graft count/detail", ge=0)
-    outstaning_balance: Optional[float] = Field(None, description="Outstanding balance for the procedure", ge=0)
+    outstanding_balance: Optional[float] = Field(
+        None,
+        description="Outstanding balance for the procedure",
+        ge=0,
+        validation_alias=AliasChoices("outstanding_balance", "outstaning_balance"),
+        serialization_alias="outstanding_balance",
+    )
     procedure: Optional[Procedure] = Field(None, description="Full procedure payload when a match is found")
 
 

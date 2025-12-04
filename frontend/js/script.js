@@ -1652,7 +1652,7 @@ function buildDefaultPatientPayloads() {
     forms: [],
     consents: [],
     photos: 0,
-    outstaning_balance: null,
+    outstanding_balance: null,
     notes: [],
   };
 
