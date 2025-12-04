@@ -177,6 +177,7 @@ class ProcedureMetadataSearchResponse(BaseModel):
     package_type: Optional[str] = Field(None, description="Package selection for the procedure")
     agency: Optional[str] = Field(None, description="Agency or referral source")
     grafts: Optional[float] = Field(None, description="Stored graft count/detail", ge=0)
+    outstaning_balance: Optional[float] = Field(None, description="Outstanding balance for the procedure", ge=0)
     procedure: Optional[Procedure] = Field(None, description="Full procedure payload when a match is found")
 
 
