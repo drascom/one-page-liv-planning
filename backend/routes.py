@@ -766,7 +766,7 @@ async def delete_procedure_route(procedure_id: int, request: Request) -> Operati
 def search_procedure_by_metadata(
     payload: ProcedureMetadataDeleteRequest, request: Request
 ) -> ProcedureMetadataSearchResponse:
-    """Return a procedure id when metadata matches."""
+    """Return a procedure when metadata matches."""
     _throttle_search_by_meta(request)
     requested_full_name = (payload.full_name or "").strip()
     provided_filters = [
@@ -819,6 +819,7 @@ def search_procedure_by_metadata(
         package_type=match.get("package_type"),
         agency=match.get("agency"),
         grafts=match.get("grafts"),
+        procedure=match,
     )
 
 

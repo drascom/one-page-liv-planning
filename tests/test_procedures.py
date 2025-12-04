@@ -340,6 +340,11 @@ def test_search_procedure_by_metadata_and_delete(client: TestClient):
     assert body["package_type"] == "small"
     assert body["agency"] == ""
     assert body["grafts"] == 3000
+    assert isinstance(body["procedure"], dict)
+    assert body["procedure"]["id"] == procedure_id
+    assert body["procedure"]["patient_id"] == patient_id
+    assert body["procedure"]["procedure_type"] == "sfue"
+    assert body["procedure"]["package_type"] == "small"
 
     status_only_request = {
         "status": "reserved",
@@ -357,6 +362,9 @@ def test_search_procedure_by_metadata_and_delete(client: TestClient):
     assert status_body["package_type"] == "small"
     assert status_body["agency"] == ""
     assert status_body["grafts"] == 3000
+    assert status_body["procedure"]["id"] == procedure_id
+    assert status_body["procedure"]["patient_id"] == patient_id
+    assert status_body["procedure"]["status"] == "reserved"
 
     deleted = client.delete(f"/procedures/{procedure_id}")
     assert deleted.status_code == 200

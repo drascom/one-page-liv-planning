@@ -20,7 +20,7 @@ The frontend uses the base endpoints below directly and no token is required for
 - `GET /procedures/{id}` – Fetch a single procedure.
 - `PUT /procedures/{id}` – Update procedure details (requires a valid `patient_id`).
 - `DELETE /procedures/{id}` – Remove a procedure; purging a patient also cascades and removes related procedures.
-- `POST /api/v1/procedures/search-by-meta` – Provide `{ "full_name": "", "date": "", "status": "", "grafts_number": "", "package_type": "" }` to locate a procedure by metadata and receive its id (delete it via `DELETE /procedures/{id}`).
+- `POST /api/v1/procedures/search-by-meta` – Provide `{ "full_name": "", "date": "", "status": "", "grafts_number": "", "package_type": "" }` to locate a procedure by metadata and receive its id and full procedure payload (delete it via `DELETE /procedures/{id}`).
 
 ## `/uploads`
 - `POST /uploads/{last_name}?patient_id=ID` – Upload one or more images for the patient. Returns updated `photoFiles`.
@@ -65,4 +65,4 @@ The frontend uses the base endpoints below directly and no token is required for
 - `DELETE /api/v1/patients/{id}/purge` – Permanently delete a patient (admin + token required).
 - All `/api/v1/...` requests require an `Authorization: Bearer <token>` header. Requests without this header are rejected.
 - `GET /api/v1/search` – Provide the full name via `full_name=Randhir%20Sandhu` (preferred) or continue using the legacy `name`/`surname` parameters to look up a single patient. Returns `{ "success": true, "id": 123, "first_name": "Randhir", ..., "procedures": [ { ... } ] }` when found, `{ "success": false, "message": "Patient record not found", "procedures": [] }` when no record matches, or `{ "success": false, "message": "Name is missing" }` when no name parameter is supplied.
-- `POST /api/v1/procedures/search-by-meta` – Provide any combination of `full_name`, `date`, `status`, `grafts_number`, or `package_type` to look up a procedure. Successful responses include `{ "success": true, "procedure_id": 42, "procedure_date": "2025-11-01", "status": "reserved", ... }`; failures return `{ "success": false, "message": "Procedure not found" }`.
+- `POST /api/v1/procedures/search-by-meta` – Provide any combination of `full_name`, `date`, `status`, `grafts_number`, or `package_type` to look up a procedure. Successful responses include `{ "success": true, "procedure_id": 42, "procedure": { ...full procedure... }, ... }`; failures return `{ "success": false, "message": "Procedure not found" }`.
