@@ -1579,16 +1579,17 @@ body.app-shell {
 }
 
 .col-status {
-  text-align: center;
+  text-align: left;
   width: 18%;
   white-space: nowrap;
+  padding: 0.35rem 0.35rem;
 }
 
 .status-cell {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
+  justify-content: flex-start;
+  gap: 0.45rem;
   flex-wrap: wrap;
 }
 
