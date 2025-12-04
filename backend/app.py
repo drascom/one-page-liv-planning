@@ -24,6 +24,7 @@ from .routes import (
     status_router,
     n8n_router,
 )
+from .chatbot import router as chatbot_router
 from .google_routes import router as google_auth_router
 from .realtime import realtime_router
 from .settings import get_settings
@@ -56,7 +57,6 @@ app.add_middleware(
     allow_credentials=True,
 )
 app.mount("/static", StaticFiles(directory=str(settings.static_root)), name="static")
-
 PROTECTED_FRONTEND_PREFIXES: tuple[str, ...] = (
     "/plans",
     "/patients",
@@ -137,6 +137,7 @@ def create_app() -> FastAPI:
     api.include_router(google_auth_router)
     api.include_router(realtime_router, include_in_schema=False)
     api.include_router(n8n_router, dependencies=auth_dependency) # Add the n8n router
+    api.include_router(chatbot_router, dependencies=auth_dependency)
 
     for protected_router in (
         plans_router,
@@ -186,6 +187,7 @@ app.include_router(drive_router, dependencies=auth_dependency)
 app.include_router(google_auth_router)
 app.include_router(realtime_router, include_in_schema=False)
 app.include_router(n8n_router, dependencies=auth_dependency) # Add the n8n router
+app.include_router(chatbot_router, dependencies=auth_dependency)
 
 for protected_router in (
     plans_router,
@@ -195,6 +197,7 @@ for protected_router in (
     status_router,
     search_router,
     drive_router,
+    chatbot_router,
 ):
     app.include_router(
         protected_router,
@@ -251,9 +254,16 @@ def serve_merge_patients(request: Request):
 @app.get("/test-drive", include_in_schema=False)
 def serve_test_drive(request: Request):
     # Only allow authenticated admins ideally, but for dev we allow logged in users
+
     if not get_current_user(request):
         return _redirect_to_login(request)
     return FileResponse(settings.html_root / "test-drive.html")
+
+@app.get("/chatbot.html", include_in_schema=False)
+def serve_chatbot(request: Request):
+    if not get_current_user(request):
+        return _redirect_to_login(request)
+    return FileResponse(settings.html_root / "chatbot.html")
 
 @app.get("/login", include_in_schema=False)
 def serve_login(request: Request):

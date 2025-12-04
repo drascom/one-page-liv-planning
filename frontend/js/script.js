@@ -1221,6 +1221,114 @@ function createPackagePill(label) {
   return pill;
 }
 
+function buildMobilePatientCard(day, week, { expandInitially = false } = {}) {
+  const card = document.createElement("article");
+  card.className = "patient-card-mobile";
+  card.tabIndex = 0;
+  card.dataset.patient = day.patientName;
+  card.dataset.patientId = String(day.patientId ?? day.id);
+  if (day.procedureId) {
+    card.dataset.procedureId = String(day.procedureId);
+  }
+  card.setAttribute("aria-label", `Open patient record for ${day.patientName}`);
+
+  const header = document.createElement("button");
+  header.type = "button";
+  header.className = "patient-card-mobile__header";
+  header.setAttribute("aria-expanded", expandInitially ? "true" : "false");
+
+  const info = document.createElement("div");
+  info.className = "patient-card-mobile__info";
+  const name = document.createElement("span");
+  name.className = "patient-card-mobile__name";
+  name.textContent = day.patientName || "Patient";
+  const badges = document.createElement("div");
+  badges.className = "patient-card-mobile__badges";
+  const procedureLabel = getOptionLabel("procedure_type", day.procedureType) || day.procedureType || "—";
+  const procedurePill = createPackagePill(procedureLabel);
+  if (procedurePill) {
+    procedurePill.classList.add("pill--neutral");
+    badges.appendChild(procedurePill);
+  }
+  const statusText = getOptionLabel("status", day.status) || day.status || "—";
+  const statusBadge = document.createElement("span");
+  statusBadge.className = `status-badge ${getStatusClass(day.status)}`;
+  statusBadge.textContent = statusText;
+  badges.appendChild(statusBadge);
+  info.append(name, badges);
+
+  const chevronIcon = document.createElement("span");
+  chevronIcon.className = "patient-card-mobile__chevron-icon";
+  header.append(info, chevronIcon);
+
+  const details = document.createElement("div");
+  details.className = "patient-card-mobile__details";
+  details.hidden = !expandInitially;
+
+  const addDetail = (label, value) => {
+    const row = document.createElement("div");
+    row.className = "patient-card-mobile__detail-row";
+    const labelEl = document.createElement("span");
+    labelEl.className = "patient-card-mobile__detail-label";
+    labelEl.textContent = label;
+    const valueEl = document.createElement("span");
+    valueEl.className = "patient-card-mobile__detail-value";
+    valueEl.textContent = value || "—";
+    row.append(labelEl, valueEl);
+    details.appendChild(row);
+  };
+
+  addDetail("Date", formatDayDateHeading(day.procedureDate, day.day || "Day"));
+  addDetail("Package", resolvePackageLabel(day.packageType, day.procedureType) || "—");
+  addDetail("Grafts", day.grafts || "—");
+  addDetail("Forms", formatChecklistCount("forms", day.forms));
+  addDetail("Consents", formatChecklistCount("consents", day.consents));
+  addDetail("Consulted", formatChecklistCount("consultation", day.consultation));
+  addDetail("Payment", getOptionLabel("payment", day.payment) || day.payment || "—");
+  addDetail("Photos", formatPhotos(day.photos));
+
+  const footer = document.createElement("div");
+  footer.className = "patient-card-mobile__footer";
+  const openBtn = document.createElement("button");
+  openBtn.type = "button";
+  openBtn.className = "patient-card-mobile__open";
+  openBtn.textContent = "Open record";
+  footer.appendChild(openBtn);
+
+  card.append(header, details, footer);
+
+  const setExpanded = (expanded) => {
+    header.setAttribute("aria-expanded", expanded ? "true" : "false");
+    details.hidden = !expanded;
+    card.classList.toggle("patient-card-mobile--collapsed", !expanded);
+  };
+  setExpanded(Boolean(expandInitially));
+
+  const toggle = () => {
+    const expanded = header.getAttribute("aria-expanded") === "true";
+    setExpanded(!expanded);
+  };
+
+  header.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggle();
+  });
+  card.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      toggle();
+    }
+  });
+
+  const navigate = () => handleRowNavigation(day, week);
+  openBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    navigate();
+  });
+
+  return card;
+}
+
 function formatMonthLabelFromDate(date) {
   return MONTH_FORMATTER.format(new Date(date.getFullYear(), date.getMonth(), 1));
 }
@@ -1359,20 +1467,48 @@ function renderSelectedMonth() {
   shouldPreserveSelections = false;
 }
 
+function queryPatientElementsByProcedure(procedureId) {
+  if (!Number.isFinite(procedureId)) {
+    return [];
+  }
+  const selector = `.patient-row[data-procedure-id="${procedureId}"], .patient-card-mobile[data-procedure-id="${procedureId}"]`;
+  return Array.from(document.querySelectorAll(selector));
+}
+
+function queryPatientElementsByContext(patientId, procedureId) {
+  if (!Number.isFinite(patientId)) {
+    return [];
+  }
+  const selectors = [];
+  if (Number.isFinite(procedureId)) {
+    selectors.push(
+      `.patient-row[data-patient-id="${patientId}"][data-procedure-id="${procedureId}"]`,
+      `.patient-card-mobile[data-patient-id="${patientId}"][data-procedure-id="${procedureId}"]`
+    );
+  } else {
+    selectors.push(
+      `.patient-row[data-patient-id="${patientId}"]`,
+      `.patient-card-mobile[data-patient-id="${patientId}"]`
+    );
+  }
+  return selectors.length ? Array.from(document.querySelectorAll(selectors.join(", "))) : [];
+}
+
 function highlightProcedureRow(procedureId) {
   if (!Number.isFinite(procedureId)) {
     return;
   }
   requestAnimationFrame(() => {
-    const selector = `.patient-row[data-procedure-id="${procedureId}"]`;
-    const row = document.querySelector(selector);
-    if (!row) {
+    const elements = queryPatientElementsByProcedure(procedureId);
+    if (!elements.length) {
       return;
     }
-    row.classList.add("patient-row--pulse");
-    setTimeout(() => {
-      row.classList.remove("patient-row--pulse");
-    }, 1800);
+    elements.forEach((element) => {
+      element.classList.add("patient-row--pulse");
+      setTimeout(() => {
+        element.classList.remove("patient-row--pulse");
+      }, 1800);
+    });
   });
 }
 
@@ -1380,15 +1516,16 @@ function highlightActivePatientRow() {
   if (!activePatientContext?.patientId || !activePatientContext.shouldReturnToSchedule) {
     return;
   }
-  const selector = activePatientContext.procedureId
-    ? `.patient-row[data-patient-id="${activePatientContext.patientId}"][data-procedure-id="${activePatientContext.procedureId}"]`
-    : `.patient-row[data-patient-id="${activePatientContext.patientId}"]`;
-  const row = document.querySelector(selector);
-  if (!row) {
+  const elements = queryPatientElementsByContext(
+    activePatientContext.patientId,
+    activePatientContext.procedureId
+  );
+  if (!elements.length) {
     return;
   }
-  row.classList.add("patient-row--active");
-  row.scrollIntoView({ behavior: "smooth", block: "center" });
+  elements.forEach((element) => element.classList.add("patient-row--active"));
+  const [first] = elements;
+  first.scrollIntoView({ behavior: "smooth", block: "center" });
   persistActivePatientContext({ ...activePatientContext, shouldReturnToSchedule: false });
 }
 
@@ -1656,25 +1793,30 @@ async function handleDeleteSelected() {
 
 function renderWeek(week) {
   const clone = weekTemplate.content.cloneNode(true);
-  const rangeEl = clone.querySelector(".week__range");
-  if (rangeEl) {
-    rangeEl.textContent = week.range;
-  }
-  const badgeEl = clone.querySelector("[data-week-badge]");
-  if (badgeEl) {
+  const badgeEls = clone.querySelectorAll("[data-week-badge]");
+  badgeEls.forEach((badgeEl) => {
     badgeEl.textContent = week.label;
-  }
-  const countEl = clone.querySelector("[data-week-count]");
-  if (countEl) {
+  });
+  const countEls = clone.querySelectorAll("[data-week-count]");
+  countEls.forEach((countEl) => {
     const totalProcedures = week.days?.length ?? 0;
     countEl.textContent = `${totalProcedures} ${
       totalProcedures === 1 ? "Procedure" : "Procedures"
     }`;
-  }
+  });
   const table = clone.querySelector(".week__table");
   const existingTbody = table.querySelector("tbody");
   if (existingTbody) {
     existingTbody.remove();
+  }
+  const accordionBody = clone.querySelector("[data-week-mobile-body]");
+  const mobileContainer = accordionBody?.querySelector("[data-week-mobile]") ?? null;
+  if (mobileContainer) {
+    mobileContainer.innerHTML = "";
+  }
+  const accordionHeader = clone.querySelector("[data-week-accordion-header]");
+  if (accordionHeader && accordionBody) {
+    accordionBody.hidden = false;
   }
   const selectHeaderCell = clone.querySelector("[data-select-header]");
   const canSelectRows = isAdminUser && Boolean(selectAllCheckbox);
@@ -1695,6 +1837,18 @@ function renderWeek(week) {
     headerCell.textContent = formatDayDateHeading(group.procedureDate, group.dayLabel);
     headerRow.appendChild(headerCell);
     groupBody.appendChild(headerRow);
+    let mobileGroup = null;
+    let mobileCardsWrapper = null;
+    if (mobileContainer) {
+      mobileGroup = document.createElement("section");
+      mobileGroup.className = "week-mobile-group";
+      const mobileHeader = document.createElement("header");
+      mobileHeader.className = "week-mobile-group__header";
+      mobileHeader.textContent = formatDayDateHeading(group.procedureDate, group.dayLabel);
+      mobileCardsWrapper = document.createElement("div");
+      mobileCardsWrapper.className = "week-mobile-group__cards";
+      mobileGroup.append(mobileHeader, mobileCardsWrapper);
+    }
 
     group.entries.forEach((day, index) => {
       const row = document.createElement("tr");
@@ -1794,12 +1948,15 @@ function renderWeek(week) {
       patientCell.append(patientName, patientMeta, expandBtn);
 
       const statusCell = document.createElement("td");
-      statusCell.appendChild(statusBadge);
       statusCell.classList.add("col-status");
       statusCell.dataset.label = "Status";
+      const statusContent = document.createElement("div");
+      statusContent.className = "status-cell";
+      statusContent.appendChild(statusBadge);
       if (desktopPackageBadge) {
-        statusCell.appendChild(desktopPackageBadge);
+        statusContent.appendChild(desktopPackageBadge);
       }
+      statusCell.appendChild(statusContent);
 
       const procedureCell = document.createElement("td");
       procedureCell.textContent =
@@ -1846,6 +2003,13 @@ function renderWeek(week) {
           navigate();
         }
       });
+      if (mobileCardsWrapper) {
+        const isToday =
+          typeof day.procedureDate === "string" &&
+          formatLocalISODate(new Date()) === day.procedureDate.split("T")[0];
+        const mobileCard = buildMobilePatientCard(day, week, { expandInitially: Boolean(isToday) });
+        mobileCardsWrapper.appendChild(mobileCard);
+      }
 
       cells.push(
         patientCell,
@@ -1863,7 +2027,15 @@ function renderWeek(week) {
     });
 
     table.appendChild(groupBody);
+    if (mobileContainer && mobileGroup && mobileCardsWrapper && mobileCardsWrapper.children.length) {
+      mobileContainer.appendChild(mobileGroup);
+    }
   });
+
+  const accordion = clone.querySelector("[data-week-accordion]");
+  if (accordion && mobileContainer && !mobileContainer.children.length) {
+    accordion.hidden = true;
+  }
 
   scheduleEl.appendChild(clone);
 }
@@ -2160,4 +2332,17 @@ function handleProcedureConflict(procedureId, summary, { deleted = false, wasSel
         }
       };
   showConflictNotice(message, action);
+const openChatbotBtn = document.getElementById("open-chatbot-btn");
+const closeChatbotBtn = document.getElementById("close-chatbot-btn");
+const chatbotPopup = document.getElementById("chatbot-popup");
+
+if (openChatbotBtn && closeChatbotBtn && chatbotPopup) {
+    openChatbotBtn.addEventListener("click", () => {
+        chatbotPopup.hidden = false;
+    });
+
+    closeChatbotBtn.addEventListener("click", () => {
+        chatbotPopup.hidden = true;
+    });
+}
 }

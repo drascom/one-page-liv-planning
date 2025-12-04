@@ -42,11 +42,21 @@
       <div class="top-nav__actions">
         <a class="nav-btn nav-btn--ghost" href="customers.html" data-admin-customers hidden>Customers</a>
         <a class="nav-btn nav-btn--ghost" href="settings.html" data-admin-link hidden>Settings</a>
+        <button type="button" class="nav-btn nav-btn--primary" id="open-chatbot-btn">Chat</button>
         <button type="button" class="nav-btn nav-btn--primary" data-logout-btn>Logout</button>
       </div>
     </nav>
 
     <main class="main-container">
+      <div id="chatbot-popup" class="chatbot-popup" hidden>
+        <div class="chatbot-popup__header">
+          <h2>Chatbot</h2>
+          <button type="button" class="chatbot-popup__close-btn" id="close-chatbot-btn">×</button>
+        </div>
+        <div class="chatbot-popup__body">
+          <iframe src="chatbot.html" class="chatbot-popup__iframe"></iframe>
+        </div>
+      </div>
       <section class="realtime-banner" id="conflict-banner" hidden>
         <div class="realtime-banner__content">
           <div class="realtime-banner__text" id="conflict-message"></div>
@@ -101,7 +111,6 @@
       <header class="week-card__header">
         <div class="week-card__title">
           <span class="week-card__badge" data-week-badge>Week</span>
-          <span class="week__range"></span>
         </div>
         <span class="week-card__count" data-week-count></span>
       </header>
@@ -128,6 +137,19 @@
           </table>
         </div>
       </div>
+    </section>
+    <section class="week-accordion" data-week-accordion>
+      <article class="week-accordion__item">
+        <div class="week-accordion__header" data-week-accordion-header>
+          <div class="week-accordion__summary">
+            <span class="week-card__badge" data-week-badge>Week</span>
+          </div>
+          <span class="week-card__count" data-week-count></span>
+        </div>
+        <div class="week-accordion__body" data-week-mobile-body hidden>
+          <div class="week-card__mobile" data-week-mobile></div>
+        </div>
+      </article>
     </section>
   </template>
 

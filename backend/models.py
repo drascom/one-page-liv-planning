@@ -75,9 +75,9 @@ class ProcedureBase(BaseModel):
     procedure_date: str = Field(..., description="ISO date for the scheduled procedure")
     status: str = Field(..., description="Procedure workflow status")
     procedure_type: str = Field(..., description="Buckets used to filter procedures")
-    package_type: Optional[str] = Field(None, description="Package/bundle selection for the procedure")
-    agency: Optional[str] = Field(None, description="Agency or referral source for the procedure")
+    package_type: str = Field(..., description="Package/bundle selection for the procedure")
     grafts: float = Field(..., description="Number of grafts or imported numeric detail", ge=0)
+    agency: Optional[str] = Field(None, description="Agency or referral source for the procedure")
     payment: Optional[str] = Field(None, description="Payment collection status")
     outstaning_balance: Optional[float] = Field(
         None, description="Outstanding balance remaining for the procedure", ge=0
@@ -407,6 +407,22 @@ class ProcedureBooking(ProcedureBookingBase):
     class Config:
         from_attributes = True
 
+class ChatMessage(BaseModel):
+    """Represents a single message in a chat conversation."""
+    role: str = Field(..., description="The role of the message sender (e.g., 'user', 'assistant')")
+    content: str = Field(..., description="The content of the message")
+
+
+class ChatHistory(BaseModel):
+    """Represents the chat history for a user."""
+    id: int = Field(..., description="Database identifier for the chat history")
+    user_id: int = Field(..., description="Identifier for the user this chat history belongs to")
+    messages: List[ChatMessage] = Field(default_factory=list, description="The list of messages in the conversation")
+    created_at: str = Field(..., description="Timestamp when the chat history was created")
+    updated_at: str = Field(..., description="Timestamp when the chat history was last updated")
+
+    class Config:
+        from_attributes = True
 
 # Ensure forward refs are resolved for models that reference ProcedureNote
 ProcedureBase.model_rebuild()

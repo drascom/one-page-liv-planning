@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import json
 import re
+import time
+from collections import deque
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -91,6 +93,10 @@ REQUIRED_MIN_OPTION_COUNTS: Dict[str, int] = {
     "agency": 1,
     "payment": 1,
 }
+
+_SEARCH_BY_META_WINDOW_SECONDS = 2.0
+_SEARCH_BY_META_MAX_REQUESTS = 5
+_search_by_meta_hits: dict[str, deque[float]] = {}
 
 NOT_FOUND_MSG = "not found"
 
@@ -757,8 +763,11 @@ async def delete_procedure_route(procedure_id: int, request: Request) -> Operati
 
 
 @procedures_router.post("/search-by-meta", response_model=ProcedureMetadataSearchResponse)
-def search_procedure_by_metadata(payload: ProcedureMetadataDeleteRequest) -> ProcedureMetadataSearchResponse:
+def search_procedure_by_metadata(
+    payload: ProcedureMetadataDeleteRequest, request: Request
+) -> ProcedureMetadataSearchResponse:
     """Return a procedure id when metadata matches."""
+    _throttle_search_by_meta(request)
     requested_full_name = (payload.full_name or "").strip()
     provided_filters = [
         requested_full_name,
@@ -821,6 +830,23 @@ def list_api_requests(limit: int = Query(100, ge=1, le=500), _: dict = Depends(r
 
 def _request_origin(request: Request) -> str:
     return str(request.base_url).rstrip("/")
+
+
+def _throttle_search_by_meta(request: Request) -> None:
+    """Simple per-IP throttle to avoid hammering /procedures/search-by-meta."""
+    client_ip = request.client.host if request.client else "unknown"
+    now = time.monotonic()
+    window_start = now - _SEARCH_BY_META_WINDOW_SECONDS
+    hits = _search_by_meta_hits.setdefault(client_ip, deque())
+    while hits and hits[0] < window_start:
+        hits.popleft()
+    if len(hits) >= _SEARCH_BY_META_MAX_REQUESTS:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many search-by-meta requests. Please slow down.",
+            headers={"Retry-After": str(int(_SEARCH_BY_META_WINDOW_SECONDS))},
+        )
+    hits.append(now)
 
 
 def _resolve_backend_url(request: Request) -> str:
