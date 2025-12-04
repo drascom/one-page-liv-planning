@@ -1217,6 +1217,12 @@ function createPackagePill(label) {
   }
   const pill = document.createElement("span");
   pill.className = "package-pill";
+  const normalized = label.trim().toLowerCase();
+  if (normalized.includes("small")) {
+    pill.classList.add("package-pill--small");
+  } else if (normalized.includes("big")) {
+    pill.classList.add("package-pill--big");
+  }
   pill.textContent = label;
   return pill;
 }

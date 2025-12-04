@@ -1132,7 +1132,7 @@ body.app-shell {
 
 .week-card__count {
   font-weight: 600;
-  color: #475569;
+  color: #6b7280;
 }
 
 .week-card__body {
@@ -1375,6 +1375,7 @@ body.app-shell {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.9rem;
+  padding: 0.2rem 0.7rem;
 }
 
 .modern-table thead {
@@ -1608,19 +1609,19 @@ body.app-shell {
 }
 
 .package-pill {
-  padding: 0.26rem 0.65rem;
+  padding: 0.24rem 0.62rem;
   border-radius: 999px;
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: 0.75rem;
+  font-weight: 500;
   display: inline-flex;
   align-items: center;
-  background: #e0e7ff;
-  color: #312e81;
+  background: #f3f4f6;
+  color: #0f172a;
 }
 
 .status-reserved {
-  color: #b45309;
-  background: rgba(249, 115, 22, 0.25);
+  color: #0f172a;
+  background: #dbeafe;
 }
 
 .status-confirmed {
@@ -1641,6 +1642,16 @@ body.app-shell {
 .status-generic {
   color: #0f172a;
   background: rgba(148, 163, 184, 0.2);
+}
+
+.package-pill--small {
+  background: #fce4f3;
+  color: #9d174d;
+}
+
+.package-pill--big {
+  background: #ede9fe;
+  color: #4338ca;
 }
 
 .patient-page {
