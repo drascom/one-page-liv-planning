@@ -173,6 +173,9 @@ let searchQuery = "";
 let patientRecords = [];
 let procedureRecords = [];
 let activityEvents = [];
+let activityToastEl = null;
+let activityToastMessageEl = null;
+let activityToastTimer = null;
 let realtimeSocket = null;
 let realtimeReconnectTimer = null;
 let realtimeConnectionState = "idle";
@@ -422,6 +425,52 @@ function addActivityEvent(event) {
     activityEvents.length = 10;
   }
   renderActivityFeed();
+}
+
+function ensureActivityToast() {
+  if (activityToastEl) {
+    return;
+  }
+  activityToastEl = document.createElement("div");
+  activityToastEl.className = "activity-toast";
+  activityToastEl.hidden = true;
+
+  activityToastMessageEl = document.createElement("div");
+  activityToastMessageEl.className = "activity-toast__message";
+
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "button";
+  closeBtn.className = "activity-toast__close";
+  closeBtn.setAttribute("aria-label", "Dismiss notification");
+  closeBtn.textContent = "×";
+  closeBtn.addEventListener("click", hideActivityToast);
+
+  activityToastEl.append(activityToastMessageEl, closeBtn);
+  document.body.appendChild(activityToastEl);
+}
+
+function hideActivityToast() {
+  if (!activityToastEl) {
+    return;
+  }
+  activityToastEl.hidden = true;
+  if (activityToastTimer) {
+    clearTimeout(activityToastTimer);
+    activityToastTimer = null;
+  }
+}
+
+function showActivityToast(message) {
+  ensureActivityToast();
+  if (!activityToastEl || !activityToastMessageEl) {
+    return;
+  }
+  activityToastMessageEl.textContent = message || "New activity received";
+  activityToastEl.hidden = false;
+  if (activityToastTimer) {
+    clearTimeout(activityToastTimer);
+  }
+  activityToastTimer = setTimeout(hideActivityToast, 5000);
 }
 
 function showConflictNotice(message, actionCallback = null) {
@@ -2245,6 +2294,7 @@ function handleRealtimeMessage(payload) {
     return;
   }
   addActivityEvent(payload);
+  showActivityToast(payload.summary || "New activity received");
   if (payload.entity === "procedure") {
     handleProcedureRealtimeEvent(payload);
   } else if (payload.entity === "patient") {
