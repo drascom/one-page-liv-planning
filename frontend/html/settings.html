@@ -226,19 +226,20 @@
 
           <section class="patient-card">
             <h3>Import Data</h3>
-            <p>Trigger an import process via n8n.</p>
-            <form id="n8n-import-form" class="patient-form">
-              <div class="form-grid">
-                <label class="form-field">
-                  <span>Select Date</span>
-                  <input type="date" id="n8n-import-date" name="date" required />
-                </label>
-              </div>
-              <div class="form-actions">
-                <button type="submit" class="primary-btn" id="n8n-import-btn">Start Import</button>
-                <span id="n8n-import-status" class="form-status" role="status"></span>
-              </div>
-            </form>
+            <p>Trigger an import process via the n8n-hosted form.</p>
+            <div style="width: 100%; min-height: 520px;">
+              <iframe
+                src="https://n8n.drascom.uk/webhook/start-import/n8n-form"
+                title="n8n Import Form"
+                style="width: 100%; min-height: 520px; border: 1px solid #e5e7eb; border-radius: 8px;"
+              ></iframe>
+              <p class="upload-hint" style="margin-top: 0.5rem;">
+                If the form does not load, open it directly:
+                <a href="https://n8n.drascom.uk/webhook/start-import/n8n-form" target="_blank" rel="noreferrer">
+                  n8n import form
+                </a>.
+              </p>
+            </div>
           </section>
 
           <section class="patient-card">
