@@ -438,6 +438,27 @@ def test_partial_update_preserves_existing_lists(client: TestClient):
     assert any(note["text"] == "updated note" for note in body["notes"])
 
 
+def test_procedure_creation_ignores_empty_notes(client: TestClient):
+    patient_id = _create_patient(client)
+    payload = {
+        "patient_id": patient_id,
+        "procedure_date": "2025-06-15",
+        "status": "reserved",
+        "procedure_type": "sfue",
+        "package_type": "small",
+        "grafts": 0,
+        "payment": "waiting",
+        "notes": [{"text": "", "completed": True}],
+    }
+    created = client.post("/procedures", json=payload)
+    assert created.status_code == 201
+    procedure_id = created.json()["id"]
+
+    fetched = client.get(f"/procedures/{procedure_id}")
+    assert fetched.status_code == 200
+    assert fetched.json()["notes"] == []
+
+
 def test_procedure_creation_rejects_blank_date(client: TestClient):
     patient_id = _create_patient(client)
     payload = {

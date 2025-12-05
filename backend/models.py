@@ -97,7 +97,36 @@ class ProcedureBase(BaseModel):
     consultation: List[str] = Field(default_factory=list, description="Consultations recorded for the procedure")
     forms: List[str] = Field(default_factory=list, description="Completed form identifiers")
     consents: List[str] = Field(default_factory=list, description="Completed consent identifiers")
-    notes: List["ProcedureNote"] = Field(default_factory=list, description="To-do style notes for the procedure")
+    notes: Optional[List["ProcedureNote"]] = Field(None, description="To-do style notes for the procedure")
+
+    @model_validator(mode="before")
+    @classmethod
+    def drop_empty_notes(cls, value: Dict[str, Any]) -> Dict[str, Any]:
+        """Ignore blank/empty notes so they don't trigger validation errors."""
+        if not isinstance(value, dict):
+            return value
+        notes = value.get("notes")
+        if not notes:
+            return value
+
+        filtered: List[Any] = []
+        if isinstance(notes, list):
+            for entry in notes:
+                if isinstance(entry, str):
+                    if entry.strip():
+                        filtered.append(entry)
+                    continue
+                if isinstance(entry, dict):
+                    text = entry.get("text") or entry.get("note") or entry.get("value") or ""
+                    if str(text).strip():
+                        filtered.append(entry)
+                    continue
+                filtered.append(entry)
+        else:
+            filtered = [notes]
+
+        value["notes"] = filtered
+        return value
 
 
 class ProcedureNote(BaseModel):

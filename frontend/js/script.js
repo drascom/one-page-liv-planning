@@ -138,6 +138,7 @@ const MONTH_FORMATTER = new Intl.DateTimeFormat("en-US", { month: "long", year: 
 const DAY_FORMATTER = new Intl.DateTimeFormat("en-US", { weekday: "short" });
 const DAY_NAME_FORMATTER = new Intl.DateTimeFormat("en-US", { weekday: "long" });
 const TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
+const NOTIFICATION_SOUND_SRC = "/static/audio/notification.wav";
 
 const monthDisplay = document.getElementById("current-month-label");
 const weekCount = document.getElementById("week-count");
@@ -181,6 +182,9 @@ let realtimeConnectionState = "idle";
 let conflictActionCallback = null;
 let realtimeRetryDelay = 0;
 let shouldPreserveSelections = false;
+let notificationAudio = null;
+let soundPermissionBannerEl = null;
+let soundPermissionDismissed = false;
 
 if (searchClearBtn) {
   searchClearBtn.hidden = true;
@@ -415,6 +419,117 @@ function setActivityStatus(text, connectionState) {
   }
 }
 
+function getNotificationAudio() {
+  if (notificationAudio !== null) {
+    return notificationAudio;
+  }
+  try {
+    const audio = new Audio(NOTIFICATION_SOUND_SRC);
+    audio.preload = "auto";
+    audio.volume = 0.4;
+    notificationAudio = audio;
+  } catch (error) {
+    console.warn("Unable to initialize notification sound", error);
+    notificationAudio = null;
+  }
+  return notificationAudio;
+}
+
+function hideSoundPermissionPrompt() {
+  if (soundPermissionBannerEl) {
+    soundPermissionBannerEl.remove();
+    soundPermissionBannerEl = null;
+  }
+}
+
+function showSoundPermissionPrompt(messageOverride = null) {
+  if (soundPermissionDismissed) {
+    return;
+  }
+  if (!soundPermissionBannerEl) {
+    const banner = document.createElement("div");
+    banner.className = "sound-permission-banner";
+
+    const text = document.createElement("p");
+    text.className = "sound-permission-banner__text";
+    text.textContent = "Enable notification sounds to hear live updates.";
+
+    const actions = document.createElement("div");
+    actions.className = "sound-permission-banner__actions";
+
+    const allowBtn = document.createElement("button");
+    allowBtn.type = "button";
+    allowBtn.className = "sound-permission-banner__btn";
+    allowBtn.textContent = "Enable sound";
+    allowBtn.addEventListener("click", () => requestNotificationSoundPermission());
+
+    const dismissBtn = document.createElement("button");
+    dismissBtn.type = "button";
+    dismissBtn.className = "sound-permission-banner__dismiss";
+    dismissBtn.setAttribute("aria-label", "Dismiss sound prompt");
+    dismissBtn.textContent = "×";
+    dismissBtn.addEventListener("click", () => {
+      soundPermissionDismissed = true;
+      hideSoundPermissionPrompt();
+    });
+
+    actions.appendChild(allowBtn);
+    banner.append(text, actions, dismissBtn);
+    document.body.appendChild(banner);
+    soundPermissionBannerEl = banner;
+  }
+  const textEl = soundPermissionBannerEl.querySelector(".sound-permission-banner__text");
+  if (messageOverride && textEl) {
+    textEl.textContent = messageOverride;
+  }
+  soundPermissionBannerEl.hidden = false;
+}
+
+function requestNotificationSoundPermission() {
+  const audio = getNotificationAudio();
+  if (!audio) {
+    showSoundPermissionPrompt("Audio could not be initialized.");
+    return;
+  }
+  try {
+    audio.currentTime = 0;
+    const playPromise = audio.play();
+    if (!playPromise || typeof playPromise.then !== "function") {
+      hideSoundPermissionPrompt();
+      return;
+    }
+    playPromise
+      .then(() => {
+        hideSoundPermissionPrompt();
+      })
+      .catch(() => {
+        showSoundPermissionPrompt("Tap enable to allow notification sounds.");
+      });
+  } catch (_error) {
+    showSoundPermissionPrompt("Tap enable to allow notification sounds.");
+  }
+}
+
+function playNotificationSound() {
+  const audio = getNotificationAudio();
+  if (!audio) {
+    return;
+  }
+  try {
+    audio.currentTime = 0;
+    const playPromise = audio.play();
+    if (playPromise && typeof playPromise.catch === "function") {
+      playPromise.catch((error) => {
+        console.warn("Notification sound blocked", error);
+        showSoundPermissionPrompt("Notification sounds need your permission.");
+      });
+    }
+  } catch (error) {
+    console.warn("Unable to play notification sound", error);
+    showSoundPermissionPrompt("Notification sounds need your permission.");
+  }
+}
+
 function addActivityEvent(event) {
   if (!event) {
     return;
@@ -472,6 +587,7 @@ function showActivityToast(message) {
   if (!activityToastStackEl) {
     return;
   }
+  playNotificationSound();
 
   const toastEl = document.createElement("div");
   toastEl.className = "activity-toast activity-toast--enter";
