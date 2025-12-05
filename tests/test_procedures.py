@@ -35,7 +35,7 @@ def _create_patient(client: TestClient) -> int:
         "last_name": "Patient",
         "email": "test@example.com",
         "phone": "+10000000000",
-        "city": "Exampleville",
+        "address": "123 Example Street",
     }
     response = client.post("/patients", json=payload)
     assert response.status_code == 201
@@ -530,7 +530,7 @@ def test_search_endpoint_returns_flat_patient_fields(client: TestClient):
     assert body["last_name"] == "Patient"
     assert body["email"] == "test@example.com"
     assert body["phone"] == "+10000000000"
-    assert body["city"] == "Exampleville"
+    assert body["address"] == "123 Example Street"
     assert body["deleted"] is False
     assert "patient" not in body
     assert isinstance(body["procedures"], list)

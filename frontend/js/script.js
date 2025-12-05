@@ -140,7 +140,10 @@ const DAY_NAME_FORMATTER = new Intl.DateTimeFormat("en-US", { weekday: "long" })
 const TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
 const NOTIFICATION_SOUND_SRC = "/static/audio/notification.wav";
 
-const monthDisplay = document.getElementById("current-month-label");
+const monthDisplay = document.getElementById("current-month-button");
+const monthPicker = document.getElementById("month-picker");
+const monthPickerGrid = document.getElementById("month-picker-grid");
+const monthPickerClose = document.getElementById("month-picker-close");
 const weekCount = document.getElementById("week-count");
 const monthPatientCount = document.getElementById("month-patient-count");
 const totalPatientCount = document.getElementById("total-patient-count");
@@ -1626,6 +1629,49 @@ function updateMonthPatientCount(total) {
   }
 }
 
+function updateMonthPickerSelection(monthIndex) {
+  if (!monthPickerGrid) return;
+  monthPickerGrid.querySelectorAll("[data-month-index]").forEach((button) => {
+    const isActive = Number(button.dataset.monthIndex) === monthIndex;
+    button.classList.toggle("is-active", isActive);
+    if (isActive) {
+      button.setAttribute("aria-current", "true");
+    } else {
+      button.removeAttribute("aria-current");
+    }
+  });
+}
+
+function openMonthPicker() {
+  if (!monthPicker) return;
+  monthPicker.hidden = false;
+  if (monthDisplay) {
+    monthDisplay.setAttribute("aria-expanded", "true");
+  }
+  updateMonthPickerSelection(selectedDate.getMonth());
+  const activeButton = monthPickerGrid?.querySelector(".is-active");
+  activeButton?.focus();
+}
+
+function closeMonthPicker() {
+  if (!monthPicker) return;
+  monthPicker.hidden = true;
+  if (monthDisplay) {
+    monthDisplay.setAttribute("aria-expanded", "false");
+    monthDisplay.focus();
+  }
+}
+
+function toggleMonthPicker() {
+  if (!monthPicker) return;
+  const isHidden = monthPicker.hidden;
+  if (isHidden) {
+    openMonthPicker();
+  } else {
+    closeMonthPicker();
+  }
+}
+
 function renderSelectedMonth() {
   if (isAdminUser && !shouldPreserveSelections) {
     selectedProcedureIds.clear();
@@ -1635,6 +1681,7 @@ function renderSelectedMonth() {
   if (monthDisplay) {
     monthDisplay.textContent = selectedLabel;
   }
+  updateMonthPickerSelection(selectedDate.getMonth());
   const currentMonth = sourceSchedules.find((month) => month.label === selectedLabel);
 
   scheduleEl.innerHTML = "";
@@ -1765,6 +1812,25 @@ function handleTodayClick() {
   renderSelectedMonth();
 }
 
+function handleMonthSelect(event) {
+  const button = event.target.closest("[data-month-index]");
+  if (!button) return;
+  const monthIndex = Number(button.dataset.monthIndex);
+  if (!Number.isInteger(monthIndex) || monthIndex < 0 || monthIndex > 11) {
+    return;
+  }
+  selectedDate = new Date(selectedDate.getFullYear(), monthIndex, 1);
+  renderSelectedMonth();
+  closeMonthPicker();
+}
+
+function handleMonthPickerKeydown(event) {
+  if (event.key === "Escape" && monthPicker && monthPicker.hidden === false) {
+    closeMonthPicker();
+    monthDisplay?.focus();
+  }
+}
+
 function buildDefaultPatientPayloads() {
   const defaultStatus = getDefaultFieldValue("status", "reserved");
   const defaultProcedure = getDefaultFieldValue("procedure_type", "sfue");
@@ -1777,7 +1843,7 @@ function buildDefaultPatientPayloads() {
     last_name: "Patient",
     email: "test@example.com",
     phone: "+44 12345678",
-    city: "London",
+    address: "London",
   };
 
   const procedurePayload = {
@@ -2266,6 +2332,23 @@ if (monthPrevBtn) {
 if (monthNextBtn) {
   monthNextBtn.addEventListener("click", handleNextMonth);
 }
+if (monthDisplay) {
+  monthDisplay.addEventListener("click", toggleMonthPicker);
+}
+if (monthPickerGrid) {
+  monthPickerGrid.addEventListener("click", handleMonthSelect);
+}
+if (monthPickerClose) {
+  monthPickerClose.addEventListener("click", closeMonthPicker);
+}
+if (monthPicker) {
+  monthPicker.addEventListener("click", (event) => {
+    if (event.target === monthPicker) {
+      closeMonthPicker();
+    }
+  });
+}
+window.addEventListener("keydown", handleMonthPickerKeydown);
 if (todayButton) {
   todayButton.addEventListener("click", handleTodayClick);
 }

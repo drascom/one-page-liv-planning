@@ -1059,7 +1059,9 @@ function renderDeletedProcedures(records) {
       const statusLabel = escapeHtml(procedure.status || "Unknown status");
       const paymentLabel = escapeHtml(procedure.payment || "Unknown payment");
       const dateLabel = formatProcedureDateText(procedure.procedure_date);
-      const patientMeta = `Email: ${escapeHtml(patient.email || "N/A")} • City: ${escapeHtml(patient.city || "N/A")}`;
+      const patientMeta = `Email: ${escapeHtml(patient.email || "N/A")} • Address: ${escapeHtml(
+        patient.address || patient.city || "N/A"
+      )}`;
       const patientDeleted = Boolean(patient.deleted);
       const recoverDisabled = patientDeleted ? "disabled aria-disabled=\"true\"" : "";
       const recoverTitle = patientDeleted ? 'title="Restore patient to enable recovery"' : "";
@@ -1203,7 +1205,7 @@ function renderDeletedPatients(patients) {
               ${patient.updated_at ? `• ${escapeHtml(patient.updated_at)}` : ""}
             </p>
             <p class="token-created">City: ${
-              patient.city ? escapeHtml(patient.city) : "N/A"
+              patient.address ? escapeHtml(patient.address) : patient.city ? escapeHtml(patient.city) : "N/A"
             } • Email: ${escapeHtml(patient.email || "N/A")}</p>
           </div>
           <div class="token-actions">

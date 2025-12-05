@@ -33,7 +33,7 @@ def test_partial_patient_update_preserves_existing_fields(client: TestClient):
         "last_name": "Example",
         "email": "alice@example.com",
         "phone": "+4400000000",
-        "city": "London",
+        "address": "London",
     }
     created = client.post("/patients", json=create_payload)
     assert created.status_code == 201
@@ -41,7 +41,7 @@ def test_partial_patient_update_preserves_existing_fields(client: TestClient):
 
     update_payload = {
         "phone": "+4411111111",
-        "city": "Bristol",
+        "address": "Bristol",
     }
     updated = client.put(f"/patients/{patient_id}", json=update_payload)
     assert updated.status_code == 200
@@ -53,7 +53,7 @@ def test_partial_patient_update_preserves_existing_fields(client: TestClient):
     assert body["last_name"] == "Example"
     assert body["email"] == "alice@example.com"
     assert body["phone"] == "+4411111111"
-    assert body["city"] == "Bristol"
+    assert body["address"] == "Bristol"
 
 
 def test_search_handles_middle_name(client: TestClient):
@@ -62,7 +62,7 @@ def test_search_handles_middle_name(client: TestClient):
         "last_name": "Kwok",
         "email": "steven@example.com",
         "phone": "+44123456789",
-        "city": "London",
+        "address": "London",
     }
     created = client.post("/patients", json=create_payload)
     assert created.status_code == 201
@@ -90,7 +90,7 @@ def test_patients_search_returns_multiple_matches(client: TestClient):
     base_payload = {
         "email": "jane@example.com",
         "phone": "+4400000000",
-        "city": "London",
+        "address": "London",
     }
     first = client.post("/patients", json={**shared_name, **base_payload})
     assert first.status_code == 201
@@ -100,7 +100,7 @@ def test_patients_search_returns_multiple_matches(client: TestClient):
             **shared_name,
             "email": "jane2@example.com",
             "phone": "+4411111111",
-            "city": "Bristol",
+            "address": "Bristol",
         },
     )
     assert second.status_code == 201
@@ -129,7 +129,7 @@ def test_patients_search_by_meta_filters_by_date_and_falls_back(client: TestClie
         "last_name": "Smith",
         "email": "alex@example.com",
         "phone": "+4400000000",
-        "city": "London",
+        "address": "London",
     }
     created = client.post("/patients", json=create_payload)
     assert created.status_code == 201

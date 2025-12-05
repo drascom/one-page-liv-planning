@@ -73,7 +73,15 @@
             <button type="button" class="date-nav-btn" id="month-today">Today</button>
             <button type="button" class="date-nav-btn" id="month-next" aria-label="Next month">→</button>
           </div>
-          <div class="current-date-display" id="current-month-label">Loading...</div>
+          <button
+            type="button"
+            class="current-date-display"
+            id="current-month-button"
+            aria-haspopup="dialog"
+            aria-expanded="false"
+          >
+            Loading...
+          </button>
         </div>
         <div class="controls-bar__secondary">
           <div class="controls-bar__badges">
@@ -91,6 +99,31 @@
 
       <section class="schedule-section">
         <div class="schedule__board" id="schedule"></div>
+      </section>
+
+      <section class="month-picker" id="month-picker" hidden>
+        <div class="month-picker__card" role="dialog" aria-modal="true" aria-labelledby="month-picker-title">
+          <div class="month-picker__header">
+            <h3 id="month-picker-title">Jump to month</h3>
+            <button type="button" class="month-picker__close" id="month-picker-close" aria-label="Close month picker">
+              ×
+            </button>
+          </div>
+          <div class="month-picker__grid" id="month-picker-grid">
+            <button type="button" class="month-picker__month" data-month-index="0">Jan</button>
+            <button type="button" class="month-picker__month" data-month-index="1">Feb</button>
+            <button type="button" class="month-picker__month" data-month-index="2">Mar</button>
+            <button type="button" class="month-picker__month" data-month-index="3">Apr</button>
+            <button type="button" class="month-picker__month" data-month-index="4">May</button>
+            <button type="button" class="month-picker__month" data-month-index="5">Jun</button>
+            <button type="button" class="month-picker__month" data-month-index="6">Jul</button>
+            <button type="button" class="month-picker__month" data-month-index="7">Aug</button>
+            <button type="button" class="month-picker__month" data-month-index="8">Sep</button>
+            <button type="button" class="month-picker__month" data-month-index="9">Oct</button>
+            <button type="button" class="month-picker__month" data-month-index="10">Nov</button>
+            <button type="button" class="month-picker__month" data-month-index="11">Dec</button>
+          </div>
+        </div>
       </section>
 
       <section class="activity-panel" aria-live="polite">

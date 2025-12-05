@@ -83,26 +83,32 @@ def _reset_patients_table(conn: sqlite3.Connection) -> None:
         "last_name",
         "email",
         "phone",
-        "city",
+        "address",
         "drive_folder_id",
         "deleted",
         "created_at",
         "updated_at",
     }
     if columns:
+        legacy_city_column = "city" in columns and "address" not in columns
+        if legacy_city_column:
+            conn.execute("ALTER TABLE patients ADD COLUMN address TEXT")
+            conn.execute("UPDATE patients SET address = city WHERE address IS NULL OR address = ''")
+            columns.add("address")
         missing = desired - columns
         alterable = {"drive_folder_id"}
         extra = columns - desired
-        if not missing and not extra:
+        allowed_extras = {"city"}
+        if not missing and not (extra - allowed_extras):
             return
         # If we only need to add simple columns, do it without dropping the table
-        if missing and missing.issubset(alterable) and not extra:
+        if missing and missing.issubset(alterable) and not (extra - allowed_extras):
             if "drive_folder_id" in missing:
                 conn.execute("ALTER TABLE patients ADD COLUMN drive_folder_id TEXT")
             conn.commit()
             return
         # If there are unexpected columns (e.g., legacy file_details), recreate the table
-        if extra:
+        if extra - allowed_extras:
             conn.execute("DROP TABLE IF EXISTS patients")
 
     # Drop legacy table if present; caller already decided data can be discarded
@@ -114,7 +120,7 @@ def _reset_patients_table(conn: sqlite3.Connection) -> None:
             last_name TEXT NOT NULL,
             email TEXT NOT NULL,
             phone TEXT NOT NULL,
-            city TEXT NOT NULL,
+            address TEXT NOT NULL,
             drive_folder_id TEXT,
             deleted INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -883,13 +889,18 @@ def _deserialize_json_payload(value: Optional[str]) -> Any:
 
 def _row_to_patient(row: sqlite3.Row) -> Dict[str, Any]:
     """Convert a patient row to a dictionary (personal info only)."""
+    address_value = None
+    if "address" in row.keys():
+        address_value = row["address"]
+    elif "city" in row.keys():
+        address_value = row["city"]
     return {
         "id": row["id"],
         "first_name": (row["first_name"] or "").strip(),
         "last_name": (row["last_name"] or "").strip(),
         "email": row["email"],
         "phone": row["phone"],
-        "city": row["city"],
+        "address": address_value or "",
         "drive_folder_id": row["drive_folder_id"] if "drive_folder_id" in row.keys() else None,
         "deleted": bool(row["deleted"]),
         "created_at": row["created_at"],
@@ -1323,7 +1334,7 @@ def run_data_integrity_check(limit: int = 50) -> Dict[str, Any]:
     issue_entries: List[Dict[str, Any]] = []
     with closing(get_connection()) as conn:
         patients = conn.execute(
-            "SELECT id, first_name, last_name, email, phone, city FROM patients"
+            "SELECT id, first_name, last_name, email, phone, COALESCE(address, city, '') AS address FROM patients"
         ).fetchall()
         procedures = conn.execute(
             """
@@ -1336,7 +1347,7 @@ def run_data_integrity_check(limit: int = 50) -> Dict[str, Any]:
     for patient in patients:
         missing_fields = [
             field
-            for field in ("first_name", "last_name", "email", "phone", "city")
+            for field in ("first_name", "last_name", "email", "phone", "address")
             if _blank(patient[field])
         ]
         if missing_fields:
@@ -1483,13 +1494,14 @@ def _serialize_patient_payload(data: Dict[str, Any]) -> Dict[str, Any]:
     """Serialize patient data (personal info only)."""
     normalized_first = (data.get("first_name") or "").strip()
     normalized_last = (data.get("last_name") or "").strip()
+    normalized_address = (data.get("address") or data.get("city") or "").strip()
     
     return {
         "first_name": normalized_first,
         "last_name": normalized_last,
         "email": data.get("email", ""),
         "phone": data.get("phone", ""),
-        "city": data.get("city", ""),
+        "address": normalized_address,
         "drive_folder_id": data.get("drive_folder_id"),
     }
 
@@ -1550,7 +1562,7 @@ def create_patient(data: Dict[str, Any]) -> Dict[str, Any]:
         cursor = conn.execute(
             """
             INSERT INTO patients (
-                first_name, last_name, email, phone, city,
+                first_name, last_name, email, phone, address,
                 drive_folder_id
             )
             VALUES (?, ?, ?, ?, ?, ?)
@@ -1560,7 +1572,7 @@ def create_patient(data: Dict[str, Any]) -> Dict[str, Any]:
                 payload["last_name"],
                 payload["email"],
                 payload["phone"],
-                payload["city"],
+                payload["address"],
                 payload["drive_folder_id"],
             ),
         )
@@ -1584,7 +1596,7 @@ def update_patient(patient_id: int, data: Dict[str, Any]) -> Optional[Dict[str, 
                 last_name = ?,
                 email = ?,
                 phone = ?,
-                city = ?,
+                address = ?,
                 drive_folder_id = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
@@ -1594,7 +1606,7 @@ def update_patient(patient_id: int, data: Dict[str, Any]) -> Optional[Dict[str, 
                 payload["last_name"],
                 payload["email"],
                 payload["phone"],
-                payload["city"],
+                payload["address"],
                 payload["drive_folder_id"],
                 patient_id,
             ),
@@ -1648,11 +1660,11 @@ def merge_patients(
         "last_name": target["last_name"],
         "email": target["email"],
         "phone": target["phone"],
-        "city": target["city"],
+        "address": target.get("address", ""),
         "drive_folder_id": target.get("drive_folder_id"),
     }
     if updates:
-        for field in ("first_name", "last_name", "email", "phone", "city", "drive_folder_id"):
+        for field in ("first_name", "last_name", "email", "phone", "address", "drive_folder_id"):
             if updates.get(field) is not None:
                 merged_values[field] = updates[field]
 
@@ -1683,7 +1695,7 @@ def merge_patients(
                 last_name = ?,
                 email = ?,
                 phone = ?,
-                city = ?,
+                address = ?,
                 drive_folder_id = ?,
                 deleted = 0,
                 updated_at = CURRENT_TIMESTAMP
@@ -1694,7 +1706,7 @@ def merge_patients(
                 payload["last_name"],
                 payload["email"],
                 payload["phone"],
-                payload["city"],
+                payload["address"],
                 payload["drive_folder_id"],
                 target_patient_id,
             ),
@@ -1911,6 +1923,7 @@ def purge_procedure(procedure_id: int) -> bool:
     with closing(get_connection()) as conn:
         cursor = conn.execute("DELETE FROM procedures WHERE id = ?", (procedure_id,))
         conn.commit()
+        _reset_id_sequences_if_empty(conn)
         return cursor.rowcount > 0
 
 
@@ -1968,11 +1981,27 @@ def fetch_deleted_patients() -> List[Dict[str, Any]]:
     return _fetch_patient_rows(include_deleted=True, only_deleted=True)
 
 
+def _reset_id_sequences_if_empty(conn: sqlite3.Connection) -> None:
+    """Reset autoincrement counters when tables are empty after purging data."""
+    reset_any = False
+    patient_count = conn.execute("SELECT COUNT(*) FROM patients").fetchone()[0]
+    procedure_count = conn.execute("SELECT COUNT(*) FROM procedures").fetchone()[0]
+    if patient_count == 0:
+        conn.execute("DELETE FROM sqlite_sequence WHERE name = 'patients'")
+        reset_any = True
+    if procedure_count == 0:
+        conn.execute("DELETE FROM sqlite_sequence WHERE name = 'procedures'")
+        reset_any = True
+    if reset_any:
+        conn.commit()
+
+
 def purge_patient(patient_id: int) -> bool:
     """Hard delete a patient record."""
     with closing(get_connection()) as conn:
         cursor = conn.execute("DELETE FROM patients WHERE id = ?", (patient_id,))
         conn.commit()
+        _reset_id_sequences_if_empty(conn)
         return cursor.rowcount > 0
 
 
@@ -2060,7 +2089,7 @@ def _seed_patients_if_empty(conn: sqlite3.Connection) -> bool:
     for record in DEMO_PATIENTS:
         cursor = conn.execute(
             """
-            INSERT INTO patients (first_name, last_name, email, phone, city)
+            INSERT INTO patients (first_name, last_name, email, phone, address)
             VALUES (?, ?, ?, ?, ?)
             """,
             (
@@ -2068,7 +2097,7 @@ def _seed_patients_if_empty(conn: sqlite3.Connection) -> bool:
                 record["last_name"],
                 record["email"],
                 record["phone"],
-                record["city"],
+                record["address"],
             ),
         )
         patient_ids.append(cursor.lastrowid)
@@ -2109,6 +2138,6 @@ DEMO_PATIENTS: List[Dict[str, Any]] = [
         "last_name": "Wallace",
         "email": "ava.wallace@example.com",
         "phone": "+44 7700 900001",
-        "city": "London",
+        "address": "London",
     }
 ]

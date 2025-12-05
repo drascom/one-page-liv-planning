@@ -19,7 +19,7 @@ const firstNameInput = document.getElementById("merge-first-name");
 const lastNameInput = document.getElementById("merge-last-name");
 const emailInput = document.getElementById("merge-email");
 const phoneInput = document.getElementById("merge-phone");
-const cityInput = document.getElementById("merge-city");
+const addressInput = document.getElementById("merge-address");
 const driveInput = document.getElementById("merge-drive");
 
 const selectedCountEl = document.getElementById("merge-selected-count");
@@ -146,7 +146,7 @@ function fillFormFromPatient(patient) {
   if (lastNameInput) lastNameInput.value = patient.last_name || "";
   if (emailInput) emailInput.value = patient.email || "";
   if (phoneInput) phoneInput.value = patient.phone || "";
-  if (cityInput) cityInput.value = patient.city || "";
+  if (addressInput) addressInput.value = patient.address || patient.city || "";
   if (driveInput) driveInput.value = patient.drive_folder_id || "";
 }
 
@@ -206,7 +206,9 @@ function renderSelectedList() {
           <div class="merge-selected-card__body">
             <div>
               <p class="merge-selected-card__name">${formatPatientName(patient)}</p>
-              <p class="merge-selected-card__meta">${patient.city || "City unknown"} • ${patient.email || "No email"}</p>
+              <p class="merge-selected-card__meta">${patient.address || patient.city || "Address unknown"} • ${
+                patient.email || "No email"
+              }</p>
             </div>
             <div class="merge-selected-card__stats">
               <span>${procedureCount} procedure${procedureCount === 1 ? "" : "s"}</span>
@@ -232,12 +234,12 @@ function matchesPatient(patient, term) {
   const name = normalize(`${patient.first_name} ${patient.last_name}`);
   const email = normalize(patient.email);
   const phone = normalize(patient.phone);
-  const city = normalize(patient.city);
+  const address = normalize(patient.address || patient.city);
   return (
     name.includes(normalizedTerm) ||
     email.includes(normalizedTerm) ||
     phone.includes(normalizedTerm) ||
-    city.includes(normalizedTerm)
+    address.includes(normalizedTerm)
   );
 }
 
@@ -269,7 +271,9 @@ function renderAvailableList() {
         <li class="merge-available-card">
           <div>
             <p class="merge-available-card__name">${formatPatientName(patient)}</p>
-            <p class="merge-available-card__meta">${patient.city || "City unknown"} • ${patient.email || "No email"}</p>
+            <p class="merge-available-card__meta">${patient.address || patient.city || "Address unknown"} • ${
+              patient.email || "No email"
+            }</p>
             ${isDuplicate ? '<span class="merge-available-card__badge">Possible duplicate</span>' : ""}
           </div>
           <div class="merge-available-card__actions">
@@ -359,7 +363,7 @@ function collectFormUpdates() {
     last_name: lastNameInput?.value?.trim() ?? "",
     email: emailInput?.value?.trim() ?? "",
     phone: phoneInput?.value?.trim() ?? "",
-    city: cityInput?.value?.trim() ?? "",
+    address: addressInput?.value?.trim() ?? "",
     drive_folder_id: driveInput?.value?.trim() || null,
   };
 }

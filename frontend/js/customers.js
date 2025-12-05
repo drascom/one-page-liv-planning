@@ -136,7 +136,7 @@ function renderCustomers(customers) {
   if (!listEl) return;
   if (!customers.length) {
     listEl.innerHTML =
-      '<li class="customer-empty">No patients match your search. Try another name or city.</li>';
+      '<li class="customer-empty">No patients match your search. Try another name or address.</li>';
   } else {
     listEl.innerHTML = customers
       .map((customer) => {
@@ -148,7 +148,7 @@ function renderCustomers(customers) {
               ${customer.first_name || ""} ${customer.last_name || ""}
             </a>
             <p class="customer-card__meta">
-              ${customer.city || "City unknown"} • ${customer.email || "No email"}
+              ${customer.address || customer.city || "Address unknown"} • ${customer.email || "No email"}
             </p>
           </div>
           <div class="customer-card__stats">
@@ -241,9 +241,9 @@ function applyCustomerFilter(query) {
   } else {
     filteredCustomers = allCustomers.filter((customer) => {
       const name = `${normalizeName(customer.first_name)} ${normalizeName(customer.last_name)}`.trim();
-      const city = normalizeName(customer.city);
+      const address = normalizeName(customer.address || customer.city);
       const email = normalizeName(customer.email);
-      return name.includes(normalized) || city.includes(normalized) || email.includes(normalized);
+      return name.includes(normalized) || address.includes(normalized) || email.includes(normalized);
     });
   }
   renderCustomers(filteredCustomers);

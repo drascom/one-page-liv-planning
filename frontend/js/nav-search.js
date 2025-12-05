@@ -64,12 +64,12 @@ function matchesPatient(patient, term) {
   const name = normalizeValue(`${patient.first_name} ${patient.last_name}`);
   const email = normalizeValue(patient.email);
   const phone = normalizeValue(patient.phone);
-  const city = normalizeValue(patient.city);
+  const address = normalizeValue(patient.address || patient.city);
   return (
     name.includes(normalizedTerm) ||
     email.includes(normalizedTerm) ||
     phone.includes(normalizedTerm) ||
-    city.includes(normalizedTerm)
+    address.includes(normalizedTerm)
   );
 }
 
@@ -94,7 +94,7 @@ function renderSearchResults(matches) {
     name.textContent = formatPatientName(patient);
     const meta = document.createElement("span");
     meta.className = "patient-search__result-meta";
-    meta.textContent = patient.city || patient.email || "Open record";
+    meta.textContent = patient.address || patient.city || patient.email || "Open record";
     item.append(name, meta);
     item.addEventListener("click", () => openPatientRecord(patient));
     item.addEventListener("keydown", (event) => {

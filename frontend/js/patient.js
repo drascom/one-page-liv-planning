@@ -50,7 +50,7 @@ const DEFAULT_FIELD_OPTIONS = {
 const DEFAULT_CONTACT = {
   email: "test@example.com",
   phone: "+44 12345678",
-  city: "London",
+  address: "London",
 };
 
 let fieldOptions = JSON.parse(JSON.stringify(DEFAULT_FIELD_OPTIONS));
@@ -206,7 +206,7 @@ function buildConsultationsChecklist() {
 
 const patientNameEl = document.getElementById("patient-name");
 const patientWeekEl = document.getElementById("patient-week");
-const patientCityEl = document.getElementById("patient-city");
+const patientAddressEl = document.getElementById("patient-address");
 const bookingListEl = document.getElementById("patient-bookings-list");
 const proceduresStatusEl = document.getElementById("procedures-status");
 const formEl = document.getElementById("patient-form");
@@ -224,7 +224,7 @@ const lastNameInput = document.getElementById("last-name");
 const procedureDateInput = document.getElementById("procedure-date");
 const emailInput = document.getElementById("email");
 const phoneInput = document.getElementById("phone");
-const cityInput = document.getElementById("city");
+const addressInput = document.getElementById("address");
 const statusSelect = document.getElementById("status");
 const procedureSelect = document.getElementById("procedure-type");
 const packageTypeSelect = document.getElementById("package-type");
@@ -329,7 +329,8 @@ function syncHeader(patient, procedure) {
   const scheduleMeta = buildScheduleContextFromProcedure(procedure);
   const weekBits = [scheduleMeta.weekLabel, scheduleMeta.dayLabel].filter(Boolean).join(" • ");
   patientWeekEl.textContent = weekBits;
-  patientCityEl.textContent = patient?.city ? `City: ${patient.city}` : "";
+  const address = patient?.address || patient?.city || "";
+  patientAddressEl.textContent = address ? `Address: ${address}` : "";
 }
 
 function setMultiValue(selectEl, values) {
@@ -487,7 +488,7 @@ function populatePatientForm(record) {
   lastNameInput.value = record.last_name || "";
   emailInput.value = record.email || DEFAULT_CONTACT.email;
   phoneInput.value = record.phone || DEFAULT_CONTACT.phone;
-  cityInput.value = record.city || DEFAULT_CONTACT.city;
+  addressInput.value = record.address || record.city || DEFAULT_CONTACT.address;
   if (driveFolderInput) {
     driveFolderInput.value = record.drive_folder_id || "";
   }
@@ -1211,7 +1212,7 @@ function buildPatientPayloadFromForm() {
     last_name: lastNameInput.value.trim() || currentPatient.last_name,
     email: emailInput.value.trim(),
     phone: phoneInput.value.trim(),
-    city: cityInput.value.trim(),
+    address: addressInput.value.trim(),
   };
   if (isAdminUser) {
     payload.drive_folder_id = driveFolderInput?.value?.trim() || null;

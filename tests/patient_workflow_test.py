@@ -67,7 +67,7 @@ def create_patient(client: httpx.Client) -> Dict[str, Any]:
         "last_name": "Workflow",
         "email": f"workflow+{suffix}@example.com",
         "phone": "+44 1234 567890",
-        "city": "London",
+        "address": "London",
     }
     response = _request(client, "POST", "/patients", json=payload)
     patient = response.json()
@@ -79,11 +79,11 @@ def update_patient(client: httpx.Client, patient_id: int, original: Dict[str, An
     payload = {
         **original,
         "phone": "+44 9876 543210",
-        "city": "Bristol",
+        "address": "Bristol",
     }
     response = _request(client, "PUT", f"/patients/{patient_id}", json=payload)
     patient = response.json()
-    print(f"✅ Updated patient #{patient_id} with new phone/city info")
+    print(f"✅ Updated patient #{patient_id} with new phone/address info")
     return patient
 
 
