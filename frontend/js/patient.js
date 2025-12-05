@@ -266,6 +266,7 @@ const adminDebugSection = document.getElementById("admin-debug");
 const debugDriveFolderEl = document.getElementById("debug-drive-folder");
 const debugDriveFilesEl = document.getElementById("debug-drive-files");
 const debugDriveCountEl = document.getElementById("debug-drive-count");
+const debugApiErrorEl = document.getElementById("debug-api-error");
 const debugTestDriveBtn = document.getElementById("debug-test-drive");
 const debugConsoleEl = document.getElementById("debug-console");
 
@@ -283,6 +284,7 @@ let activeProcedure = null;
 let procedureNotes = [];
 let driveFolderFilesCache = [];
 let activeDrivePhotoIndex = 0;
+let lastDriveApiError = "";
 
 function loadActiveContext() {
   if (typeof window === "undefined" || !window.localStorage) {
@@ -596,6 +598,7 @@ async function fetchPatient() {
     updateActiveProcedureNotes([]);
     driveFolderFilesCache = [];
     renderDriveAssets();
+    setDriveApiError("");
     refreshDeleteButtonState();
     renderRelatedBookings(null);
     return;
@@ -612,7 +615,9 @@ async function fetchPatient() {
     driveFolderFilesCache = [];
     renderDriveAssets();
     if (record.drive_folder_id) {
-        await fetchDriveFolderFiles(record.drive_folder_id);
+      await fetchDriveFolderFiles(record.drive_folder_id);
+    } else {
+      setDriveApiError("No Drive folder ID configured for this patient.");
     }
     populatePatientForm(currentPatient);
     patientStatusEl.textContent = "";
@@ -634,6 +639,7 @@ async function fetchPatient() {
     updateActiveProcedureNotes([]);
     driveFolderFilesCache = [];
     renderDriveAssets();
+    setDriveApiError("Unable to load Drive files.");
     refreshDeleteButtonState();
     renderRelatedBookings(null);
   }
@@ -673,7 +679,7 @@ function getDriveFiles() {
 function buildDriveFileUrl(fileObj) {
   if (!fileObj) return "";
   if (fileObj.id) {
-    return `/drive-image/${fileObj.id}`;
+    return buildApiUrl(`/drive-image/${fileObj.id}`);
   }
   return fileObj.driveLink || "";
 }
@@ -727,15 +733,27 @@ function getDriveDocumentFiles() {
   return { pdfs, archives, others };
 }
 
+function setDriveApiError(message) {
+  lastDriveApiError = message || "";
+  if (debugApiErrorEl) {
+    debugApiErrorEl.textContent = lastDriveApiError || "None";
+  }
+}
+
 async function fetchDriveFolderFiles(folderId) {
   driveFolderFilesCache = [];
   renderDriveAssets();
-  if (!folderId) return driveFolderFilesCache;
+  if (!folderId) {
+    setDriveApiError("No Drive folder ID configured for this patient.");
+    return driveFolderFilesCache;
+  }
   try {
-    const response = await fetch(`/drive-image/folder/${folderId}/files`);
+    const response = await fetch(buildApiUrl(`/drive-image/folder/${folderId}/files`));
     handleUnauthorized(response);
     if (!response.ok) {
       console.warn("Drive folder list failed", response.status);
+      const detail = await response.text();
+      setDriveApiError(`List failed (${response.status}): ${detail || "Unknown error"}`);
       return driveFolderFilesCache;
     }
     const payload = await response.json();
@@ -748,8 +766,10 @@ async function fetchDriveFolderFiles(folderId) {
           thumbnailLink: f.thumbnailLink,
         }))
       : [];
+    setDriveApiError("");
   } catch (error) {
     console.warn("Unable to fetch drive folder files", error);
+    setDriveApiError(error?.message || "Failed to reach Drive API");
   }
   renderDriveAssets();
   return driveFolderFilesCache;
@@ -1099,7 +1119,7 @@ function renderDriveDocuments(pdfFiles = [], archiveFiles = [], otherFiles = [])
     };
 
     const withInlineDisposition = (href) => {
-      if (!href || !href.startsWith("/drive-image/")) return href;
+      if (!href || !href.includes("/drive-image/")) return href;
       return href.includes("?") ? `${href}&disposition=inline` : `${href}?disposition=inline`;
     };
 
@@ -1161,7 +1181,7 @@ function renderDriveGallery(images = getDriveImageFiles()) {
   images.forEach((fileObj, index) => {
     const card = document.createElement("div");
     card.className = "photo-thumb";
-    const thumbUrl = fileObj.thumbnailLink || `/drive-image/${fileObj.id}`;
+    const thumbUrl = fileObj.thumbnailLink || buildDriveFileUrl(fileObj);
     card.style.backgroundImage = `url(${thumbUrl})`;
     const badge = document.createElement("span");
     badge.className = "drive-badge";
@@ -1178,7 +1198,7 @@ function openDrivePhotoViewer(index) {
   if (!driveImages.length) return;
   activeDrivePhotoIndex = (index + driveImages.length) % driveImages.length;
   const file = driveImages[activeDrivePhotoIndex];
-  viewerImage.src = `/drive-image/${file.id}`;
+  viewerImage.src = buildDriveFileUrl(file);
   if (viewerCaption) {
     viewerCaption.textContent = file.name || `Photo ${activeDrivePhotoIndex + 1}`;
   }
@@ -1595,6 +1615,9 @@ function updateDebugInfo() {
     ? files.map((f) => f.name || f.id).join(", ")
     : "None";
   debugDriveCountEl.textContent = `${files.length} files found`;
+  if (debugApiErrorEl) {
+    debugApiErrorEl.textContent = lastDriveApiError || "None";
+  }
 }
 
 if (debugTestDriveBtn) {
@@ -1605,7 +1628,7 @@ if (debugTestDriveBtn) {
       return;
     }
     const testId = ids[0];
-    const url = `/drive-image/${testId}`;
+    const url = buildDriveFileUrl({ id: testId });
     logDebug(`Testing fetch: ${url}`);
     
     try {
