@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import random
+import re
 import secrets
 import sqlite3
 import string
@@ -30,6 +31,11 @@ FIELD_OPTION_FIELDS: List[str] = [
     "consultation",
     "payment",
 ]
+
+SEQUENTIAL_OPTION_PREFIXES: Dict[str, str] = {
+    "forms": "form",
+    "consents": "consent",
+}
 
 
 def _date_only(value: Optional[str]) -> Optional[str]:
@@ -356,16 +362,16 @@ DEFAULT_FIELD_OPTIONS: Dict[str, List[Dict[str, str]]] = {
         {"value": "liv_hair", "label": "Liv Hair"},
     ],
     "forms": [
-        {"value": "form1", "label": "Form 1"},
-        {"value": "form2", "label": "Form 2"},
-        {"value": "form3", "label": "Form 3"},
-        {"value": "form4", "label": "Form 4"},
-        {"value": "form5", "label": "Form 5"},
+        {"value": "form-1", "label": "Form 1"},
+        {"value": "form-2", "label": "Form 2"},
+        {"value": "form-3", "label": "Form 3"},
+        {"value": "form-4", "label": "Form 4"},
+        {"value": "form-5", "label": "Form 5"},
     ],
     "consents": [
-        {"value": "form1", "label": "Consent 1"},
-        {"value": "form2", "label": "Consent 2"},
-        {"value": "form3", "label": "Consent 3"},
+        {"value": "consent-1", "label": "Consent 1"},
+        {"value": "consent-2", "label": "Consent 2"},
+        {"value": "consent-3", "label": "Consent 3"},
     ],
     "consultation": [
         {"value": "consultation1", "label": "Consultation 1"},
@@ -413,6 +419,8 @@ def _ensure_field_options(conn: sqlite3.Connection) -> None:
                 "INSERT INTO field_options (field, options) VALUES (?, ?)",
                 (field, json.dumps(DEFAULT_FIELD_OPTIONS[field])),
             )
+            updated = True
+        elif _normalize_sequential_field_options(conn, field):
             updated = True
     if updated:
         conn.commit()
@@ -502,6 +510,54 @@ def _deserialize_field_option_payload(payload: Optional[str]) -> Optional[List[D
     return normalized
 
 
+def _extract_sequential_suffix(base: str, value: str) -> Optional[int]:
+    """Return the numeric suffix when the value matches the expected prefix."""
+    if not value:
+        return None
+    match = re.match(rf"^{re.escape(base)}-?(\d+)$", value)
+    if not match:
+        return None
+    try:
+        return int(match.group(1))
+    except ValueError:
+        return None
+
+
+def _normalize_sequential_field_options(conn: sqlite3.Connection, field: str) -> bool:
+    """
+    Convert legacy values (e.g., form1) to the new dashed format (form-1) while preserving order.
+    """
+    base = SEQUENTIAL_OPTION_PREFIXES.get(field)
+    if not base:
+        return False
+    cursor = conn.execute("SELECT options FROM field_options WHERE field = ?", (field,))
+    row = cursor.fetchone()
+    if not row:
+        return False
+    options = _deserialize_field_option_payload(row["options"])
+    if not options:
+        return False
+    changed = False
+    normalized: list[dict[str, str]] = []
+    next_suffix = 1
+    for option in options:
+        suffix = _extract_sequential_suffix(base, option["value"])
+        if suffix is None:
+            suffix = next_suffix
+            changed = True
+        next_suffix = max(next_suffix, suffix + 1)
+        new_value = f"{base}-{suffix}"
+        if new_value != option["value"]:
+            changed = True
+        normalized.append({"value": new_value, "label": option["label"]})
+    if changed:
+        conn.execute(
+            "UPDATE field_options SET options = ? WHERE field = ?",
+            (json.dumps(normalized), field),
+        )
+    return changed
+
+
 def list_field_options() -> Dict[str, List[Dict[str, str]]]:
     with closing(get_connection()) as conn:
         cursor = conn.execute("SELECT field, options FROM field_options")
@@ -528,15 +584,36 @@ def get_field_options(field: str) -> List[Dict[str, str]]:
 def update_field_options(field: str, options: List[Dict[str, str]]) -> List[Dict[str, str]]:
     if field not in FIELD_OPTION_FIELDS:
         raise ValueError("Unknown field option")
+    sequential_base = SEQUENTIAL_OPTION_PREFIXES.get(field)
+    next_suffix = 1
+    if sequential_base:
+        for option in options:
+            candidate = str(option.get("value", "")).strip()
+            suffix = _extract_sequential_suffix(sequential_base, candidate) if candidate else None
+            if suffix is not None:
+                next_suffix = max(next_suffix, suffix + 1)
     normalized: List[Dict[str, str]] = []
     seen: set[str] = set()
     for option in options:
         value = str(option.get("value", "")).strip()
         label = str(option.get("label", "")).strip() or value
-        if not value:
-            continue
-        if value in seen:
-            continue
+        if sequential_base:
+            if not label and not value:
+                continue
+            candidate = value if value and value not in seen else ""
+            if candidate:
+                suffix = _extract_sequential_suffix(sequential_base, candidate)
+                if suffix is not None and suffix >= next_suffix:
+                    next_suffix = suffix + 1
+            while not candidate or candidate in seen:
+                candidate = f"{sequential_base}-{next_suffix}"
+                next_suffix += 1
+            value = candidate
+        else:
+            if not value:
+                continue
+            if value in seen:
+                continue
         seen.add(value)
         normalized.append({"value": value, "label": label})
     with closing(get_connection()) as conn:

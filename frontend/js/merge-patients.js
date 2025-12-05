@@ -32,6 +32,7 @@ let patients = [];
 let proceduresByPatient = new Map();
 let selectedPatientIds = new Set();
 let primaryPatientId = null;
+let duplicatePatientIds = new Set();
 
 initSessionControls();
 
@@ -52,6 +53,10 @@ function normalize(value) {
   return (value || "").toString().trim().toLowerCase();
 }
 
+function normalizePhone(value) {
+  return normalize(value).replace(/\D+/g, "");
+}
+
 function setStatus(message, { isError = false } = {}) {
   if (!statusEl) return;
   statusEl.textContent = message ?? "";
@@ -64,6 +69,40 @@ function setStatus(message, { isError = false } = {}) {
 
 function formatPatientName(patient) {
   return `${patient?.first_name || ""} ${patient?.last_name || ""}`.trim() || "Unnamed patient";
+}
+
+function collectDuplicatePatientIds(records) {
+  const emailMap = new Map();
+  const phoneMap = new Map();
+  const nameMap = new Map();
+
+  const addToMap = (map, key, id) => {
+    if (!key) return;
+    const current = map.get(key) ?? new Set();
+    current.add(id);
+    map.set(key, current);
+  };
+
+  records.forEach((patient) => {
+    const id = Number(patient.id);
+    addToMap(emailMap, normalize(patient.email), id);
+    addToMap(phoneMap, normalizePhone(patient.phone), id);
+    const first = normalize(patient.first_name);
+    const last = normalize(patient.last_name);
+    if (first && last) {
+      addToMap(nameMap, `${first}|${last}`, id);
+    }
+  });
+
+  const duplicates = new Set();
+  [emailMap, phoneMap, nameMap].forEach((map) => {
+    map.forEach((ids) => {
+      if (ids.size > 1) {
+        ids.forEach((id) => duplicates.add(id));
+      }
+    });
+  });
+  return duplicates;
 }
 
 function getPatientRecord(patientId) {
@@ -208,20 +247,30 @@ function renderAvailableList() {
   const available = patients.filter(
     (patient) => !selectedPatientIds.has(Number(patient.id)) && matchesPatient(patient, searchTerm)
   );
+  const sortedAvailable = [...available].sort((a, b) => {
+    const aDuplicate = duplicatePatientIds.has(a.id);
+    const bDuplicate = duplicatePatientIds.has(b.id);
+    if (aDuplicate !== bDuplicate) {
+      return aDuplicate ? -1 : 1;
+    }
+    return formatPatientName(a).localeCompare(formatPatientName(b));
+  });
   if (!available.length) {
     availableListEl.innerHTML =
       '<li class="merge-available-card merge-available-card--empty">No other patients match that search.</li>';
     return;
   }
-  availableListEl.innerHTML = available
+  availableListEl.innerHTML = sortedAvailable
     .slice(0, 12)
     .map((patient) => {
       const procedureCount = getProcedureCount(patient.id);
+      const isDuplicate = duplicatePatientIds.has(patient.id);
       return `
         <li class="merge-available-card">
           <div>
             <p class="merge-available-card__name">${formatPatientName(patient)}</p>
             <p class="merge-available-card__meta">${patient.city || "City unknown"} • ${patient.email || "No email"}</p>
+            ${isDuplicate ? '<span class="merge-available-card__badge">Possible duplicate</span>' : ""}
           </div>
           <div class="merge-available-card__actions">
             <span class="merge-available-card__stat">${procedureCount} procedure${procedureCount === 1 ? "" : "s"}</span>
@@ -283,6 +332,7 @@ async function loadPatientsAndProcedures() {
       id: Number(patient.id),
     }));
     patients = normalizedPatients;
+    duplicatePatientIds = collectDuplicatePatientIds(normalizedPatients);
     proceduresByPatient = new Map();
     procedurePayload.forEach((procedure) => {
       const patientId = Number(procedure.patient_id);

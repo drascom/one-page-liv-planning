@@ -524,21 +524,26 @@ const FIELD_DEFAULTS = {
     { value: "partially_paid", label: "Partially Paid" },
   ],
   forms: [
-    { value: "form1", label: "Form 1" },
-    { value: "form2", label: "Form 2" },
-    { value: "form3", label: "Form 3" },
-    { value: "form4", label: "Form 4" },
-    { value: "form5", label: "Form 5" },
+    { value: "form-1", label: "Form 1" },
+    { value: "form-2", label: "Form 2" },
+    { value: "form-3", label: "Form 3" },
+    { value: "form-4", label: "Form 4" },
+    { value: "form-5", label: "Form 5" },
   ],
   consents: [
-    { value: "form1", label: "Consent 1" },
-    { value: "form2", label: "Consent 2" },
-    { value: "form3", label: "Consent 3" },
+    { value: "consent-1", label: "Consent 1" },
+    { value: "consent-2", label: "Consent 2" },
+    { value: "consent-3", label: "Consent 3" },
   ],
   consultation: [
     { value: "consultation1", label: "Consultation 1" },
     { value: "consultation2", label: "Consultation 2" },
   ],
+};
+
+const SEQUENTIAL_OPTION_PREFIXES = {
+  forms: "form",
+  consents: "consent",
 };
 
 const fieldOptionsContainer = document.getElementById("field-options-container");
@@ -587,7 +592,31 @@ async function fetchFieldOptionsData() {
   }
 }
 
+function getNextSequentialValue(field) {
+  const prefix = SEQUENTIAL_OPTION_PREFIXES[field];
+  if (!prefix) return null;
+  const options = currentFieldOptions[field] ?? [];
+  const existingValues = new Set(options.map((opt) => opt.value));
+  const maxSuffix = options.reduce((max, option) => {
+    const match = String(option.value || "").match(new RegExp(`^${prefix}-?(\\d+)$`, "i"));
+    if (!match) return max;
+    const parsed = parseInt(match[1], 10);
+    return Number.isNaN(parsed) ? max : Math.max(max, parsed);
+  }, 0);
+  let next = maxSuffix + 1;
+  let candidate = `${prefix}-${next}`;
+  while (existingValues.has(candidate)) {
+    next += 1;
+    candidate = `${prefix}-${next}`;
+  }
+  return candidate;
+}
+
 function generateUniqueValue(field, label) {
+  const sequentialValue = getNextSequentialValue(field);
+  if (sequentialValue) {
+    return sequentialValue;
+  }
   const base = label
     .toLowerCase()
     .trim()

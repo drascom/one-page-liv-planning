@@ -2508,6 +2508,39 @@ body.app-shell {
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 
+.form-layout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.form-group label {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  border: 1px solid #cbd5f5;
+  border-radius: 10px;
+  padding: 0.65rem 0.75rem;
+  font-size: 1rem;
+  font-family: inherit;
+}
+
+.form-group select[multiple],
+.form-group textarea {
+  min-height: 120px;
+}
+
 .form-field {
   display: flex;
   flex-direction: column;
@@ -4194,6 +4227,11 @@ body.app-shell {
   flex-wrap: wrap;
 }
 
+.merge-form {
+  grid-template-columns: 1fr;
+  align-items: stretch;
+}
+
 .merge-search {
   display: flex;
   align-items: center;
@@ -4338,6 +4376,19 @@ body.app-shell {
 .merge-available-card__stat {
   color: #0f172a;
   font-weight: 700;
+}
+
+.merge-available-card__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.35rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #b45309;
+  font-weight: 700;
+  font-size: 0.85rem;
 }
 
 .merge-available-card--empty {
