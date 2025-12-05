@@ -83,3 +83,104 @@ def test_search_handles_middle_name(client: TestClient):
     assert body["id"] == patient_id
     assert body["first_name"] == "Steven"
     assert body["last_name"] == "Kwok"
+
+
+def test_patients_search_returns_multiple_matches(client: TestClient):
+    shared_name = {"first_name": "Jane", "last_name": "Doe"}
+    base_payload = {
+        "email": "jane@example.com",
+        "phone": "+4400000000",
+        "city": "London",
+    }
+    first = client.post("/patients", json={**shared_name, **base_payload})
+    assert first.status_code == 201
+    second = client.post(
+        "/patients",
+        json={
+            **shared_name,
+            "email": "jane2@example.com",
+            "phone": "+4411111111",
+            "city": "Bristol",
+        },
+    )
+    assert second.status_code == 201
+    ids = {first.json()["id"], second.json()["id"]}
+
+    token_response = client.post("/api-tokens", json={"name": "test token"})
+    assert token_response.status_code == 201
+    token = token_response.json()["token"]
+
+    response = client.get(
+        "/api/v1/patients/search",
+        params={"full_name": "Jane Doe"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    matches = body["matches"]
+    assert len(matches) == 2
+    assert {match["id"] for match in matches} == ids
+
+
+def test_patients_search_by_meta_filters_by_date_and_falls_back(client: TestClient):
+    create_payload = {
+        "first_name": "Alex",
+        "last_name": "Smith",
+        "email": "alex@example.com",
+        "phone": "+4400000000",
+        "city": "London",
+    }
+    created = client.post("/patients", json=create_payload)
+    assert created.status_code == 201
+    patient_id = created.json()["id"]
+
+    procedure_payload = {
+        "patient_id": patient_id,
+        "procedure_date": "2024-08-01",
+        "status": "confirmed",
+        "procedure_type": "sfue",
+        "package_type": "small",
+        "grafts": 1000,
+        "payment": "paid",
+        "consultation": [],
+        "forms": [],
+        "consents": [],
+    }
+    created_proc = client.post("/procedures", json=procedure_payload)
+    assert created_proc.status_code == 201
+    procedure_id = created_proc.json()["id"]
+
+    # Add a second procedure to test fallback when date does not match
+    client.post(
+        "/procedures",
+        json={**procedure_payload, "procedure_date": "2024-08-15", "grafts": 1200},
+    )
+
+    token_response = client.post("/api-tokens", json={"name": "test token"})
+    assert token_response.status_code == 201
+    token = token_response.json()["token"]
+
+    # Matching date returns only the matching procedure
+    matching = client.get(
+        "/api/v1/patients/search-by-meta",
+        params={"full_name": "Alex Smith", "procedure_date": "2024-08-01"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert matching.status_code == 200
+    match_body = matching.json()
+    assert match_body["success"] is True
+    match = match_body["matches"][0]
+    assert len(match["procedures"]) == 1
+    assert match["procedures"][0]["id"] == procedure_id
+
+    # Non-matching date falls back to all procedures for the patient
+    fallback = client.get(
+        "/api/v1/patients/search-by-meta",
+        params={"full_name": "Alex Smith", "procedure_date": "2024-09-01"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert fallback.status_code == 200
+    fallback_body = fallback.json()
+    assert fallback_body["success"] is True
+    assert len(fallback_body["matches"][0]["procedures"]) == 2

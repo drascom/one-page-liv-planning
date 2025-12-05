@@ -281,6 +281,32 @@ class PatientSearchResult(BaseModel):
     procedures: List[Procedure] = Field(default_factory=list, description="Procedures linked to the patient")
 
 
+class PatientSearchMatch(BaseModel):
+    """Flattened patient fields with attached procedures, for multi-result responses."""
+
+    id: int
+    first_name: str
+    last_name: str
+    email: str
+    phone: str
+    city: str
+    drive_folder_id: Optional[str] = None
+    deleted: bool = False
+    created_at: str
+    updated_at: str
+    procedures: List[Procedure] = Field(default_factory=list)
+
+    class Config:
+        from_attributes = True
+
+
+class PatientSearchMultiResult(BaseModel):
+    success: bool = Field(..., description="Indicates whether any patient was found")
+    message: Optional[str] = Field(None, description="Human readable message (e.g. when the patient is missing)")
+    full_name: Optional[str] = Field(None, description="Echo of the provided full_name search parameter")
+    matches: List[PatientSearchMatch] = Field(default_factory=list, description="All matching patients")
+
+
 class SimplifiedPatientPayload(BaseModel):
     name: str = Field(
         ...,

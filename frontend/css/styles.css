@@ -1774,6 +1774,18 @@ body.app-shell {
   background: rgba(148, 163, 184, 0.2);
 }
 
+.status-small {
+  color: #9d174d;
+  background: #fce4f3;
+  box-shadow: 0 0 0 1px rgba(157, 23, 77, 0.08);
+}
+
+.status-big {
+  color: #4338ca;
+  background: #ede9fe;
+  box-shadow: 0 0 0 1px rgba(67, 56, 202, 0.08);
+}
+
 .package-pill--small {
   background: #fce4f3;
   color: #9d174d;

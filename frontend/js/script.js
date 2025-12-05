@@ -80,23 +80,23 @@ function getDefaultFieldValue(field, fallback = "") {
 }
 
 function getStatusClass(value) {
-  if (!value) {
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-");
+  if (!normalized) {
     return "status-generic";
   }
-  const normalized = value.toLowerCase().replace(/[^a-z0-9]+/g, "-");
   const defaults = {
     reserved: "status-reserved",
     confirmed: "status-confirmed",
     insurgery: "status-insurgery",
     done: "status-done",
+    small: "status-small",
+    big: "status-big",
   };
-  if (defaults[value]) {
-    return defaults[value];
-  }
-  if (!normalized) {
-    return "status-generic";
-  }
-  return `status-generic status-${normalized}`;
+  const mappedClass = defaults[normalized];
+  return mappedClass ?? `status-generic status-${normalized}`;
 }
 
 function hasCompletedChecklist(field, values) {

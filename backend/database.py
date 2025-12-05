@@ -1047,6 +1047,32 @@ def find_patient_by_full_name(full_name: str) -> Optional[Dict[str, Any]]:
     return None
 
 
+def find_patients_by_full_name(full_name: str) -> List[Dict[str, Any]]:
+    """Return all patients that match any reasonable split of the supplied name."""
+    seen_ids: set[int] = set()
+    matches: list[Dict[str, Any]] = []
+    with closing(get_connection()) as conn:
+        for first_name, last_name in _full_name_candidates(full_name):
+            normalized_first = first_name.lower().strip()
+            normalized_last = last_name.lower().strip()
+            cursor = conn.execute(
+                """
+                SELECT * FROM patients
+                WHERE LOWER(TRIM(first_name)) = ? AND LOWER(TRIM(last_name)) = ? AND deleted = 0
+                ORDER BY id ASC
+                """,
+                (normalized_first, normalized_last),
+            )
+            rows = cursor.fetchall()
+            for row in rows:
+                patient = _row_to_patient(row)
+                if not patient or patient["id"] in seen_ids:
+                    continue
+                seen_ids.add(patient["id"])
+                matches.append(patient)
+    return matches
+
+
 def find_patient_by_name_and_date(first_name: str, last_name: str, procedure_date: Optional[str]) -> Optional[Dict[str, Any]]:
     """Find a patient by name and look for a procedure with the given date."""
     if not procedure_date:

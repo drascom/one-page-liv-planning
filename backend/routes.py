@@ -60,6 +60,8 @@ from .models import (
     Payment,
     PaymentCreate,
     PatientSearchResult,
+    PatientSearchMatch,
+    PatientSearchMultiResult,
     DataIntegrityReport,
     User,
     UserCreate,
@@ -317,6 +319,134 @@ def list_deleted_patients(_: dict = Depends(require_admin_user)) -> List[Patient
     """Return patients that have been soft deleted (admin only)."""
     records = database.fetch_patients(include_deleted=True, only_deleted=True)
     return [Patient(**record) for record in records]
+
+
+@patients_router.get("/search", response_model=PatientSearchMultiResult, response_model_exclude_none=True)
+def search_patients_multi_route(
+    request: Request,
+    full_name: Optional[str] = Query(
+        None,
+        alias="full_name",
+        description="Preferred parameter that should contain the patient's full name (e.g. 'Randhir Sandhu').",
+    ),
+    name: Optional[str] = Query(
+        None,
+        description="Optional first/full name parameter kept for backwards compatibility; combined with surname when provided.",
+    ),
+    surname: Optional[str] = Query(
+        None,
+        description="Optional surname parameter kept for backwards compatibility; appended to the name if provided.",
+    ),
+) -> PatientSearchMultiResult:
+    if full_name is None:
+        full_name = _get_casefold_query_param(request, "full_name")
+    if full_name:
+        raw_value = full_name
+    else:
+        raw_value = " ".join(part for part in (name, surname) if part)
+    requested_full_name = raw_value.strip()
+    normalized_value = " ".join(raw_value.split())
+    response_full_name = requested_full_name or normalized_value or None
+    if not normalized_value:
+        return PatientSearchMultiResult(success=False, message="Name is missing", full_name=response_full_name)
+    try:
+        records = database.find_patients_by_full_name(normalized_value)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    if not records:
+        return PatientSearchMultiResult(
+            success=False,
+            message="Patient record not found",
+            full_name=response_full_name,
+            matches=[],
+        )
+    matches: list[PatientSearchMatch] = []
+    for record in records:
+        patient = Patient(**record)
+        procedures = [Procedure(**entry) for entry in database.list_procedures_for_patient(patient.id)]
+        matches.append(
+            PatientSearchMatch(
+                **patient.model_dump(),
+                procedures=procedures,
+            )
+        )
+    return PatientSearchMultiResult(success=True, full_name=response_full_name, matches=matches)
+
+
+@patients_router.get(
+    "/search-by-meta",
+    response_model=PatientSearchMultiResult,
+    response_model_exclude_none=True,
+)
+def search_patients_by_metadata_route(
+    request: Request,
+    full_name: Optional[str] = Query(
+        None,
+        alias="full_name",
+        description="Patient full name to search (e.g. 'Randhir Sandhu').",
+    ),
+    procedure_date: Optional[str] = Query(
+        None,
+        alias="procedure_date",
+        description="Exact procedure date to match (YYYY-MM-DD).",
+    ),
+    date: Optional[str] = Query(
+        None,
+        description="Alias for procedure_date to support legacy callers.",
+    ),
+) -> PatientSearchMultiResult:
+    if full_name is None:
+        full_name = _get_casefold_query_param(request, "full_name")
+    raw_date = procedure_date or date or _get_casefold_query_param(request, "procedure_date") or _get_casefold_query_param(
+        request, "date"
+    )
+    requested_full_name = (full_name or "").strip()
+    normalized_value = " ".join(requested_full_name.split())
+    response_full_name = normalized_value or None
+    if not normalized_value:
+        return PatientSearchMultiResult(success=False, message="Name is missing", full_name=response_full_name)
+    if not raw_date:
+        return PatientSearchMultiResult(success=False, message="Procedure date is missing", full_name=response_full_name)
+    normalized_date = database._date_only(raw_date)  # type: ignore[attr-defined]
+    if not normalized_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="procedure_date must be a valid date (YYYY-MM-DD).",
+        )
+    try:
+        records = database.find_patients_by_full_name(normalized_value)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    if not records:
+        return PatientSearchMultiResult(
+            success=False,
+            message="Patient record not found",
+            full_name=response_full_name,
+            matches=[],
+        )
+    matches: list[PatientSearchMatch] = []
+    any_date_mismatch = False
+    for record in records:
+        patient = Patient(**record)
+        procedure_records = database.list_procedures_for_patient(patient.id)
+        matched = [
+            Procedure(**entry)
+            for entry in procedure_records
+            if database._date_only(entry.get("procedure_date")) == normalized_date  # type: ignore[attr-defined]
+        ]
+        if not matched:
+            any_date_mismatch = True
+            matched = [Procedure(**entry) for entry in procedure_records]
+        matches.append(
+            PatientSearchMatch(
+                **patient.model_dump(),
+                procedures=matched,
+            )
+        )
+    message = None
+    if any_date_mismatch:
+        message = "No procedures matched the provided date for at least one patient; returning all procedures instead."
+    return PatientSearchMultiResult(success=True, full_name=response_full_name, matches=matches, message=message)
 
 
 @patients_router.get("/{patient_id}", response_model=Patient)
