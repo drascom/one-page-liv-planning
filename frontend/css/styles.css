@@ -2056,6 +2056,85 @@ body.app-shell {
   gap: 1.25rem;
 }
 
+.settings-workspace-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.25rem;
+  align-items: stretch;
+}
+
+.settings-workspace-card {
+  position: relative;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 1.5rem;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.settings-workspace-card__header h3 {
+  margin: 0.25rem 0;
+  font-size: 1.1rem;
+}
+
+.settings-workspace-card__header p {
+  margin: 0;
+  color: #475569;
+}
+
+.settings-workspace-card__eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: #0ea5e9;
+  margin: 0;
+}
+
+.settings-workspace-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.settings-workspace-card--danger {
+  border-color: #fecdd3;
+  background: linear-gradient(145deg, #fff1f2, #ffe4e6);
+  box-shadow: 0 16px 40px rgba(248, 113, 113, 0.16);
+}
+
+.settings-workspace-card--danger .settings-workspace-card__eyebrow {
+  color: #f43f5e;
+}
+
+.n8n-import-iframe {
+  width: 100%;
+  min-height: 520px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+/* Make all buttons in the reset workspace panel red */
+.settings-section[data-settings-section="reset"] .primary-btn,
+.settings-section[data-settings-section="reset"] .secondary-btn,
+.settings-section[data-settings-section="reset"] .danger-btn {
+  background: #ef4444;
+  color: #ffffff;
+  border-color: #ef4444;
+}
+
+.settings-section[data-settings-section="reset"] .primary-btn:hover,
+.settings-section[data-settings-section="reset"] .secondary-btn:hover,
+.settings-section[data-settings-section="reset"] .danger-btn:hover {
+  background: #dc2626;
+  border-color: #dc2626;
+}
+
 @media (max-width: 960px) {
   .settings-shell {
     grid-template-columns: 1fr;

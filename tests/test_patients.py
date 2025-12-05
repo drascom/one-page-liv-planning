@@ -54,3 +54,32 @@ def test_partial_patient_update_preserves_existing_fields(client: TestClient):
     assert body["email"] == "alice@example.com"
     assert body["phone"] == "+4411111111"
     assert body["city"] == "Bristol"
+
+
+def test_search_handles_middle_name(client: TestClient):
+    create_payload = {
+        "first_name": "Steven",
+        "last_name": "Kwok",
+        "email": "steven@example.com",
+        "phone": "+44123456789",
+        "city": "London",
+    }
+    created = client.post("/patients", json=create_payload)
+    assert created.status_code == 201
+    patient_id = created.json()["id"]
+
+    token_response = client.post("/api-tokens", json={"name": "test token"})
+    assert token_response.status_code == 201
+    token = token_response.json()["token"]
+
+    response = client.get(
+        "/api/v1/search",
+        params={"full_name": "Steven Levan Kwok"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["id"] == patient_id
+    assert body["first_name"] == "Steven"
+    assert body["last_name"] == "Kwok"

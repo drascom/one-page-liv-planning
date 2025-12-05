@@ -40,6 +40,9 @@ const runIntegrityCheckBtn = document.getElementById("run-integrity-check-btn");
 const dataIntegrityStatus = document.getElementById("data-integrity-status");
 const dataIntegrityResults = document.getElementById("data-integrity-results");
 const dataIntegrityDefaultText = runIntegrityCheckBtn?.textContent?.trim() ?? "Run Check";
+const downloadDatabaseBtn = document.getElementById("download-database-btn");
+const downloadDatabaseStatus = document.getElementById("download-database-status");
+const downloadDatabaseDefaultText = downloadDatabaseBtn?.textContent?.trim() ?? "Download database";
 
 if (dataIntegrityResults) {
   dataIntegrityResults.innerHTML = `<p class="upload-hint">Run the integrity check to surface missing records.</p>`;
@@ -377,6 +380,68 @@ function fallbackCopy(value) {
   textarea.select();
   document.execCommand("copy");
   textarea.remove();
+}
+
+function parseFilenameFromDisposition(disposition) {
+  if (!disposition) return null;
+  const utf8Match = disposition.match(/filename\\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1].replace(/["']/g, ""));
+    } catch {
+      // fall through to other strategies
+    }
+  }
+  const fallbackMatch = disposition.match(/filename="?([^";]+)"?/i);
+  return fallbackMatch?.[1]?.replace(/["']/g, "") ?? null;
+}
+
+async function downloadDatabaseFile() {
+  if (!downloadDatabaseBtn) return;
+  downloadDatabaseBtn.disabled = true;
+  downloadDatabaseBtn.textContent = "Preparing...";
+  if (downloadDatabaseStatus) {
+    downloadDatabaseStatus.textContent = "Preparing download...";
+  }
+  try {
+    const response = await fetch(buildApiUrl("/status/database-download"));
+    handleUnauthorized(response);
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.detail || "Unable to download database.");
+    }
+    const blob = await response.blob();
+    const disposition = response.headers.get("Content-Disposition") ?? "";
+    const filename =
+      parseFilenameFromDisposition(disposition) ||
+      `liv-planning-${new Date().toISOString().replace(/[-:T.]/g, "").slice(0, 14)}.db`;
+    const blobUrl = window.URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = blobUrl;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.URL.revokeObjectURL(blobUrl);
+    if (downloadDatabaseStatus) {
+      downloadDatabaseStatus.textContent = "Download started.";
+    }
+  } catch (error) {
+    console.error(error);
+    if (downloadDatabaseStatus) {
+      downloadDatabaseStatus.textContent = error?.message || "Unable to download database.";
+    }
+  } finally {
+    downloadDatabaseBtn.disabled = false;
+    downloadDatabaseBtn.textContent = downloadDatabaseDefaultText;
+    if (downloadDatabaseStatus) {
+      setTimeout(() => {
+        if (downloadDatabaseStatus.textContent) {
+          downloadDatabaseStatus.textContent = "";
+        }
+      }, 4000);
+    }
+  }
 }
 
 const FIELD_METADATA = {
@@ -734,6 +799,7 @@ async function initializeFieldOptions() {
 purgePatientsBtn?.addEventListener("click", purgeAllPatients);
 resetFieldOptionsBtn?.addEventListener("click", resetAllFieldOptions);
 runIntegrityCheckBtn?.addEventListener("click", runDataIntegrityCheck);
+downloadDatabaseBtn?.addEventListener("click", downloadDatabaseFile);
 
 function setPurgeStatus(message) {
   if (!purgePatientsStatus) return;

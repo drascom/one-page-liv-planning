@@ -23,21 +23,10 @@
       <form class="top-nav__search patient-search" id="patient-search-form" role="search" autocomplete="off">
         <label class="visually-hidden" for="patient-search">Search patients</label>
         <span class="search-icon" aria-hidden="true">🔍</span>
-        <input
-          id="patient-search"
-          type="search"
-          name="patientSearch"
-          class="search-input"
-          placeholder="Search by name or surname"
-          enterkeyhint="search"
-        />
-        <button
-          type="button"
-          class="patient-search__clear"
-          id="patient-search-clear"
-          aria-label="Clear search"
-          title="Clear search"
-        >
+        <input id="patient-search" type="search" name="patientSearch" class="search-input"
+          placeholder="Search by name or surname" enterkeyhint="search" />
+        <button type="button" class="patient-search__clear" id="patient-search-clear" aria-label="Clear search"
+          title="Clear search">
           ×
         </button>
         <ul class="patient-search__results" id="patient-search-results" role="listbox"></ul>
@@ -49,276 +38,301 @@
       </div>
     </nav>
 
-  <main class="patient-content settings-content">
-    <div class="settings-shell">
-      <aside class="settings-menu" role="tablist" aria-label="Settings sections">
-        <div class="settings-menu__group">
-          <p class="settings-menu__label">Workspace</p>
-          <button type="button" class="settings-tab" id="settings-tab-options" role="tab" aria-selected="false"
-            aria-controls="settings-panel-options" data-settings-tab="options">
-            <span class="settings-tab__title">Dropdown Options</span>
-            <span class="settings-tab__subtitle">Forms, statuses &amp; more</span>
-          </button>
-          <button type="button" class="settings-tab" id="settings-tab-reset" role="tab" aria-selected="false"
-            aria-controls="settings-panel-reset" data-settings-tab="reset">
-            <span class="settings-tab__title">Data Reset</span>
-            <span class="settings-tab__subtitle">Test data cleanup</span>
-          </button>
-          <button type="button" class="settings-tab" id="settings-tab-deleted" role="tab" aria-selected="false"
-            aria-controls="settings-panel-deleted" data-settings-tab="deleted">
-            <span class="settings-tab__title">Deleted Records</span>
-            <span class="settings-tab__subtitle">Restore patient data</span>
-          </button>
-          <button type="button" class="settings-tab" id="settings-tab-users" role="tab" aria-selected="false"
-            aria-controls="settings-panel-users" data-settings-tab="users">
-            <span class="settings-tab__title">Team Access</span>
-            <span class="settings-tab__subtitle">Manage user roles</span>
-          </button>
-        </div>
-        <div class="settings-menu__group">
-          <p class="settings-menu__label">Integrations</p>
-          <button type="button" class="settings-tab is-active" id="settings-tab-tokens" role="tab" aria-selected="true"
-            aria-controls="settings-panel-tokens" data-settings-tab="tokens">
-            <span class="settings-tab__title">API Tokens</span>
-            <span class="settings-tab__subtitle">Connect external tools</span>
-          </button>
-          <button type="button" class="settings-tab" id="settings-tab-audit" role="tab" aria-selected="false"
-            aria-controls="settings-panel-audit" data-settings-tab="audit">
-            <span class="settings-tab__title">API Requests</span>
-            <span class="settings-tab__subtitle">Inspect incoming payloads</span>
-          </button>
-          <button type="button" class="settings-tab" id="settings-tab-google" role="tab" aria-selected="false"
-            aria-controls="settings-panel-google" data-settings-tab="google">
-            <span class="settings-tab__title">Google Auth</span>
-            <span class="settings-tab__subtitle">Connect Drive</span>
-          </button>
-        </div>
-      </aside>
-
-      <div class="settings-panels">
-        <section class="settings-section" id="settings-panel-tokens" role="tabpanel"
-          aria-labelledby="settings-tab-tokens" data-settings-section="tokens">
-          <header class="settings-section__header">
-            <p class="settings-section__eyebrow">Integration</p>
-            <h2>API Tokens</h2>
-            <p>Generate secure keys for no-code tools, analytics, and internal automations.</p>
-          </header>
-          <div class="settings-section__grid">
-            <section class="patient-card">
-              <h3>Create Token</h3>
-              <form id="token-form" class="patient-form">
-                <div class="form-grid">
-                  <label class="form-field">
-                    <span>Token Name</span>
-                    <input id="token-name" name="tokenName" type="text" placeholder="e.g. Zapier workflow" required />
-                  </label>
-                </div>
-                <div class="form-actions">
-                  <button type="submit" class="primary-btn" id="create-token-btn">Generate Token</button>
-                  <span id="token-status" class="form-status" role="status"></span>
-                </div>
-              </form>
-              <p class="upload-status">Tokens never expire. Copy and store them securely.</p>
-            </section>
-
-            <section class="patient-card">
-              <h3>Existing Tokens</h3>
-              <div class="token-list" id="token-list"></div>
-              <p class="token-test">
-                Need to validate your integration? Open the
-                <a id="token-test-link" href="#" target="_blank" rel="noreferrer">patient search tester</a>
-                to run `/api/v1/search` with your token.
-              </p>
-            </section>
+    <main class="patient-content settings-content">
+      <div class="settings-shell">
+        <aside class="settings-menu" role="tablist" aria-label="Settings sections">
+          <div class="settings-menu__group">
+            <p class="settings-menu__label">Workspace</p>
+            <button type="button" class="settings-tab" id="settings-tab-options" role="tab" aria-selected="false"
+              aria-controls="settings-panel-options" data-settings-tab="options">
+              <span class="settings-tab__title">Dropdown Options</span>
+              <span class="settings-tab__subtitle">Forms, statuses &amp; more</span>
+            </button>
+            <button type="button" class="settings-tab" id="settings-tab-reset" role="tab" aria-selected="false"
+              aria-controls="settings-panel-reset" data-settings-tab="reset">
+              <span class="settings-tab__title">Data Reset</span>
+              <span class="settings-tab__subtitle">Test data cleanup</span>
+            </button>
+            <button type="button" class="settings-tab" id="settings-tab-deleted" role="tab" aria-selected="false"
+              aria-controls="settings-panel-deleted" data-settings-tab="deleted">
+              <span class="settings-tab__title">Deleted Records</span>
+              <span class="settings-tab__subtitle">Restore patient data</span>
+            </button>
+            <button type="button" class="settings-tab" id="settings-tab-users" role="tab" aria-selected="false"
+              aria-controls="settings-panel-users" data-settings-tab="users">
+              <span class="settings-tab__title">Team Access</span>
+              <span class="settings-tab__subtitle">Manage user roles</span>
+            </button>
           </div>
-        </section>
+          <div class="settings-menu__group">
+            <p class="settings-menu__label">Integrations</p>
+            <button type="button" class="settings-tab is-active" id="settings-tab-tokens" role="tab"
+              aria-selected="true" aria-controls="settings-panel-tokens" data-settings-tab="tokens">
+              <span class="settings-tab__title">API Tokens</span>
+              <span class="settings-tab__subtitle">Connect external tools</span>
+            </button>
+            <button type="button" class="settings-tab" id="settings-tab-audit" role="tab" aria-selected="false"
+              aria-controls="settings-panel-audit" data-settings-tab="audit">
+              <span class="settings-tab__title">API Requests</span>
+              <span class="settings-tab__subtitle">Inspect incoming payloads</span>
+            </button>
+            <button type="button" class="settings-tab" id="settings-tab-google" role="tab" aria-selected="false"
+              aria-controls="settings-panel-google" data-settings-tab="google">
+              <span class="settings-tab__title">Google Auth</span>
+              <span class="settings-tab__subtitle">Connect Drive</span>
+            </button>
+          </div>
+        </aside>
 
-        <section class="settings-section" id="settings-panel-options" role="tabpanel"
-          aria-labelledby="settings-tab-options" data-settings-section="options" hidden>
-          <header class="settings-section__header">
-            <p class="settings-section__eyebrow">Workspace</p>
-            <h2>Dropdown Options</h2>
-            <p>Control every list that appears on the schedule and patient form.</p>
-            <div class="settings-section__actions">
-              <button type="button" class="secondary-btn" id="reset-field-options-btn">Reset to defaults</button>
-              <p id="field-options-status" class="form-status" aria-live="polite"></p>
-            </div>
-          </header>
-          <section class="patient-card">
-            <div id="field-options-container" class="option-forms"></div>
-          </section>
-        </section>
+        <div class="settings-panels">
+          <section class="settings-section" id="settings-panel-tokens" role="tabpanel"
+            aria-labelledby="settings-tab-tokens" data-settings-section="tokens">
+            <header class="settings-section__header">
+              <p class="settings-section__eyebrow">Integration</p>
+              <h2>API Tokens</h2>
+              <p>Generate secure keys for no-code tools, analytics, and internal automations.</p>
+            </header>
+            <div class="settings-section__grid">
+              <section class="patient-card">
+                <h3>Create Token</h3>
+                <form id="token-form" class="patient-form">
+                  <div class="form-grid">
+                    <label class="form-field">
+                      <span>Token Name</span>
+                      <input id="token-name" name="tokenName" type="text" placeholder="e.g. Zapier workflow" required />
+                    </label>
+                  </div>
+                  <div class="form-actions">
+                    <button type="submit" class="primary-btn" id="create-token-btn">Generate Token</button>
+                    <span id="token-status" class="form-status" role="status"></span>
+                  </div>
+                </form>
+                <p class="upload-status">Tokens never expire. Copy and store them securely.</p>
+              </section>
 
-        <section class="settings-section" id="settings-panel-audit" role="tabpanel"
-          aria-labelledby="settings-tab-audit" data-settings-section="audit" hidden>
-          <header class="settings-section__header">
-            <p class="settings-section__eyebrow">Integration</p>
-            <h2>API Requests</h2>
-            <p>View recent incoming API calls and their payloads.</p>
-          </header>
-          <section class="patient-card">
-            <div class="settings-section__header" style="gap: 12px;">
-              <div>
-                <h3>Recent Requests</h3>
-                <p class="upload-status">Most recent 100 entries, newest first.</p>
-              </div>
-              <div class="settings-danger-card__actions">
-                <button type="button" class="secondary-btn" id="refresh-api-requests-btn">Refresh</button>
-              </div>
-            </div>
-            <div id="api-requests-status" class="form-status" aria-live="polite"></div>
-            <div id="api-requests-list" class="token-list"></div>
-          </section>
-        </section>
-
-        <section class="settings-section" id="settings-panel-google" role="tabpanel"
-          aria-labelledby="settings-tab-google" data-settings-section="google" hidden>
-          <header class="settings-section__header">
-            <p class="settings-section__eyebrow">Integration</p>
-            <h2>Google Drive Authentication</h2>
-            <p>Reconnect to Google Drive to enable photo access.</p>
-          </header>
-          <section class="patient-card">
-            <h3>Connection Status</h3>
-            <p id="google-auth-status" class="upload-status">Checking status...</p>
-            
-            <div class="settings-section__header" style="gap: 12px; flex-direction: column; align-items: flex-start;">
-              <div class="form-group" style="width: 100%; max-width: 400px;">
-                <label for="google-auth-domain" class="form-label" style="font-weight: 600; font-size: 0.9rem; color: #475569;">Override Domain (Optional)</label>
-                <input
-                  type="text"
-                  id="google-auth-domain"
-                  class="search-input"
-                  placeholder="https://your-domain.com"
-                  style="width: 100%; margin-top: 0.25rem;"
-                >
-                <p class="upload-hint" style="font-size: 0.8rem; margin-top: 0.25rem;">
-                  Enter the base URL where the app is hosted (e.g., https://liv.drascom.uk) to ensure the redirect works correctly. Leave blank to auto-detect.
+              <section class="patient-card">
+                <h3>Existing Tokens</h3>
+                <div class="token-list" id="token-list"></div>
+                <p class="token-test">
+                  Need to validate your integration? Open the
+                  <a id="token-test-link" href="#" target="_blank" rel="noreferrer">patient search tester</a>
+                  to run `/api/v1/search` with your token.
                 </p>
-              </div>
-              <button type="button" class="primary-btn" id="google-auth-btn">Connect Google Drive</button>
-            </div>
-            <p class="upload-hint" style="margin-top: 1rem;">
-              Clicking connect will redirect you to Google to authorize access. You will be redirected back here.
-            </p>
-          </section>
-        </section>
-
-        <section class="settings-section" id="settings-panel-reset" role="tabpanel"
-          aria-labelledby="settings-tab-reset" data-settings-section="reset" hidden>
-          <header class="settings-section__header">
-            <p class="settings-section__eyebrow">Workspace</p>
-            <h2>Test Data Reset</h2>
-            <p>Need a clean slate? Delete every patient record, including ones already in Deleted Records.</p>
-          </header>
-          <section class="patient-card settings-danger-card">
-            <h3>Reset test data</h3>
-            <p>Use this control to permanently remove all patient records. This clears soft-deleted records too.</p>
-            <div class="settings-danger-card__actions">
-              <label class="select-all-control" aria-live="polite">
-                <input type="checkbox" checked disabled />
-                <span>Select all patients</span>
-              </label>
-              <button type="button" class="danger-btn" id="purge-patients-btn">Delete all patients</button>
-            </div>
-            <p class="form-status form-status--danger" id="purge-patients-status" aria-live="polite"></p>
-          </section>
-
-          <section class="patient-card">
-            <h3>Import Data</h3>
-            <p>Trigger an import process via the n8n-hosted form.</p>
-            <div style="width: 100%; min-height: 520px;">
-              <iframe
-                src="https://n8n.drascom.uk/webhook/start-import/n8n-form"
-                title="n8n Import Form"
-                style="width: 100%; min-height: 520px; border: 1px solid #e5e7eb; border-radius: 8px;"
-              ></iframe>
-              <p class="upload-hint" style="margin-top: 0.5rem;">
-                If the form does not load, open it directly:
-                <a href="https://n8n.drascom.uk/webhook/start-import/n8n-form" target="_blank" rel="noreferrer">
-                  n8n import form
-                </a>.
-              </p>
+              </section>
             </div>
           </section>
 
-          <section class="patient-card">
-            <h3>Data Integrity Check</h3>
-            <p>Scan patient and surgery tables for missing required information.</p>
-            <div class="form-actions" style="justify-content: flex-start">
-              <button type="button" class="secondary-btn" id="run-integrity-check-btn">Run Check</button>
-              <span id="data-integrity-status" class="form-status" aria-live="polite"></span>
-            </div>
-            <div id="data-integrity-results" class="token-list"></div>
+          <section class="settings-section" id="settings-panel-options" role="tabpanel"
+            aria-labelledby="settings-tab-options" data-settings-section="options" hidden>
+            <header class="settings-section__header">
+              <p class="settings-section__eyebrow">Workspace</p>
+              <h2>Dropdown Options</h2>
+              <p>Control every list that appears on the schedule and patient form.</p>
+              <div class="settings-section__actions">
+                <button type="button" class="secondary-btn" id="reset-field-options-btn">Reset to defaults</button>
+                <p id="field-options-status" class="form-status" aria-live="polite"></p>
+              </div>
+            </header>
+            <section class="patient-card">
+              <div id="field-options-container" class="option-forms"></div>
+            </section>
           </section>
-        </section>
 
-        <section class="settings-section" id="settings-panel-deleted" role="tabpanel"
-          aria-labelledby="settings-tab-deleted" data-settings-section="deleted" hidden>
-          <header class="settings-section__header">
-            <p class="settings-section__eyebrow">Workspace</p>
-            <h2>Deleted Records</h2>
-            <p>Soft-deleted records stay here until you recover or purge them.</p>
-          </header>
-          <section class="patient-card">
-            <div class="settings-section__header" style="gap: 12px;">
-              <div>
-                <h3>Deleted Patients</h3>
-                <p>Recover any record you removed from the schedule.</p>
-              </div>
-              <div class="settings-danger-card__actions">
-                <button type="button" class="secondary-btn" id="refresh-deleted-btn">Refresh</button>
-                <button type="button" class="primary-btn" id="recover-all-btn">Recover all</button>
-              </div>
-            </div>
-            <div id="deleted-patients-status" class="form-status" aria-live="polite"></div>
-            <div id="deleted-patient-list" class="token-list"></div>
-          </section>
-          <section class="patient-card">
-            <div class="settings-section__header" style="gap: 12px;">
-              <div>
-                <h3>Deleted Procedures</h3>
-                <p>Restore or permanently delete procedures removed from patient records.</p>
-              </div>
-              <div class="settings-danger-card__actions">
-                <button type="button" class="secondary-btn" id="refresh-deleted-procedures-btn">Refresh</button>
-              </div>
-            </div>
-            <div id="deleted-procedures-status" class="form-status" aria-live="polite"></div>
-            <div id="deleted-procedure-list" class="token-list"></div>
-          </section>
-        </section>
-
-        <section class="settings-section" id="settings-panel-users" role="tabpanel" aria-labelledby="settings-tab-users"
-          data-settings-section="users" hidden>
-          <header class="settings-section__header">
-            <p class="settings-section__eyebrow">Workspace</p>
-            <h2>Team Access</h2>
-            <p>Invite new teammates, give admin rights, and reset credentials.</p>
-          </header>
-          <section class="patient-card">
-            <h3>User Management</h3>
-            <p class="upload-status">Add or remove teammates and reset passwords.</p>
-            <div id="user-admin" class="user-admin" hidden>
-              <ul id="user-list" class="user-list"></ul>
-              <form id="user-form" class="user-form">
-                <div class="user-form__fields">
-                  <input id="new-username" type="text" placeholder="Username" required />
-                  <input id="new-password" type="password" placeholder="Password" required />
-                  <label class="user-form__checkbox">
-                    <input id="new-is-admin" type="checkbox" /> Admin
-                  </label>
+          <section class="settings-section" id="settings-panel-audit" role="tabpanel"
+            aria-labelledby="settings-tab-audit" data-settings-section="audit" hidden>
+            <header class="settings-section__header">
+              <p class="settings-section__eyebrow">Integration</p>
+              <h2>API Requests</h2>
+              <p>View recent incoming API calls and their payloads.</p>
+            </header>
+            <section class="patient-card">
+              <div class="settings-section__header" style="gap: 12px;">
+                <div>
+                  <h3>Recent Requests</h3>
+                  <p class="upload-status">Most recent 100 entries, newest first.</p>
                 </div>
-                <button type="submit" class="primary-btn">Add user</button>
-                <span id="user-form-status" class="form-status" aria-live="polite"></span>
-              </form>
-            </div>
-            <p class="upload-status" id="user-admin-warning"></p>
+                <div class="settings-danger-card__actions">
+                  <button type="button" class="secondary-btn" id="refresh-api-requests-btn">Refresh</button>
+                </div>
+              </div>
+              <div id="api-requests-status" class="form-status" aria-live="polite"></div>
+              <div id="api-requests-list" class="token-list"></div>
+            </section>
           </section>
-        </section>
+
+          <section class="settings-section" id="settings-panel-google" role="tabpanel"
+            aria-labelledby="settings-tab-google" data-settings-section="google" hidden>
+            <header class="settings-section__header">
+              <p class="settings-section__eyebrow">Integration</p>
+              <h2>Google Drive Authentication</h2>
+              <p>Reconnect to Google Drive to enable photo access.</p>
+            </header>
+            <section class="patient-card">
+              <h3>Connection Status</h3>
+              <p id="google-auth-status" class="upload-status">Checking status...</p>
+
+              <div class="settings-section__header" style="gap: 12px; flex-direction: column; align-items: flex-start;">
+                <div class="form-group" style="width: 100%; max-width: 400px;">
+                  <label for="google-auth-domain" class="form-label"
+                    style="font-weight: 600; font-size: 0.9rem; color: #475569;">Override Domain (Optional)</label>
+                  <input type="text" id="google-auth-domain" class="search-input" placeholder="https://your-domain.com"
+                    style="width: 100%; margin-top: 0.25rem;">
+                  <p class="upload-hint" style="font-size: 0.8rem; margin-top: 0.25rem;">
+                    Enter the base URL where the app is hosted (e.g., https://liv.drascom.uk) to ensure the redirect
+                    works correctly. Leave blank to auto-detect.
+                  </p>
+                </div>
+                <button type="button" class="primary-btn" id="google-auth-btn">Connect Google Drive</button>
+              </div>
+              <p class="upload-hint" style="margin-top: 1rem;">
+                Clicking connect will redirect you to Google to authorize access. You will be redirected back here.
+              </p>
+            </section>
+          </section>
+
+          <section class="settings-section" id="settings-panel-reset" role="tabpanel"
+            aria-labelledby="settings-tab-reset" data-settings-section="reset" hidden>
+            <header class="settings-section__header">
+              <p class="settings-section__eyebrow">Workspace</p>
+              <h2>Check / Reset / Import </h2>
+            </header>
+            <div class="settings-workspace-grid">
+              <article class="settings-workspace-card">
+                <div class="settings-workspace-card__header">
+                  <div>
+                    <p class="settings-workspace-card__eyebrow">Quality</p>
+                    <h3>Data Integrity Check</h3>
+                    <p>Scan patient and surgery tables for missing required information.</p>
+                  </div>
+                </div>
+                <div class="settings-workspace-card__actions">
+                  <button type="button" class="secondary-btn" id="run-integrity-check-btn">Run Check</button>
+                  <span id="data-integrity-status" class="form-status" aria-live="polite"></span>
+                </div>
+                <div id="data-integrity-results" class="token-list"></div>
+              </article>
+              <article class="settings-workspace-card">
+                <div class="settings-workspace-card__header">
+                  <div>
+                    <p class="settings-workspace-card__eyebrow">Backup</p>
+                    <h3>Download Database</h3>
+                    <p>Grab a fresh SQLite copy for backups or local debugging.</p>
+                  </div>
+                </div>
+                <div class="settings-workspace-card__actions">
+                  <button type="button" class="primary-btn" id="download-database-btn">Download .db</button>
+                  <span id="download-database-status" class="form-status" aria-live="polite"></span>
+                </div>
+                <p class="upload-hint">Includes patients, procedures, tokens, and audit history currently stored.</p>
+              </article>
+              <article class="settings-workspace-card settings-workspace-card--danger">
+                <div class="settings-workspace-card__header">
+                  <div>
+                    <p class="settings-workspace-card__eyebrow">Danger zone</p>
+                    <h3>Reset test data</h3>
+                    <p>Remove every patient record, including soft-deleted items. This cannot be undone.</p>
+                  </div>
+                </div>
+                <div class="settings-workspace-card__actions">
+                  <label class="select-all-control" aria-live="polite">
+                    <input type="checkbox" checked disabled />
+                    <span>All patients selected</span>
+                  </label>
+                  <button type="button" class="danger-btn" id="purge-patients-btn">Delete all patients</button>
+                </div>
+                <p class="form-status form-status--danger" id="purge-patients-status" aria-live="polite"></p>
+              </article>
+
+              <article class="settings-workspace-card">
+                <div class="settings-workspace-card__header">
+                  <div>
+                    <p class="settings-workspace-card__eyebrow">Imports</p>
+                    <h3>Import Data</h3>
+                    <p>Trigger an import process via the n8n-hosted form.</p>
+                  </div>
+                </div>
+                <div class="settings-workspace-card__body">
+                  <iframe src="https://n8n.drascom.uk/webhook/start-import/n8n-form" title="n8n Import Form"
+                    class="n8n-import-iframe"></iframe>
+                  <p class="upload-hint" style="margin-top: 0.5rem;">
+                    If the form does not load, open it directly:
+                    <a href="https://n8n.drascom.uk/webhook/start-import/n8n-form" target="_blank" rel="noreferrer">
+                      n8n import form
+                    </a>.
+                  </p>
+                </div>
+              </article>
+
+
+            </div>
+          </section>
+
+          <section class="settings-section" id="settings-panel-deleted" role="tabpanel"
+            aria-labelledby="settings-tab-deleted" data-settings-section="deleted" hidden>
+            <header class="settings-section__header">
+              <p class="settings-section__eyebrow">Workspace</p>
+              <h2>Deleted Records</h2>
+              <p>Soft-deleted records stay here until you recover or purge them.</p>
+            </header>
+            <section class="patient-card">
+              <div class="settings-section__header" style="gap: 12px;">
+                <div>
+                  <h3>Deleted Patients</h3>
+                  <p>Recover any record you removed from the schedule.</p>
+                </div>
+                <div class="settings-danger-card__actions">
+                  <button type="button" class="secondary-btn" id="refresh-deleted-btn">Refresh</button>
+                  <button type="button" class="primary-btn" id="recover-all-btn">Recover all</button>
+                </div>
+              </div>
+              <div id="deleted-patients-status" class="form-status" aria-live="polite"></div>
+              <div id="deleted-patient-list" class="token-list"></div>
+            </section>
+            <section class="patient-card">
+              <div class="settings-section__header" style="gap: 12px;">
+                <div>
+                  <h3>Deleted Procedures</h3>
+                  <p>Restore or permanently delete procedures removed from patient records.</p>
+                </div>
+                <div class="settings-danger-card__actions">
+                  <button type="button" class="secondary-btn" id="refresh-deleted-procedures-btn">Refresh</button>
+                </div>
+              </div>
+              <div id="deleted-procedures-status" class="form-status" aria-live="polite"></div>
+              <div id="deleted-procedure-list" class="token-list"></div>
+            </section>
+          </section>
+
+          <section class="settings-section" id="settings-panel-users" role="tabpanel"
+            aria-labelledby="settings-tab-users" data-settings-section="users" hidden>
+            <header class="settings-section__header">
+              <p class="settings-section__eyebrow">Workspace</p>
+              <h2>Team Access</h2>
+              <p>Invite new teammates, give admin rights, and reset credentials.</p>
+            </header>
+            <section class="patient-card">
+              <h3>User Management</h3>
+              <p class="upload-status">Add or remove teammates and reset passwords.</p>
+              <div id="user-admin" class="user-admin" hidden>
+                <ul id="user-list" class="user-list"></ul>
+                <form id="user-form" class="user-form">
+                  <div class="user-form__fields">
+                    <input id="new-username" type="text" placeholder="Username" required />
+                    <input id="new-password" type="password" placeholder="Password" required />
+                    <label class="user-form__checkbox">
+                      <input id="new-is-admin" type="checkbox" /> Admin
+                    </label>
+                  </div>
+                  <button type="submit" class="primary-btn">Add user</button>
+                  <span id="user-form-status" class="form-status" aria-live="polite"></span>
+                </form>
+              </div>
+              <p class="upload-status" id="user-admin-warning"></p>
+            </section>
+          </section>
+        </div>
       </div>
-    </div>
-  </main>
+    </main>
   </div>
 
   <script src="/app-config.js"></script>

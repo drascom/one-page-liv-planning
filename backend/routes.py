@@ -22,7 +22,7 @@ from fastapi import (
     status,
 )
 import requests
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 
 from pydantic import ValidationError
 from . import database
@@ -1088,6 +1088,21 @@ def run_data_integrity_check_route(_: dict = Depends(require_admin_user)) -> Dat
     """Analyze patient/procedure tables for missing required records."""
     report = database.run_data_integrity_check()
     return DataIntegrityReport(**report)
+
+
+@status_router.get("/database-download")
+def download_database_file(_: dict = Depends(require_admin_user)) -> FileResponse:
+    """Provide a direct download of the primary SQLite database file for admins."""
+    db_path = database.DB_PATH
+    if not db_path.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Database file not found.")
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+    filename = f"liv-planning-{timestamp}.db"
+    return FileResponse(
+        path=str(db_path),
+        media_type="application/octet-stream",
+        filename=filename,
+    )
 
 
 @status_router.get("/activity-feed", response_model=List[ActivityEvent])

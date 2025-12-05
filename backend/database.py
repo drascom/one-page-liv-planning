@@ -990,36 +990,61 @@ def fetch_patient(patient_id: int, *, include_deleted: bool = False) -> Optional
         return _row_to_patient(row) if row else None
 
 
-def _split_full_name(full_name: str) -> Tuple[str, str]:
+def _full_name_candidates(full_name: str) -> List[Tuple[str, str]]:
+    """
+    Generate candidate (first, last) pairs for a full name.
+
+    The search endpoint receives unstructured names, so we try a few reasonable
+    splits to cope with middle names (e.g., "Steven Levan Kwok" should match a
+    stored "Steven Kwok").
+    """
     normalized = " ".join(full_name.split())
     if not normalized:
         raise ValueError("Full name is required")
-    parts = normalized.split(" ", 1)
+    parts = normalized.split(" ")
     if len(parts) < 2:
         raise ValueError("Full name must include both first and last name")
-    first_name = parts[0].strip()
-    last_name = parts[1].strip()
-    if not first_name or not last_name:
-        raise ValueError("Full name must include both first and last name")
-    return first_name, last_name
+
+    raw_pairs = [
+        (parts[0], " ".join(parts[1:])),         # first + everything else
+        (" ".join(parts[:-1]), parts[-1]),       # everything but last + last
+    ]
+    if len(parts) > 2:
+        raw_pairs.append((parts[0], parts[-1]))  # first + last token only
+
+    candidates: list[Tuple[str, str]] = []
+    seen: set[Tuple[str, str]] = set()
+    for first_name, last_name in raw_pairs:
+        first = first_name.strip()
+        last = last_name.strip()
+        if not first or not last:
+            continue
+        key = (first.lower(), last.lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        candidates.append((first, last))
+    return candidates
 
 
 def find_patient_by_full_name(full_name: str) -> Optional[Dict[str, Any]]:
-    first_name, last_name = _split_full_name(full_name)
-    normalized_first = first_name.lower().strip()
-    normalized_last = last_name.lower().strip()
     with closing(get_connection()) as conn:
-        cursor = conn.execute(
-            """
-            SELECT * FROM patients
-            WHERE LOWER(TRIM(first_name)) = ? AND LOWER(TRIM(last_name)) = ? AND deleted = 0
-            ORDER BY id ASC
-            LIMIT 1
-            """,
-            (normalized_first, normalized_last),
-        )
-        row = cursor.fetchone()
-        return _row_to_patient(row) if row else None
+        for first_name, last_name in _full_name_candidates(full_name):
+            normalized_first = first_name.lower().strip()
+            normalized_last = last_name.lower().strip()
+            cursor = conn.execute(
+                """
+                SELECT * FROM patients
+                WHERE LOWER(TRIM(first_name)) = ? AND LOWER(TRIM(last_name)) = ? AND deleted = 0
+                ORDER BY id ASC
+                LIMIT 1
+                """,
+                (normalized_first, normalized_last),
+            )
+            row = cursor.fetchone()
+            if row:
+                return _row_to_patient(row)
+    return None
 
 
 def find_patient_by_name_and_date(first_name: str, last_name: str, procedure_date: Optional[str]) -> Optional[Dict[str, Any]]:
