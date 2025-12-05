@@ -534,7 +534,8 @@ def _normalize_sequential_field_options(conn: sqlite3.Connection, field: str) ->
     row = cursor.fetchone()
     if not row:
         return False
-    options = _deserialize_field_option_payload(row["options"])
+    raw_options = row[0]
+    options = _deserialize_field_option_payload(raw_options)
     if not options:
         return False
     changed = False
