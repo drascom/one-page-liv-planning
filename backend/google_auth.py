@@ -10,11 +10,15 @@ from .settings import BASE_DIR
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Scopes required for the application
-# drive.readonly + drive.file lets us list existing folders/files and upload into them.
+# Scopes required for the application (must match backend/google_routes.py)
+# Use a broader set to stay compatible with previously issued tokens and avoid
+# Google errors about scope changes.
 SCOPES = [
+    'https://www.googleapis.com/auth/drive',
     'https://www.googleapis.com/auth/drive.readonly',
     'https://www.googleapis.com/auth/drive.file',
+    'https://www.googleapis.com/auth/drive.appdata',
+    'https://www.googleapis.com/auth/drive.photos.readonly',
 ]
 ENV_PATH = BASE_DIR / ".env"
 

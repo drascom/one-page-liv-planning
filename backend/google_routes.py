@@ -12,10 +12,15 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth/google", tags=["google_auth"])
 settings = get_settings()
 
-# Allows listing existing folders/files and uploading into them.
+# Google scopes requested during OAuth. Keep in sync with backend/google_auth.py.
+# We request broader scopes (read, file upload, appdata, photos) to align with existing tokens
+# and avoid "scope has changed" errors when re-connecting.
 SCOPES = [
+    'https://www.googleapis.com/auth/drive',
     'https://www.googleapis.com/auth/drive.readonly',
     'https://www.googleapis.com/auth/drive.file',
+    'https://www.googleapis.com/auth/drive.appdata',
+    'https://www.googleapis.com/auth/drive.photos.readonly',
 ]
 
 
