@@ -72,7 +72,7 @@ from .models import (
     N8nImportPayload,
 )
 from .realtime import publish_event
-from .settings import get_settings
+from .settings import ENV_PATH, get_settings
 
 router = APIRouter(prefix="/plans", tags=["plans"])
 patients_router = APIRouter(prefix="/patients", tags=["patients"])
@@ -102,6 +102,7 @@ _SEARCH_BY_META_MAX_REQUESTS = 5
 _search_by_meta_hits: dict[str, deque[float]] = {}
 
 NOT_FOUND_MSG = "not found"
+ENV_FILE_MAX_BYTES = 200_000  # guardrail to avoid writing very large files
 
 
 def _patient_label(patient: Optional[dict]) -> str:
@@ -1049,6 +1050,42 @@ def app_config_js(request: Request) -> str:
         ensure_ascii=False,
     )
     return f"window.APP_CONFIG = {payload};"
+
+
+@config_router.get("/env-file", response_class=JSONResponse)
+def read_env_file(current_user: dict = Depends(require_admin_user)) -> dict[str, str]:
+    """
+    Return the contents of the .env file for admin editing.
+    Empty string when the file is missing.
+    """
+    if not ENV_PATH.exists():
+        return {"content": ""}
+    try:
+        return {"content": ENV_PATH.read_text()}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Unable to read .env file") from exc
+
+
+@config_router.put("/env-file", response_class=JSONResponse)
+def write_env_file(
+    payload: dict = Body(..., embed=True),
+    current_user: dict = Depends(require_admin_user),
+) -> dict[str, bool]:
+    """
+    Overwrite the .env file with provided content.
+    """
+    content = payload.get("content")
+    if content is None:
+        raise HTTPException(status_code=400, detail="Missing content")
+
+    if len(content.encode("utf-8")) > ENV_FILE_MAX_BYTES:
+        raise HTTPException(status_code=413, detail="Env file too large")
+
+    try:
+        ENV_PATH.write_text(content)
+        return {"saved": True}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Unable to write .env file") from exc
 
 
 @auth_router.post("/login", response_model=User)

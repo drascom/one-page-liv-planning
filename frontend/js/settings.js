@@ -45,6 +45,10 @@ const dataIntegrityDefaultText = runIntegrityCheckBtn?.textContent?.trim() ?? "R
 const downloadDatabaseBtn = document.getElementById("download-database-btn");
 const downloadDatabaseStatus = document.getElementById("download-database-status");
 const downloadDatabaseDefaultText = downloadDatabaseBtn?.textContent?.trim() ?? "Download database";
+const envEditor = document.getElementById("env-editor");
+const envReloadBtn = document.getElementById("env-reload-btn");
+const envSaveBtn = document.getElementById("env-save-btn");
+const envStatus = document.getElementById("env-status");
 
 if (dataIntegrityResults) {
   dataIntegrityResults.innerHTML = `<p class="upload-hint">Run the integrity check to surface missing records.</p>`;
@@ -1651,6 +1655,62 @@ if (googleAuthBtn) {
   });
 }
 
+function setEnvStatus(message, { isError = false } = {}) {
+  if (!envStatus) return;
+  envStatus.textContent = message || "";
+  envStatus.classList.toggle("form-status--danger", Boolean(isError));
+}
+
+async function loadEnvFile({ silent = false } = {}) {
+  if (!envEditor) return;
+  if (!silent) {
+    setEnvStatus("Loading .env...");
+  }
+  try {
+    const response = await fetch(buildApiUrl("/env-file"));
+    handleUnauthorized(response);
+    if (!response.ok) {
+      throw new Error("Failed to load .env");
+    }
+    const data = await response.json();
+    envEditor.value = data.content ?? "";
+    setEnvStatus("Loaded .env from disk");
+  } catch (error) {
+    console.error(error);
+    setEnvStatus("Unable to load .env", { isError: true });
+  }
+}
+
+async function saveEnvFile() {
+  if (!envEditor) return;
+  setEnvStatus("Saving...");
+  try {
+    const response = await fetch(buildApiUrl("/env-file"), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: envEditor.value }),
+    });
+    handleUnauthorized(response);
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      const detail = payload?.detail || "Failed to save .env";
+      throw new Error(detail);
+    }
+    setEnvStatus("Saved .env");
+  } catch (error) {
+    console.error(error);
+    setEnvStatus(error.message || "Unable to save .env", { isError: true });
+  }
+}
+
+if (envReloadBtn) {
+  envReloadBtn.addEventListener("click", () => loadEnvFile());
+}
+
+if (envSaveBtn) {
+  envSaveBtn.addEventListener("click", () => saveEnvFile());
+}
+
 async function handleN8nImport(event) {
   event.preventDefault();
   if (!n8nImportDate.value) {
@@ -1729,6 +1789,7 @@ async function initializeSettingsPage() {
   await initializeUserManagement();
   fetchTokens();
   checkGoogleAuthStatus();
+  loadEnvFile({ silent: true });
 }
 
 initializeSettingsPage();

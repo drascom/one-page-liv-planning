@@ -81,6 +81,11 @@
               <span class="settings-tab__title">Google Auth</span>
               <span class="settings-tab__subtitle">Connect Drive</span>
             </button>
+            <button type="button" class="settings-tab" id="settings-tab-env" role="tab" aria-selected="false"
+              aria-controls="settings-panel-env" data-settings-tab="env">
+              <span class="settings-tab__title">.env Editor</span>
+              <span class="settings-tab__subtitle">Config variables</span>
+            </button>
           </div>
         </aside>
 
@@ -187,6 +192,33 @@
               <p class="upload-hint" style="margin-top: 1rem;">
                 Clicking connect will redirect you to Google to authorize access. You will be redirected back here.
               </p>
+            </section>
+          </section>
+
+          <section class="settings-section" id="settings-panel-env" role="tabpanel"
+            aria-labelledby="settings-tab-env" data-settings-section="env" hidden>
+            <header class="settings-section__header">
+              <p class="settings-section__eyebrow">Infrastructure</p>
+              <h2>Edit .env</h2>
+              <p>Update environment variables used by the app. Save to persist changes.</p>
+            </header>
+            <section class="patient-card">
+              <div class="settings-section__header" style="gap: 12px;">
+                <div>
+                  <h3>.env contents</h3>
+                  <p class="upload-status">Keep secrets safe; avoid sharing this screen.</p>
+                </div>
+                <div class="settings-danger-card__actions" style="gap: 8px;">
+                  <button type="button" class="secondary-btn" id="env-reload-btn">Reload from disk</button>
+                  <button type="button" class="primary-btn" id="env-save-btn">Save .env</button>
+                </div>
+              </div>
+              <label class="form-field" style="width: 100%;">
+                <span>File content</span>
+                <textarea id="env-editor" spellcheck="false" class="search-input"
+                  style="min-height: 260px; font-family: Menlo, Consolas, monospace; white-space: pre;"></textarea>
+              </label>
+              <p id="env-status" class="form-status" aria-live="polite"></p>
             </section>
           </section>
 
