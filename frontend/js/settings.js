@@ -18,6 +18,8 @@ const refreshApiRequestsBtn = document.getElementById("refresh-api-requests-btn"
 const purgePatientsBtn = document.getElementById("purge-patients-btn");
 const purgePatientsStatus = document.getElementById("purge-patients-status");
 const purgePatientsDefaultText = purgePatientsBtn?.textContent?.trim() ?? "Delete selected";
+const deleteDatabaseBtn = document.getElementById("delete-database-btn");
+const deleteDatabaseStatus = document.getElementById("delete-database-status");
 const deletedList = document.getElementById("deleted-patient-list");
 const deletedStatus = document.getElementById("deleted-patients-status");
 const recoverAllBtn = document.getElementById("recover-all-btn");
@@ -826,6 +828,7 @@ async function initializeFieldOptions() {
 }
 
 purgePatientsBtn?.addEventListener("click", purgeAllPatients);
+deleteDatabaseBtn?.addEventListener("click", deleteDatabase);
 resetFieldOptionsBtn?.addEventListener("click", resetAllFieldOptions);
 runIntegrityCheckBtn?.addEventListener("click", runDataIntegrityCheck);
 downloadDatabaseBtn?.addEventListener("click", downloadDatabaseFile);
@@ -902,6 +905,38 @@ function setDeletedStatus(message) {
         deletedStatus.textContent = "";
       }
     }, 5000);
+  }
+}
+
+async function deleteDatabase() {
+  if (!deleteDatabaseBtn) return;
+  const confirmed = window.confirm(
+    "Delete the entire database file and recreate a fresh one? This will remove ALL data."
+  );
+  if (!confirmed) return;
+  deleteDatabaseBtn.disabled = true;
+  if (deleteDatabaseStatus) {
+    deleteDatabaseStatus.textContent = "Deleting database...";
+  }
+  try {
+    const response = await fetch(buildApiUrl("/status/database-delete"), { method: "DELETE" });
+    handleUnauthorized(response);
+    if (!response.ok) {
+      throw new Error("Failed to delete database.");
+    }
+    if (deleteDatabaseStatus) {
+      deleteDatabaseStatus.textContent = "Database deleted and recreated.";
+      setTimeout(() => {
+        if (deleteDatabaseStatus.textContent) deleteDatabaseStatus.textContent = "";
+      }, 5000);
+    }
+  } catch (error) {
+    console.error(error);
+    if (deleteDatabaseStatus) {
+      deleteDatabaseStatus.textContent = error?.message || "Unable to delete database.";
+    }
+  } finally {
+    deleteDatabaseBtn.disabled = false;
   }
 }
 

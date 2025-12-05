@@ -242,6 +242,19 @@
                 </div>
                 <p class="form-status form-status--danger" id="purge-patients-status" aria-live="polite"></p>
               </article>
+              <article class="settings-workspace-card settings-workspace-card--danger">
+                <div class="settings-workspace-card__header">
+                  <div>
+                    <p class="settings-workspace-card__eyebrow">Danger zone</p>
+                    <h3>Delete database (test)</h3>
+                    <p>Remove the entire SQLite database file and recreate a fresh empty one. For testing only.</p>
+                  </div>
+                </div>
+                <div class="settings-workspace-card__actions">
+                  <button type="button" class="danger-btn" id="delete-database-btn">Delete database file</button>
+                  <span id="delete-database-status" class="form-status" aria-live="polite"></span>
+                </div>
+              </article>
 
               <article class="settings-workspace-card">
                 <div class="settings-workspace-card__header">

@@ -130,6 +130,18 @@ def _reset_patients_table(conn: sqlite3.Connection) -> None:
     )
 
 
+def _ensure_patient_address_column(conn: sqlite3.Connection) -> None:
+    """Add the address column when missing (while keeping legacy city column intact)."""
+    cursor = conn.execute("PRAGMA table_info(patients)")
+    columns = {row[1] for row in cursor.fetchall()}
+    if "address" in columns:
+        return
+    if "city" in columns:
+        conn.execute("ALTER TABLE patients ADD COLUMN address TEXT")
+        conn.execute("UPDATE patients SET address = city WHERE address IS NULL OR address = ''")
+        conn.commit()
+
+
 def _reset_procedures_table(conn: sqlite3.Connection) -> None:
     cursor = conn.execute("PRAGMA table_info(procedures)")
     column_rows = cursor.fetchall()
@@ -1559,6 +1571,7 @@ def create_patient(data: Dict[str, Any]) -> Dict[str, Any]:
     """Create a new patient record (personal info only)."""
     payload = _serialize_patient_payload(data)
     with closing(get_connection()) as conn:
+        _ensure_patient_address_column(conn)
         cursor = conn.execute(
             """
             INSERT INTO patients (
@@ -1588,6 +1601,7 @@ def update_patient(patient_id: int, data: Dict[str, Any]) -> Optional[Dict[str, 
     """Update patient personal information."""
     payload = _serialize_patient_payload(data)
     with closing(get_connection()) as conn:
+        _ensure_patient_address_column(conn)
         cursor = conn.execute(
             """
             UPDATE patients

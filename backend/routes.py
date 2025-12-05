@@ -1235,6 +1235,20 @@ def download_database_file(_: dict = Depends(require_admin_user)) -> FileRespons
     )
 
 
+@status_router.delete("/database-delete")
+def delete_database_file(_: dict = Depends(require_admin_user)) -> dict[str, str]:
+    """
+    Delete the current SQLite database and recreate an empty one.
+    Intended for test environments only.
+    """
+    db_path = database.DB_PATH
+    if db_path.exists():
+        db_path.unlink()
+    database.init_db()
+    database.seed_default_admin_user(hash_password(settings.default_admin_password))
+    return {"detail": "Database deleted and reinitialized."}
+
+
 @status_router.get("/activity-feed", response_model=List[ActivityEvent])
 def list_activity_feed() -> List[ActivityEvent]:
     """Return the latest activity events for the live feed."""
