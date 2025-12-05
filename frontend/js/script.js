@@ -249,6 +249,30 @@ function formatActivityTime(value) {
   return TIME_FORMATTER.format(date);
 }
 
+const ISO_DATE_PATTERN = /\b\d{4}-\d{2}-\d{2}\b/g;
+
+function formatHumanReadableDate(value) {
+  if (!value) {
+    return null;
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  const day = date.getDate();
+  const month = date.toLocaleString("en-US", { month: "short" });
+  const year = date.getFullYear();
+  return `${day}, ${month} ${year}`;
+}
+
+function formatToastMessage(message) {
+  const fallback = "New activity received";
+  if (!message || typeof message !== "string") {
+    return fallback;
+  }
+  return message.replace(ISO_DATE_PATTERN, (match) => formatHumanReadableDate(match) || match);
+}
+
 function handleActivityNavigation(payload = {}) {
   const normalizedPatientId = Number(payload.patientId);
   if (!Number.isFinite(normalizedPatientId)) {
@@ -594,7 +618,7 @@ function showActivityToast(message) {
 
   const messageEl = document.createElement("div");
   messageEl.className = "activity-toast__message";
-  messageEl.textContent = message || "New activity received";
+  messageEl.textContent = formatToastMessage(message);
 
   const closeBtn = document.createElement("button");
   closeBtn.type = "button";

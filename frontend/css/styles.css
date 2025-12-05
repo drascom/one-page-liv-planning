@@ -3214,6 +3214,17 @@ body.app-shell {
   font-size: 0.9rem;
 }
 
+.token-link {
+  color: #0f172a;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.token-link:hover,
+.token-link:focus {
+  text-decoration: underline;
+}
+
 .token-value {
   background: #0f172a;
   color: #f8fafc;

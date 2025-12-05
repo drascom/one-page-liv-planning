@@ -909,13 +909,17 @@ function renderDataIntegrityResults(report) {
         const ids = [];
         const recordId = issue?.record_id;
         const patientId = issue?.patient_id;
-        if (recordId) {
-          ids.push(`#${recordId}`);
+        if (recordId && patientId && recordId === patientId) {
+          ids.push(buildPatientLink(patientId) || `#${escapeHtml(String(recordId))}`);
+        } else {
+          if (recordId) {
+            ids.push(`#${escapeHtml(String(recordId))}`);
+          }
+          if (patientId) {
+            ids.push(buildPatientLink(patientId) || `Patient ${escapeHtml(String(patientId))}`);
+          }
         }
-        if (patientId && patientId !== recordId) {
-          ids.push(`Patient ${patientId}`);
-        }
-        const meta = ids.length ? `<p class="token-created">${escapeHtml(ids.join(" • "))}</p>` : "";
+        const meta = ids.length ? `<p class="token-created">${ids.join(" • ")}</p>` : "";
         const missingFields = Array.isArray(issue?.missing_fields) ? issue.missing_fields : [];
         const missing = missingFields.length
           ? `<p class="token-created">Missing: ${missingFields
@@ -947,6 +951,19 @@ function renderDataIntegrityResults(report) {
     const prefix = checkedAt ? `Checked ${checkedAt} • ${issueLabel}` : issueLabel;
     dataIntegrityStatus.textContent = `${prefix} • ${summaryText}`;
   }
+}
+
+function buildPatientLink(patientId) {
+  if (!patientId) {
+    return "";
+  }
+  const safeId = String(patientId).trim();
+  if (!safeId) {
+    return "";
+  }
+  const label = `Patient #${escapeHtml(safeId)}`;
+  const url = `patient.html?id=${encodeURIComponent(safeId)}`;
+  return `<a class="token-link" href="${url}">${label}</a>`;
 }
 
 async function runDataIntegrityCheck() {
