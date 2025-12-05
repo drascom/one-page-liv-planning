@@ -1694,7 +1694,13 @@ async function saveEnvFile() {
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));
       const detail = payload?.detail || "Failed to save .env";
-      throw new Error(detail);
+      const friendlyDetail =
+        typeof detail === "string"
+          ? detail
+          : Array.isArray(detail)
+          ? detail.map((item) => item?.msg ?? JSON.stringify(item)).join("; ")
+          : JSON.stringify(detail);
+      throw new Error(friendlyDetail);
     }
     setEnvStatus("Saved .env");
   } catch (error) {
