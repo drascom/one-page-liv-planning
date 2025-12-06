@@ -6,7 +6,7 @@ Liv CRM is the refreshed one-page scheduling and patient tracking workspace for 
 
 1. **Authenticate.** Visit `/login`, submit the admin username/password, and the server issues a secure session cookie. Non-admins can browse read-only lists but only admins see the "Add patient", "Customers", or "Settings" controls.
 2. **Schedule.** The home screen (`index.html`) renders a monthly calendar of procedures, lets you search for patients by name or city, mark multiple procedures for bulk deletes, and displays a real-time activity feed plus a conflict banner whenever another user pushes an update. The schedule pulls field options for statuses, procedure types, packages, agencies, and payments so the UI stays in sync with the backend.
-3. **Patient workspace.** Clicking a card opens `patient.html`, where you can:
+3. **Patient workspace.** Clicking a card opens `/patient` for admins (or `/patient-view` for view-only users), where you can:
    - Edit contact info and navigate weeks via the dynamic heading (procedure dates mirror the selected record).
    - Manage every procedure field now including `package_type` (Small/Big) and `agency` (default "Want Hair" with "Liv Hair" as an option), pick a status and procedure type (Hair/sFUE, Beard, Woman, Eyebrow with sFUE selected by default), update graft counts, payment state, and checklist-driven forms/consents/consultations that show numbered tiles plus check/empty icons.
    - Upload unlimited photos via the drop zone and preview them in the full-screen viewer; files land under `uploads/<last-name>` and are served from `/uploaded-files`.

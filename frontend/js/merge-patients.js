@@ -1,4 +1,5 @@
 import { fetchCurrentUser, handleUnauthorized, initSessionControls } from "./session.js";
+import { navigateToPatientRecord, setPatientRouteBase } from "./patient-route.js";
 
 const API_BASE_URL =
   window.APP_CONFIG?.backendUrl ??
@@ -310,8 +311,7 @@ function removePatientFromSelection(patientId) {
 
 function openPatientRecord(patientId) {
   if (!patientId) return;
-  const params = new URLSearchParams({ id: String(patientId) });
-  window.location.href = `patient.html?${params.toString()}`;
+  navigateToPatientRecord(patientId);
 }
 
 function hydrateSelectionFromQuery() {
@@ -445,11 +445,13 @@ function setupAdminLink() {
   const adminLink = document.querySelector("[data-admin-link]");
   fetchCurrentUser()
     .then((user) => {
+      setPatientRouteBase(Boolean(user?.is_admin));
       if (user?.is_admin) {
         adminLink?.removeAttribute("hidden");
       }
     })
     .catch(() => {
+      setPatientRouteBase(false);
       // Ignore failures; admins will see the link when available
     });
 }

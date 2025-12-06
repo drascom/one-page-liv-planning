@@ -1,4 +1,5 @@
 import { fetchCurrentUser, handleUnauthorized, initSessionControls } from "./session.js";
+import { setPatientRouteBase } from "./patient-route.js";
 
 const DEFAULT_FIELD_OPTIONS = {
   status: [
@@ -164,16 +165,21 @@ function buildChecklist(container, selectEl, field) {
       </span>
       <span class="form-checklist__icon" aria-hidden="true">✕</span>
     `;
-    button.addEventListener("click", () => {
-      const current = new Set(collectMultiValue(selectEl));
-      if (current.has(option.value)) {
-        current.delete(option.value);
-      } else {
-        current.add(option.value);
-      }
-      setMultiValue(selectEl, Array.from(current));
-      refreshChecklistState(container, selectEl);
-    });
+    if (isReadOnlyPatientPage) {
+      button.disabled = true;
+      button.setAttribute("aria-disabled", "true");
+    } else {
+      button.addEventListener("click", () => {
+        const current = new Set(collectMultiValue(selectEl));
+        if (current.has(option.value)) {
+          current.delete(option.value);
+        } else {
+          current.add(option.value);
+        }
+        setMultiValue(selectEl, Array.from(current));
+        refreshChecklistState(container, selectEl);
+      });
+    }
     container.appendChild(button);
   });
   refreshChecklistState(container, selectEl);
@@ -202,6 +208,86 @@ function refreshConsultationsChecklist() {
 function buildConsultationsChecklist() {
   buildChecklist(consultationsChecklist, consultationSelect, "consultation");
 }
+
+function setDisplayValue(map, key, value) {
+  if (!isReadOnlyPatientPage) return;
+  const target = map.get(key);
+  if (!target) return;
+  const formatted = value != null && String(value).trim() ? String(value).trim() : "—";
+  target.textContent = formatted;
+}
+
+function updatePatientDisplay(record) {
+  if (!isReadOnlyPatientPage) return;
+  const data = record || {};
+  setDisplayValue(patientDisplayFields, "first_name", data.first_name || "");
+  setDisplayValue(patientDisplayFields, "last_name", data.last_name || "");
+  setDisplayValue(patientDisplayFields, "email", data.email || DEFAULT_CONTACT.email);
+  setDisplayValue(patientDisplayFields, "phone", data.phone || DEFAULT_CONTACT.phone);
+  setDisplayValue(patientDisplayFields, "address", data.address || data.city || DEFAULT_CONTACT.address);
+  setDisplayValue(
+    patientDisplayFields,
+    "drive_folder_id",
+    data.drive_folder_id ? data.drive_folder_id : "Not linked"
+  );
+}
+
+function formatProcedureDateForDisplay(value) {
+  if (!value) return "";
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) {
+    return value;
+  }
+  return BOOKING_DATE_FORMATTER.format(new Date(parsed));
+}
+
+function formatNumberValue(value) {
+  if (!Number.isFinite(value)) {
+    return "";
+  }
+  return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function updateProcedureDisplay(procedure) {
+  if (!isReadOnlyPatientPage) return;
+  const data = procedure || {};
+  setDisplayValue(procedureDisplayFields, "procedure_date", formatProcedureDateForDisplay(data.procedure_date));
+  setDisplayValue(procedureDisplayFields, "status", getOptionLabel("status", data.status));
+  setDisplayValue(procedureDisplayFields, "procedure_type", getOptionLabel("procedure_type", data.procedure_type));
+  setDisplayValue(procedureDisplayFields, "package_type", getOptionLabel("package_type", data.package_type));
+  setDisplayValue(procedureDisplayFields, "grafts", formatNumberValue(Number(data.grafts)));
+  setDisplayValue(procedureDisplayFields, "payment", getOptionLabel("payment", data.payment));
+  setDisplayValue(
+    procedureDisplayFields,
+    "outstanding_balance",
+    formatNumberValue(Number(data.outstanding_balance))
+  );
+  setDisplayValue(procedureDisplayFields, "agency", getOptionLabel("agency", data.agency));
+}
+
+function renderChecklistStatusList(container, fieldKey, values = []) {
+  if (!isReadOnlyPatientPage || !container) return;
+  const normalized = Array.isArray(values) ? values : values ? [values] : [];
+  const selected = new Set(normalized.filter(Boolean));
+  const options = getFieldOptions(fieldKey);
+  container.innerHTML = "";
+  if (!options.length) {
+    const friendlyName = fieldKey.replace(/_/g, " ");
+    container.innerHTML = `<p class="status-empty">No ${friendlyName} configured.</p>`;
+    return;
+  }
+  options.forEach((option) => {
+    const isCompleted = selected.has(option.value);
+    const row = document.createElement("div");
+    row.className = `status-row${isCompleted ? "" : " status-row--pending"}`;
+    const statusLabel = isCompleted ? "Completed" : "Waiting";
+    row.innerHTML = `<span class="status-key">${option.label}</span><span class="status-value">${statusLabel}</span>`;
+    container.appendChild(row);
+  });
+}
+
+const isReadOnlyPatientPage =
+  typeof document !== "undefined" && document.body?.classList?.contains("patient-view-page");
 
 const patientNameEl = document.getElementById("patient-name");
 const patientWeekEl = document.getElementById("patient-week");
@@ -268,6 +354,17 @@ const debugDriveCountEl = document.getElementById("debug-drive-count");
 const debugApiErrorEl = document.getElementById("debug-api-error");
 const debugTestDriveBtn = document.getElementById("debug-test-drive");
 const debugConsoleEl = document.getElementById("debug-console");
+const patientDisplayFields = new Map();
+document.querySelectorAll("[data-patient-display]").forEach((el) => {
+  patientDisplayFields.set(el.dataset.patientDisplay, el);
+});
+const procedureDisplayFields = new Map();
+document.querySelectorAll("[data-procedure-display]").forEach((el) => {
+  procedureDisplayFields.set(el.dataset.procedureDisplay, el);
+});
+const formsStatusList = document.getElementById("forms-status-list");
+const consentsStatusList = document.getElementById("consents-status-list");
+const consultationsStatusList = document.getElementById("consultations-status-list");
 
 const params = new URLSearchParams(window.location.search);
 const requestedId = params.get("id");
@@ -335,6 +432,7 @@ function syncHeader(patient, procedure) {
 }
 
 function setMultiValue(selectEl, values) {
+  if (!selectEl) return;
   const selected = new Set(values || []);
   Array.from(selectEl.options).forEach((option) => {
     option.selected = selected.has(option.value);
@@ -419,10 +517,14 @@ function renderNotesList() {
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.checked = Boolean(note.completed);
-    checkbox.addEventListener("change", () => {
-      note.completed = checkbox.checked;
-      updateActiveProcedureNotes([...procedureNotes]);
-    });
+    if (isReadOnlyPatientPage) {
+      checkbox.disabled = true;
+    } else {
+      checkbox.addEventListener("change", () => {
+        note.completed = checkbox.checked;
+        updateActiveProcedureNotes([...procedureNotes]);
+      });
+    }
 
     const textWrapper = document.createElement("div");
     const textEl = document.createElement("p");
@@ -444,23 +546,26 @@ function renderNotesList() {
     main.appendChild(checkbox);
     main.appendChild(textWrapper);
 
-    const actions = document.createElement("div");
-    actions.className = "todo-actions";
-    const deleteBtn = document.createElement("button");
-    deleteBtn.type = "button";
-    deleteBtn.className = "todo-delete-btn";
-    deleteBtn.textContent = "Delete";
-    deleteBtn.disabled = !canDeleteNote(note);
-    deleteBtn.title = deleteBtn.disabled ? "You can only delete your own notes" : "Delete note";
-    deleteBtn.addEventListener("click", () => {
-      if (!canDeleteNote(note)) return;
-      const remaining = procedureNotes.filter((entry) => entry.id !== note.id);
-      updateActiveProcedureNotes(remaining);
-    });
-    actions.appendChild(deleteBtn);
-
-    item.appendChild(main);
-    item.appendChild(actions);
+    if (!isReadOnlyPatientPage) {
+      const actions = document.createElement("div");
+      actions.className = "todo-actions";
+      const deleteBtn = document.createElement("button");
+      deleteBtn.type = "button";
+      deleteBtn.className = "todo-delete-btn";
+      deleteBtn.textContent = "Delete";
+      deleteBtn.disabled = !canDeleteNote(note);
+      deleteBtn.title = deleteBtn.disabled ? "You can only delete your own notes" : "Delete note";
+      deleteBtn.addEventListener("click", () => {
+        if (!canDeleteNote(note)) return;
+        const remaining = procedureNotes.filter((entry) => entry.id !== note.id);
+        updateActiveProcedureNotes(remaining);
+      });
+      actions.appendChild(deleteBtn);
+      item.appendChild(main);
+      item.appendChild(actions);
+    } else {
+      item.appendChild(main);
+    }
     notesListEl.appendChild(item);
   });
 }
@@ -483,13 +588,14 @@ function addNoteFromInput() {
 
 function populatePatientForm(record) {
   if (!record) {
+    updatePatientDisplay(null);
     return;
   }
-  firstNameInput.value = record.first_name || "";
-  lastNameInput.value = record.last_name || "";
-  emailInput.value = record.email || DEFAULT_CONTACT.email;
-  phoneInput.value = record.phone || DEFAULT_CONTACT.phone;
-  addressInput.value = record.address || record.city || DEFAULT_CONTACT.address;
+  if (firstNameInput) firstNameInput.value = record.first_name || "";
+  if (lastNameInput) lastNameInput.value = record.last_name || "";
+  if (emailInput) emailInput.value = record.email || DEFAULT_CONTACT.email;
+  if (phoneInput) phoneInput.value = record.phone || DEFAULT_CONTACT.phone;
+  if (addressInput) addressInput.value = record.address || record.city || DEFAULT_CONTACT.address;
   if (driveFolderInput) {
     driveFolderInput.value = record.drive_folder_id || "";
   }
@@ -498,17 +604,18 @@ function populatePatientForm(record) {
   }
   refreshDeleteButtonState();
   syncHeader(record, activeProcedure);
+  updatePatientDisplay(record);
 }
 
 function clearProcedureForm() {
-  procedureDateInput.value = "";
-  statusSelect.value = getFieldOptions("status")[0]?.value || "";
-  procedureSelect.value = getFieldOptions("procedure_type")[0]?.value || "";
+  if (procedureDateInput) procedureDateInput.value = "";
+  if (statusSelect) statusSelect.value = getFieldOptions("status")[0]?.value || "";
+  if (procedureSelect) procedureSelect.value = getFieldOptions("procedure_type")[0]?.value || "";
   if (packageTypeSelect) {
     packageTypeSelect.value = getFieldOptions("package_type")[0]?.value || "";
   }
-  graftsInput.value = "";
-  paymentSelect.value = getFieldOptions("payment")[0]?.value || "";
+  if (graftsInput) graftsInput.value = "";
+  if (paymentSelect) paymentSelect.value = getFieldOptions("payment")[0]?.value || "";
   if (agencySelect) {
     agencySelect.value = getFieldOptions("agency")[0]?.value || "";
   }
@@ -522,6 +629,10 @@ function clearProcedureForm() {
   refreshFormsChecklist();
   setMultiValue(consentsSelect, []);
   refreshConsentsChecklist();
+  renderChecklistStatusList(formsStatusList, "forms", []);
+  renderChecklistStatusList(consentsStatusList, "consents", []);
+  renderChecklistStatusList(consultationsStatusList, "consultation", []);
+  updateProcedureDisplay(null);
   if (procedureFormStatusEl) {
     procedureFormStatusEl.textContent = "";
   }
@@ -533,15 +644,21 @@ function populateProcedureForm(procedure) {
     syncHeader(currentPatient || {}, null);
     return;
   }
-  procedureDateInput.value = procedure.procedure_date || "";
-  statusSelect.value = procedure.status || getFieldOptions("status")[0]?.value || "";
-  procedureSelect.value = procedure.procedure_type || getFieldOptions("procedure_type")[0]?.value || "";
+  if (procedureDateInput) procedureDateInput.value = procedure.procedure_date || "";
+  if (statusSelect) statusSelect.value = procedure.status || getFieldOptions("status")[0]?.value || "";
+  if (procedureSelect) {
+    procedureSelect.value = procedure.procedure_type || getFieldOptions("procedure_type")[0]?.value || "";
+  }
   if (packageTypeSelect) {
     packageTypeSelect.value = procedure.package_type || getFieldOptions("package_type")[0]?.value || "";
   }
   const graftsNumber = Number(procedure.grafts);
-  graftsInput.value = Number.isFinite(graftsNumber) && graftsNumber >= 0 ? String(graftsNumber) : "";
-  paymentSelect.value = procedure.payment || getFieldOptions("payment")[0]?.value || "";
+  if (graftsInput) {
+    graftsInput.value = Number.isFinite(graftsNumber) && graftsNumber >= 0 ? String(graftsNumber) : "";
+  }
+  if (paymentSelect) {
+    paymentSelect.value = procedure.payment || getFieldOptions("payment")[0]?.value || "";
+  }
   if (agencySelect) {
     agencySelect.value = procedure.agency || getFieldOptions("agency")[0]?.value || "";
   }
@@ -550,12 +667,12 @@ function populateProcedureForm(procedure) {
     outstandingBalanceInput.value = Number.isFinite(balance) ? String(balance) : "";
   }
   updateActiveProcedureNotes(normalizeNotes(procedure.notes || []));
+  const selectedConsultations = Array.isArray(procedure.consultation)
+    ? procedure.consultation
+    : procedure.consultation
+      ? [procedure.consultation]
+      : [];
   if (consultationSelect) {
-    const selectedConsultations = Array.isArray(procedure.consultation)
-      ? procedure.consultation
-      : procedure.consultation
-        ? [procedure.consultation]
-        : [];
     setMultiValue(consultationSelect, selectedConsultations);
   }
   refreshConsultationsChecklist();
@@ -564,20 +681,28 @@ function populateProcedureForm(procedure) {
   setMultiValue(consentsSelect, procedure.consents || []);
   refreshConsentsChecklist();
   syncHeader(currentPatient || {}, procedure);
+  renderChecklistStatusList(formsStatusList, "forms", procedure.forms || []);
+  renderChecklistStatusList(consentsStatusList, "consents", procedure.consents || []);
+  renderChecklistStatusList(consultationsStatusList, "consultation", selectedConsultations);
+  updateProcedureDisplay(procedure);
   if (procedureFormStatusEl) {
     procedureFormStatusEl.textContent = "";
   }
 }
 
 function disableForm(disabled) {
+  if (!formEl) {
+    return;
+  }
+  const shouldDisable = disabled || isReadOnlyPatientPage;
   Array.from(formEl.elements).forEach((element) => {
-    element.disabled = disabled;
+    element.disabled = shouldDisable;
   });
   if (addProcedureBtn) {
-    addProcedureBtn.disabled = disabled;
+    addProcedureBtn.disabled = shouldDisable;
   }
   if (cancelProcedureBtn) {
-    cancelProcedureBtn.disabled = disabled || !activeProcedure;
+    cancelProcedureBtn.disabled = shouldDisable || !activeProcedure;
   }
 }
 
@@ -600,6 +725,11 @@ async function fetchPatient() {
     setDriveApiError("");
     refreshDeleteButtonState();
     renderRelatedBookings(null);
+    updatePatientDisplay(null);
+    updateProcedureDisplay(null);
+    renderChecklistStatusList(formsStatusList, "forms", []);
+    renderChecklistStatusList(consentsStatusList, "consents", []);
+    renderChecklistStatusList(consultationsStatusList, "consultation", []);
     return;
   }
   try {
@@ -641,6 +771,11 @@ async function fetchPatient() {
     setDriveApiError("Unable to load Drive files.");
     refreshDeleteButtonState();
     renderRelatedBookings(null);
+    updatePatientDisplay(null);
+    updateProcedureDisplay(null);
+    renderChecklistStatusList(formsStatusList, "forms", []);
+    renderChecklistStatusList(consentsStatusList, "consents", []);
+    renderChecklistStatusList(consultationsStatusList, "consultation", []);
   }
 }
 
@@ -1290,7 +1425,7 @@ function buildProcedurePayloadFromForm() {
 
 async function savePatient(event) {
   event.preventDefault();
-  if (!currentPatient) {
+  if (!currentPatient || isReadOnlyPatientPage) {
     return;
   }
   const patientPayload = buildPatientPayloadFromForm();
@@ -1381,7 +1516,13 @@ async function savePatient(event) {
   }
 }
 
-formEl.addEventListener("submit", savePatient);
+if (formEl) {
+  if (isReadOnlyPatientPage) {
+    formEl.addEventListener("submit", (event) => event.preventDefault());
+  } else {
+    formEl.addEventListener("submit", savePatient);
+  }
+}
 
 function appendUploadedFileItem(file) {
   if (!uploadList) return;
@@ -1558,13 +1699,13 @@ async function handleDeletePatient() {
   }
 }
 
-if (deletePatientBtn) {
+if (deletePatientBtn && !isReadOnlyPatientPage) {
   deletePatientBtn.addEventListener("click", handleDeletePatient);
 }
-if (cancelProcedureBtn) {
+if (cancelProcedureBtn && !isReadOnlyPatientPage) {
   cancelProcedureBtn.addEventListener("click", handleDeleteProcedure);
 }
-if (addProcedureBtn) {
+if (addProcedureBtn && !isReadOnlyPatientPage) {
   addProcedureBtn.addEventListener("click", () => {
     if (!isAdminUser) {
       return;
@@ -1572,10 +1713,10 @@ if (addProcedureBtn) {
     startNewProcedure();
   });
 }
-if (addNoteBtn) {
+if (addNoteBtn && !isReadOnlyPatientPage) {
   addNoteBtn.addEventListener("click", addNoteFromInput);
 }
-if (noteInput) {
+if (noteInput && !isReadOnlyPatientPage) {
   noteInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       event.preventDefault();
@@ -1590,6 +1731,7 @@ async function initializePatientPage() {
   const user = await fetchCurrentUser().catch(() => null);
   currentUser = user;
   isAdminUser = Boolean(user?.is_admin);
+  setPatientRouteBase(isAdminUser);
   if (isAdminUser) {
     settingsLink?.removeAttribute("hidden");
     adminCustomerLinks.forEach((link) => link.removeAttribute("hidden"));
@@ -1684,7 +1826,7 @@ window.addEventListener("keydown", (event) => {
     showRelativeDrivePhoto(-1);
   }
 });
-if (dropZone && fileInput) {
+if (!isReadOnlyPatientPage && dropZone && fileInput) {
   dropZone.addEventListener("click", (event) => {
     if (event.target.closest("button")) return;
     fileInput.click();
@@ -1706,14 +1848,14 @@ if (dropZone && fileInput) {
   });
 }
 
-if (browseButton && fileInput) {
+if (!isReadOnlyPatientPage && browseButton && fileInput) {
   browseButton.addEventListener("click", (event) => {
     event.preventDefault();
     fileInput.click();
   });
 }
 
-if (fileInput) {
+if (!isReadOnlyPatientPage && fileInput) {
   fileInput.addEventListener("change", () => {
     if (fileInput.files) {
       uploadFiles(fileInput.files);

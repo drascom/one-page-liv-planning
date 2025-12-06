@@ -1,4 +1,5 @@
 import { fetchCurrentUser, handleUnauthorized, initSessionControls } from "./session.js";
+import { navigateToPatientRecord, setPatientRouteBase } from "./patient-route.js";
 
 const scheduleEl = document.getElementById("schedule");
 const weekTemplate = document.getElementById("week-template");
@@ -298,15 +299,10 @@ function handleActivityNavigation(payload = {}) {
     capturedAt: new Date().toISOString(),
   };
   persistActivePatientContext(context);
-  const params = new URLSearchParams();
-  params.set("id", String(context.patientId));
-  if (context.patient) {
-    params.set("patient", context.patient);
-  }
-  if (context.procedureId) {
-    params.set("procedure", String(context.procedureId));
-  }
-  window.location.href = `patient.html?${params.toString()}`;
+  navigateToPatientRecord(context.patientId, {
+    patientName: context.patient,
+    procedureId: context.procedureId,
+  });
 }
 
 function createActivityLink(text, onClick) {
@@ -680,6 +676,7 @@ async function initializeAdminControls() {
   } catch (_error) {
     isAdminUser = false;
   }
+  setPatientRouteBase(isAdminUser);
   if (isAdminUser) {
     settingsLink?.removeAttribute("hidden");
     adminCustomerLinks.forEach((link) => link.removeAttribute("hidden"));
@@ -1227,14 +1224,14 @@ function openPatientRecord(patient) {
   if (!patient) {
     return;
   }
-  const params = new URLSearchParams({
-    id: String(patient.patientId ?? patient.id),
-    patient: formatPatientName(patient),
-  });
+  const identifier = patient.patientId ?? patient.id;
+  const options = {
+    patientName: formatPatientName(patient),
+  };
   if (patient.procedureId && !patient.unscheduled) {
-    params.set("procedure", String(patient.procedureId));
+    options.procedureId = patient.procedureId;
   }
-  window.location.href = `patient.html?${params.toString()}`;
+  navigateToPatientRecord(identifier, options);
 }
 
 function handleSearchSelection(patientId) {
@@ -1935,7 +1932,10 @@ async function handleAddPatientClick() {
     if (procedure?.id) {
       params.set("procedure", String(procedure.id));
     }
-    window.location.href = `patient.html?${params.toString()}`;
+    navigateToPatientRecord(patient.id, {
+      patientName: `${patient.first_name} ${patient.last_name}`.trim(),
+      procedureId: procedure?.id,
+    });
   } catch (error) {
     console.error(error);
     if (addPatientBtn) {
@@ -1960,14 +1960,10 @@ function handleRowNavigation(day, week) {
     capturedAt: new Date().toISOString(),
   };
   persistActivePatientContext(payload);
-  const params = new URLSearchParams({
-    patient: day.patientName,
-    id: String(payload.patientId),
+  navigateToPatientRecord(payload.patientId, {
+    patientName: day.patientName,
+    procedureId: payload.procedureId,
   });
-  if (payload.procedureId) {
-    params.set("procedure", String(payload.procedureId));
-  }
-  window.location.href = `patient.html?${params.toString()}`;
 }
 
 function handleRowSelectionChange(procedureId, checked) {

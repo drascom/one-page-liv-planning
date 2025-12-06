@@ -1,4 +1,5 @@
 import { fetchCurrentUser, handleUnauthorized, initSessionControls } from "./session.js";
+import { navigateToPatientRecord, setPatientRouteBase } from "./patient-route.js";
 
 const API_BASE_URL =
   window.APP_CONFIG?.backendUrl ?? `${window.location.protocol}//${window.location.host}`;
@@ -99,6 +100,7 @@ async function bootstrap() {
   try {
     const user = await fetchCurrentUser().catch(() => null);
     const isAdmin = Boolean(user?.is_admin);
+    setPatientRouteBase(isAdmin);
     if (isAdmin) {
       document.querySelectorAll("[data-admin-link]").forEach((el) => el.removeAttribute("hidden"));
       document.querySelectorAll("[data-admin-customers]").forEach((el) => el.removeAttribute("hidden"));
@@ -304,8 +306,12 @@ function updateConnectionIndicator(state) {
 
 function navigateToPatient(patientId, procedureId, procedureDate) {
   if (!patientId) return;
-  const params = new URLSearchParams({ id: String(patientId) });
-  if (procedureId) params.set("procedure", String(procedureId));
-  if (procedureDate) params.set("date", procedureDate);
-  window.location.href = `patient.html?${params.toString()}`;
+  const query = {};
+  if (procedureId) {
+    query.procedure = String(procedureId);
+  }
+  if (procedureDate) {
+    query.date = procedureDate;
+  }
+  navigateToPatientRecord(patientId, { query });
 }

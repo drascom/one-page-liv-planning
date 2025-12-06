@@ -1173,8 +1173,24 @@ def find_patients_by_full_name(full_name: str) -> List[Dict[str, Any]]:
     return matches
 
 
-def find_patient_by_name_and_date(first_name: str, last_name: str, procedure_date: Optional[str]) -> Optional[Dict[str, Any]]:
-    """Find a patient by name and look for a procedure with the given date."""
+def find_patient_by_email(email: str) -> Optional[Dict[str, Any]]:
+    """Find a patient by email address."""
+    with closing(get_connection()) as conn:
+        cursor = conn.execute(
+            """
+            SELECT * FROM patients
+            WHERE LOWER(TRIM(email)) = ? AND deleted = 0
+            ORDER BY id ASC
+            LIMIT 1
+            """,
+            (email.lower().strip(),),
+        )
+        row = cursor.fetchone()
+        return _row_to_patient(row) if row else None
+    
+    
+    def find_patient_by_name_and_date(first_name: str, last_name: str, procedure_date: Optional[str]) -> Optional[Dict[str, Any]]:
+        """Find a patient by name and look for a procedure with the given date."""
     if not procedure_date:
         return None
     normalized_date = _date_only(procedure_date)

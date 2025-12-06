@@ -1,4 +1,5 @@
 import { fetchCurrentUser, handleUnauthorized, initSessionControls } from "./session.js";
+import { buildPatientRecordUrlSync, setPatientRouteBase } from "./patient-route.js";
 
 const API_BASE_URL =
   window.APP_CONFIG?.backendUrl ??
@@ -54,6 +55,7 @@ async function ensureAdminLinkVisibility() {
   try {
     const user = await fetchCurrentUser();
     isAdminUser = Boolean(user?.is_admin);
+    setPatientRouteBase(isAdminUser);
     if (isAdminUser) {
       adminLink?.removeAttribute("hidden");
     }
@@ -63,6 +65,7 @@ async function ensureAdminLinkVisibility() {
   } catch (_error) {
     // Ignore – non-admins simply won't see the link.
     isAdminUser = false;
+    setPatientRouteBase(false);
   }
 }
 
@@ -141,10 +144,12 @@ function renderCustomers(customers) {
     listEl.innerHTML = customers
       .map((customer) => {
         const isSelected = selectedPatientIds.has(Number(customer.id));
+        const customerName = `${customer.first_name || ""} ${customer.last_name || ""}`.trim();
+        const patientUrl = buildPatientRecordUrlSync(customer.id, { patientName: customerName });
         return `
         <li class="customer-card ${isSelected ? "customer-card--selected" : ""}" data-patient-id="${customer.id}">
           <div class="customer-card__primary">
-            <a class="customer-card__name" href="patient.html?id=${customer.id}">
+            <a class="customer-card__name" href="${patientUrl}">
               ${customer.first_name || ""} ${customer.last_name || ""}
             </a>
             <p class="customer-card__meta">
@@ -173,7 +178,7 @@ function renderCustomers(customers) {
               <span>${isSelected ? "Selected" : "Select"}</span>
             </label>
             <p class="customer-card__status">${customer.nextProcedureLabel}</p>
-            <a class="secondary-btn customer-card__link" href="patient.html?id=${customer.id}">Open</a>
+            <a class="secondary-btn customer-card__link" href="${patientUrl}">Open</a>
             ${
               isAdminUser
                 ? `<button type="button" class="danger-btn customer-card__delete-btn" data-delete-patient="${customer.id}">Delete</button>`

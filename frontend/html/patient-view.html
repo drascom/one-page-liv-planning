@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Patient Record (View)</title>
+  <link rel="stylesheet" href="/static/css/styles.css" />
+  <link rel="stylesheet" href="/static/css/test.css" />
+  <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg" />
+</head>
+
+<body class="patient-page patient-view-page new-patient-page app-shell">
+  <div class="app-layout">
+    <nav class="top-nav top-nav--subpage">
+      <div class="top-nav__brand">
+        <a class="top-nav__brand-link" href="/dashboard">
+          <span class="top-nav__brand-icon" aria-hidden="true">❖</span>
+          Liv Planner
+        </a>
+        <span class="top-nav__divider" aria-hidden="true">•</span>
+        <span class="top-nav__section">Patient Record</span>
+      </div>
+      <form class="top-nav__search patient-search" id="patient-search-form" role="search" autocomplete="off">
+        <label class="visually-hidden" for="patient-search">Search patients</label>
+        <span class="search-icon" aria-hidden="true">🔍</span>
+        <input id="patient-search" type="search" name="patientSearch" class="search-input"
+          placeholder="Search by name or surname" enterkeyhint="search" />
+        <button type="button" class="patient-search__clear" id="patient-search-clear" aria-label="Clear search"
+          title="Clear search">
+          ×
+        </button>
+        <ul class="patient-search__results" id="patient-search-results" role="listbox"></ul>
+      </form>
+      <div class="top-nav__actions">
+        <a class="nav-btn nav-btn--ghost" href="/schedule">Schedule</a>
+        <a class="nav-btn nav-btn--ghost" href="/customers" data-admin-customers hidden>Customers</a>
+        <a class="nav-btn nav-btn--ghost" href="/settings" data-admin-link hidden>Settings</a>
+        <button type="button" class="nav-btn nav-btn--primary" data-logout-btn>Logout</button>
+      </div>
+    </nav>
+
+
+    <main class="main-content patient-content new-patient-layout">
+      <section class="patient-grid two-column-section">
+        <div class="patient-left-column patient-column">
+          <section class="patient-details-card card patient-form-section patient-card">
+            <header class="card-header patient-panel__header">
+              <div>
+                <p class="settings-section__eyebrow">Patient Details</p>
+                <h2 id="patient-name">Patient Record</h2>
+                <p id="patient-week" class="patient-week" aria-live="polite"></p>
+                <p id="patient-address" class="patient-address" aria-live="polite"></p>
+              </div>
+            </header>
+            <div class="patient-details-display" id="patient-details-display">
+              <dl class="detail-list">
+                <div class="detail-row">
+                  <dt>First Name</dt>
+                  <dd data-patient-display="first_name">—</dd>
+                </div>
+                <div class="detail-row">
+                  <dt>Last Name</dt>
+                  <dd data-patient-display="last_name">—</dd>
+                </div>
+                <div class="detail-row">
+                  <dt>Email</dt>
+                  <dd data-patient-display="email">—</dd>
+                </div>
+                <div class="detail-row">
+                  <dt>Phone</dt>
+                  <dd data-patient-display="phone">—</dd>
+                </div>
+                <div class="detail-row">
+                  <dt>Address</dt>
+                  <dd data-patient-display="address">—</dd>
+                </div>
+                <div class="detail-row">
+                  <dt>Drive Folder ID</dt>
+                  <dd data-patient-display="drive_folder_id">Not linked</dd>
+                </div>
+              </dl>
+            </div>
+            <p class="form-hint patient-view-hint">You are viewing a read-only copy of this record.</p>
+            <form id="patient-form" class="patient-form form-layout" hidden aria-hidden="true">
+              <div class="form-group">
+                <label for="first-name">First Name</label>
+                <input id="first-name" name="firstName" type="text" required value="New"
+                  placeholder="Enter first name" />
+              </div>
+              <div class="form-group">
+                <label for="last-name">Last Name</label>
+                <input id="last-name" name="lastName" type="text" required value="Patient"
+                  placeholder="Enter last name" />
+              </div>
+              <div class="form-group">
+                <label for="email">Email</label>
+                <input id="email" name="email" type="email" required value="test@example.com"
+                  placeholder="name@example.com" />
+              </div>
+              <div class="form-group">
+                <label for="phone">Phone</label>
+                <input id="phone" name="phone" type="tel" required value="+44 12345678" placeholder="+1 555 000 0000" />
+              </div>
+              <div class="form-group">
+              <label for="address">Address</label>
+              <input id="address" name="address" type="text" required value="fields" placeholder="Address" />
+              </div>
+              <div class="form-group" id="drive-folder-group" hidden>
+                <label for="drive-folder-id">Drive Folder ID (admin)</label>
+                <input id="drive-folder-id" name="driveFolderId" type="text" placeholder="Google Drive folder id"
+                  autocomplete="off" />
+              </div>
+              <p id="patient-status" class="form-status" role="status"></p>
+            </form>
+          </section>
+
+          <section class="patient-media-section patient-card card patient-documents-card">
+            <header class="card-header patient-photo-card__header">
+              <div>
+                <p class="settings-section__eyebrow">Files</p>
+              </div>
+              <p class="upload-hint">PDF reports and ZIP bundles linked to this patient.</p>
+            </header>
+            <p class="document-empty" id="documents-empty">No PDF or ZIP files available.</p>
+            <div class="document-grid" id="documents-list"></div>
+          </section>
+
+          <section class="patient-media-section patient-photo-card patient-card card">
+            <header class="card-header patient-photo-card__header">
+              <div>
+                <p class="settings-section__eyebrow">Photos</p>
+                <h2>Upload &amp; Gallery</h2>
+              </div>
+            </header>
+            <p class="form-hint">Photo uploads are disabled in view-only mode.</p>
+            <div class="photo-gallery-section">
+              <h3>Patient Photos</h3>
+              <p class="photo-empty" id="photo-empty">No photos uploaded yet.</p>
+              <div class="photo-gallery" id="photo-gallery"></div>
+            </div>
+          </section>
+        </div>
+
+        <div class="patient-right-column patient-surgery-section">
+          <section class="card patient-card procedures-card">
+            <header class="card-header patient-panel__header">
+              <div>
+                <p class="settings-section__eyebrow">Procedures</p>
+                <h2>Procedures</h2>
+              </div>
+            </header>
+            <p id="procedures-status" class="form-status" role="status"></p>
+            <div id="patient-bookings-list" class="tab-menu patient-bookings-sidebar" role="tablist"
+              aria-label="Procedures list"></div>
+
+            <section class="procedure-details">
+              <h3>Surgery Details</h3>
+              <div class="procedure-display" id="procedure-display">
+                <dl class="detail-list detail-list--compact">
+                  <div class="detail-row">
+                    <dt>Date</dt>
+                    <dd data-procedure-display="procedure_date">—</dd>
+                  </div>
+                  <div class="detail-row">
+                    <dt>Status</dt>
+                    <dd data-procedure-display="status">—</dd>
+                  </div>
+                  <div class="detail-row">
+                    <dt>Procedure Type</dt>
+                    <dd data-procedure-display="procedure_type">—</dd>
+                  </div>
+                  <div class="detail-row">
+                    <dt>Package</dt>
+                    <dd data-procedure-display="package_type">—</dd>
+                  </div>
+                  <div class="detail-row">
+                    <dt>Grafts</dt>
+                    <dd data-procedure-display="grafts">—</dd>
+                  </div>
+                  <div class="detail-row">
+                    <dt>Payment</dt>
+                    <dd data-procedure-display="payment">—</dd>
+                  </div>
+                  <div class="detail-row">
+                    <dt>Outstanding Balance</dt>
+                    <dd data-procedure-display="outstanding_balance">—</dd>
+                  </div>
+                  <div class="detail-row">
+                    <dt>Agency</dt>
+                    <dd data-procedure-display="agency">—</dd>
+                  </div>
+                </dl>
+              </div>
+              <div class="form-layout" hidden aria-hidden="true">
+                <div class="form-group">
+                  <label for="procedure-date">Procedure Date</label>
+                  <input id="procedure-date" name="procedureDate" type="date" value="2025-11-01"
+                    placeholder="YYYY-MM-DD" />
+                </div>
+                <div class="form-group">
+                  <label for="status">Status</label>
+                  <select id="status" name="status"></select>
+                </div>
+                <div class="form-group">
+                  <label for="procedure-type">Procedure Type</label>
+                  <select id="procedure-type" name="procedureType"></select>
+                </div>
+                <div class="form-group">
+                  <label for="package-type">Package Type</label>
+                  <select id="package-type" name="packageType"></select>
+                </div>
+                <div class="form-group">
+                  <label for="grafts">Grafts</label>
+                  <input id="grafts" name="grafts" type="number" inputmode="numeric" step="1" min="0" value="2500"
+                    placeholder="e.g. 2500" />
+                </div>
+                <div class="form-group">
+                  <label for="payment">Payment</label>
+                  <select id="payment" name="payment"></select>
+                </div>
+                <div class="form-group">
+                  <label for="outstanding-balance">Outstanding Balance</label>
+                  <input id="outstanding-balance" name="outstandingBalance" type="number" inputmode="decimal" step="0.01"
+                    min="0" placeholder="0.00" />
+                </div>
+                <div class="form-group">
+                  <label for="agency">Agency</label>
+                  <select id="agency" name="agency"></select>
+                </div>
+              </div>
+              <p id="procedure-form-status" class="form-status" role="status"></p>
+            </section>
+
+            <section class="forms-consents">
+              <h3>Forms &amp; Consents</h3>
+              <div class="status-lists">
+                <div class="status-card">
+                  <h4>Forms</h4>
+                  <div id="forms-status-list" class="status-list" aria-live="polite"></div>
+                </div>
+                <div class="status-card">
+                  <h4>Consents</h4>
+                  <div id="consents-status-list" class="status-list" aria-live="polite"></div>
+                </div>
+                <div class="status-card">
+                  <h4>Consultations</h4>
+                  <div id="consultations-status-list" class="status-list" aria-live="polite"></div>
+                </div>
+              </div>
+              <div class="form-layout" hidden aria-hidden="true">
+                 <div class="form-group">
+                  <label>Consents</label>
+                  <div id="consents-checklist" class="checklist form-checklist" role="group"
+                    aria-label="Consents checklist"></div>
+                  <select id="consents" name="consents" multiple hidden></select>
+                  <h4>Consultations</h4>
+                  <div id="consultations-checklist" class="checklist form-checklist" role="group" aria-label="Consultations checklist"></div>
+                  <select id="consultation" name="consultation" multiple hidden></select>
+                </div> 
+                <div class="form-group">
+                  <label>Forms</label>
+                  <div id="forms-checklist" class="checklist form-checklist" role="group" aria-label="Forms checklist">
+                  </div>
+                  <select id="forms" name="forms" multiple hidden></select>
+                </div>
+              </div>
+            </section>
+          
+
+            <section class="notes-section">
+              <h3>Procedure Notes</h3>
+              <div class="notes-body">
+                <ul id="procedure-notes-list" class="todo-list"></ul>
+                <p class="form-hint">Notes are read-only in this view.</p>
+              </div>
+            </section>
+          </section>
+        </div>
+      </section>
+      <p id="form-status" class="form-status" role="status"></p>
+
+      <!-- Admin Debug Section -->
+      <section id="admin-debug" class="admin-debug card" hidden style="margin-top: 2rem; border: 1px solid red;">
+        <header class="card-header">
+          <h3>Admin Debug</h3>
+        </header>
+        <div style="padding: 1rem;">
+          <p><strong>Drive Folder ID:</strong> <span id="debug-drive-folder"></span></p>
+          <p><strong>Drive Files:</strong> <span id="debug-drive-files"></span></p>
+          <p><strong>Parsed IDs:</strong> <span id="debug-drive-count"></span></p>
+          <p><strong>Last API Error:</strong> <span id="debug-api-error" style="color: red;">None</span></p>
+          <button type="button" class="btn btn-secondary" id="debug-test-drive">Test First Image Fetch</button>
+          <pre id="debug-console"
+            style="background: #eee; padding: 10px; margin-top: 10px; font-size: 12px; overflow: auto; max-height: 200px;"></pre>
+        </div>
+      </section>
+    </main>
+
+    <div class="photo-viewer" id="photo-viewer" hidden>
+      <button type="button" class="photo-viewer__close" id="photo-viewer-close" aria-label="Close viewer">
+        ×
+      </button>
+      <button type="button" class="photo-viewer__nav photo-viewer__nav--prev" id="photo-viewer-prev"
+        aria-label="Previous photo">
+        ←
+      </button>
+      <img id="photo-viewer-image" alt="Patient photo" />
+      <p id="photo-viewer-caption"></p>
+      <button type="button" class="photo-viewer__nav photo-viewer__nav--next" id="photo-viewer-next"
+        aria-label="Next photo">
+        →
+      </button>
+      <button type="button" class="photo-viewer__delete" id="photo-viewer-delete">Delete photo</button>
+    </div>
+  </div>
+
+  <script src="/app-config.js"></script>
+  <script src="/static/js/nav-search.js" type="module"></script>
+  <script src="/static/js/patient.js" type="module"></script>
+</body>
+
+</html>

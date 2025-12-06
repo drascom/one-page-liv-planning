@@ -507,3 +507,131 @@ body {
         width: 100%;
     }
 }
+
+.patient-view-page .patient-form input,
+.patient-view-page .patient-form select,
+.patient-view-page .patient-form textarea,
+.patient-view-page .procedure-details input,
+.patient-view-page .procedure-details select,
+.patient-view-page .forms-consents select {
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    padding-left: 0;
+    pointer-events: none;
+    color: inherit;
+}
+
+.patient-view-page .form-checklist__item {
+    pointer-events: none;
+    cursor: default;
+    opacity: 0.85;
+}
+
+.patient-view-page .todo-item input[type="checkbox"],
+.patient-view-page .todo-delete-btn {
+    pointer-events: none;
+}
+
+.patient-view-page .patient-form,
+.patient-view-page .procedure-details .form-layout,
+.patient-view-page .forms-consents .form-layout {
+    display: none;
+}
+
+.patient-view-page .patient-details-display,
+.patient-view-page .procedure-display,
+.patient-view-page .status-card {
+    margin-bottom: 1.5rem;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    border-radius: 14px;
+    padding: 1.25rem;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+}
+
+.patient-view-page .detail-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin: 0;
+}
+
+.patient-view-page .detail-row {
+    display: grid;
+    grid-template-columns: minmax(140px, 1fr) 2fr;
+    align-items: flex-start;
+    gap: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px dashed rgba(0, 0, 0, 0.1);
+}
+
+.patient-view-page .detail-row dt {
+    font-weight: 600;
+    color: #4b5563;
+    margin: 0;
+}
+
+.patient-view-page .detail-row dd {
+    margin: 0;
+    font-weight: 500;
+    color: #111827;
+    text-align: right;
+    word-break: break-word;
+}
+
+.patient-view-page .status-lists {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.patient-view-page .status-card h4 {
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+    font-size: 1rem;
+    color: #374151;
+}
+
+.patient-view-page .status-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.patient-view-page .status-empty {
+    margin: 0;
+    color: #6b7280;
+    font-size: 0.9rem;
+}
+
+.patient-view-page .status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    border-radius: 10px;
+    background: rgba(15, 118, 110, 0.06);
+    font-size: 0.95rem;
+}
+
+.patient-view-page .status-row--pending {
+    background: rgba(245, 158, 11, 0.08);
+}
+
+.patient-view-page .status-key {
+    font-weight: 500;
+    color: #1f2937;
+}
+
+.patient-view-page .status-value {
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #0f766e;
+}
+
+.patient-view-page .status-row--pending .status-value {
+    color: #b45309;
+}

@@ -3198,6 +3198,142 @@ body.app-shell {
   gap: 0.5rem;
 }
 
+.patient-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+  margin: 0.5rem 0 0;
+}
+
+.patient-summary-grid .label {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.patient-summary-grid .value {
+  margin: 0.15rem 0 0;
+  font-weight: 700;
+  color: #111827;
+}
+
+.procedure-view-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  background: #f8fafc;
+  margin-bottom: 0.75rem;
+}
+
+.procedure-view-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+.procedure-view-card__meta {
+  margin: 0.2rem 0 0;
+  color: #475569;
+}
+
+.procedure-view-card__body {
+  margin-top: 0.5rem;
+  color: #0f172a;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.35rem;
+}
+
+.procedure-view-card__body p {
+  margin: 0;
+}
+
+.procedure-view-card__status .badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.6rem;
+  background: #e0f2fe;
+  color: #0f172a;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.procedure-tabs {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.procedure-tab {
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+  border-radius: 999px;
+  padding: 0.35rem 0.65rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.procedure-tab.is-active {
+  background: #0ea5e9;
+  color: #0b1626;
+  border-color: #0ea5e9;
+}
+
+.notes-view {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.notes-view__item {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.5rem 0.75rem;
+  background: #f8fafc;
+}
+
+.notes-view__item--empty {
+  text-align: center;
+  color: #94a3b8;
+  background: #f8fafc;
+}
+
+.notes-view__text {
+  margin: 0;
+  font-weight: 600;
+}
+
+.notes-view__meta {
+  margin: 0.15rem 0 0;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.view-only-gallery {
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.view-only-docs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.document-pill {
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  text-decoration: none;
+  color: #0f172a;
+  font-weight: 600;
+}
+
 .form-hint {
   margin-top: 0.25rem;
   color: #64748b;

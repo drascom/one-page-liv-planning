@@ -1,4 +1,5 @@
 import { handleUnauthorized, initSessionControls, requireAdminUser } from "./session.js";
+import { buildPatientRecordUrlSync, setPatientRouteBase } from "./patient-route.js";
 
 const API_BASE_URL =
   window.APP_CONFIG?.backendUrl ??
@@ -1030,7 +1031,7 @@ function buildPatientLink(patientId) {
     return "";
   }
   const label = `Patient #${escapeHtml(safeId)}`;
-  const url = `patient.html?id=${encodeURIComponent(safeId)}`;
+  const url = buildPatientRecordUrlSync(safeId);
   return `<a class="token-link" href="${url}">${label}</a>`;
 }
 
@@ -1778,6 +1779,7 @@ async function initializeSettingsPage() {
   if (!currentUser) {
     return;
   }
+  setPatientRouteBase(true);
   adminCustomerLinks.forEach((link) => link.removeAttribute("hidden"));
   initializeSettingsTabs();
   initializeFieldOptions();

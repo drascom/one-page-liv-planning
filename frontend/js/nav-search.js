@@ -1,4 +1,5 @@
 import { handleUnauthorized } from "./session.js";
+import { navigateToPatientRecord } from "./patient-route.js";
 
 const GLOBAL_SEARCH_KEY = "globalSearchQuery";
 const API_BASE_URL =
@@ -107,16 +108,12 @@ function renderSearchResults(matches) {
   });
 }
 
-function openPatientRecord(patient) {
+async function openPatientRecord(patient) {
   if (!patient?.id) {
     return;
   }
   clearSearchResults();
-  const params = new URLSearchParams({
-    id: String(patient.id),
-    patient: formatPatientName(patient),
-  });
-  window.location.href = `patient.html?${params.toString()}`;
+  await navigateToPatientRecord(patient.id, { patientName: formatPatientName(patient) });
 }
 
 async function loadPatientDirectory() {

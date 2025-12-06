@@ -230,6 +230,7 @@ def serve_schedule(request: Request):
 
 
 @app.get("/patient.html", include_in_schema=False)
+@app.get("/patient", include_in_schema=False)
 def serve_patient(request: Request):
     if not get_current_user(request):
         return _redirect_to_login(request)
@@ -258,6 +259,15 @@ def serve_merge_patients(request: Request):
     if not get_current_user(request):
         return _redirect_to_login(request)
     return FileResponse(settings.html_root / "merge-patients.html")
+
+
+@app.get("/patient-view.html", include_in_schema=False)
+@app.get("/patient-view", include_in_schema=False)
+@app.get("/patien-view", include_in_schema=False)
+def serve_patient_view(request: Request):
+    if not get_current_user(request):
+        return _redirect_to_login(request)
+    return FileResponse(settings.html_root / "patient-view.html")
 
 
 @app.get("/test-drive", include_in_schema=False)
