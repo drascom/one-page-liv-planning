@@ -1443,6 +1443,8 @@ def list_drive_folder_files(folder_id: str):
         "pageSize": 200,
         "supportsAllDrives": True,
         "includeItemsFromAllDrives": True,
+        "corpora": "allDrives",
+        "spaces": "drive",
     }
 
     try:
