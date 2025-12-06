@@ -1,5 +1,6 @@
 import { fetchCurrentUser, handleUnauthorized, initSessionControls } from "./session.js";
 import { navigateToPatientRecord, setPatientRouteBase } from "./patient-route.js";
+import { createRealtimeClient, showActivityToast } from "./realtime.js";
 
 const API_BASE_URL =
   window.APP_CONFIG?.backendUrl ?? `${window.location.protocol}//${window.location.host}`;
@@ -18,6 +19,13 @@ const openChatbotBtn = document.getElementById("open-chatbot-btn");
 const closeChatbotBtn = document.getElementById("close-chatbot-btn");
 const chatbotPopup = document.getElementById("chatbot-popup");
 
+let activityEvents = [];
+let patientCache = [];
+let procedureCache = [];
+let normalizedProcedures = [];
+let realtimeClient = null;
+let proceduresRefreshPromise = null;
+
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
   weekday: "short",
   day: "numeric",
@@ -31,6 +39,17 @@ wireChatbot();
 
 function buildApiUrl(path) {
   return new URL(path, API_BASE_URL).toString();
+}
+
+function buildWebSocketUrl(path) {
+  try {
+    const apiUrl = new URL(API_BASE_URL);
+    const protocol = apiUrl.protocol === "https:" ? "wss:" : "ws:";
+    return `${protocol}//${apiUrl.host}${path}`;
+  } catch (_error) {
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    return `${protocol}//${window.location.host}${path}`;
+  }
 }
 
 function parseDate(value) {
@@ -113,6 +132,7 @@ async function bootstrap() {
   }
 
   await Promise.all([loadProcedures(), loadActivity()]);
+  initializeRealtimeChannel();
 }
 
 function wireChatbot() {
@@ -127,10 +147,7 @@ function wireChatbot() {
 
 async function loadProcedures() {
   try {
-    const [patients, procedures] = await Promise.all([fetchJson("/patients"), fetchJson("/procedures")]);
-    const enriched = normalizeProcedures(patients || [], procedures || []);
-    renderWeekBookings(enriched);
-    renderPendingBookings(enriched);
+    await refreshProceduresData();
   } catch (error) {
     console.error("Unable to load dashboard data", error);
     setHint(weekCardHintEl, "Unable to load bookings.");
@@ -146,8 +163,8 @@ async function loadActivity() {
       throw new Error(`Activity feed failed (${response.status})`);
     }
     const payload = await response.json();
-    const events = Array.isArray(payload) ? payload.slice(0, 10) : [];
-    renderActivity(events);
+    activityEvents = Array.isArray(payload) ? payload.slice(0, 10) : [];
+    renderActivity(activityEvents);
   } catch (error) {
     console.error("Unable to load activity feed", error);
     setHint(activityCardHintEl, "Unable to load activity.");
@@ -253,6 +270,27 @@ function renderPendingBookings(procedures) {
   });
 }
 
+async function refreshProceduresData() {
+  if (!proceduresRefreshPromise) {
+    proceduresRefreshPromise = Promise.all([fetchJson("/patients"), fetchJson("/procedures")])
+      .then(([patients, procedures]) => {
+        patientCache = Array.isArray(patients) ? patients : [];
+        procedureCache = Array.isArray(procedures) ? procedures : [];
+        normalizedProcedures = normalizeProcedures(patientCache, procedureCache);
+        renderWeekBookings(normalizedProcedures);
+        renderPendingBookings(normalizedProcedures);
+      })
+      .catch((error) => {
+        console.error("Unable to refresh bookings", error);
+        throw error;
+      })
+      .finally(() => {
+        proceduresRefreshPromise = null;
+      });
+  }
+  return proceduresRefreshPromise;
+}
+
 function renderActivity(events) {
   if (!activityFeedEl) return;
   activityFeedEl.innerHTML = "";
@@ -297,6 +335,50 @@ function renderActivity(events) {
   });
 
   activityFeedEl.appendChild(list);
+}
+
+
+function addActivityEvent(event) {
+  if (!event) {
+    return;
+  }
+  activityEvents.unshift(event);
+  if (activityEvents.length > 10) {
+    activityEvents.length = 10;
+  }
+  renderActivity(activityEvents);
+}
+
+function initializeRealtimeChannel() {
+  if (realtimeClient) {
+    realtimeClient.close();
+    realtimeClient = null;
+  }
+  realtimeClient = createRealtimeClient({
+    getWebSocketUrl: () => buildWebSocketUrl("/ws/updates"),
+    onActivitySync(items) {
+      activityEvents = items.slice(0, 10);
+      renderActivity(activityEvents);
+    },
+    onEvent: handleRealtimeEvent,
+    onConnectionChange(state) {
+      updateConnectionIndicator(state === "live" ? "live" : "offline");
+    },
+  });
+}
+
+function handleRealtimeEvent(payload) {
+  if (!payload) {
+    return;
+  }
+  if (payload.summary || payload.actor) {
+    addActivityEvent(payload);
+    showActivityToast(payload.summary || "New activity received");
+  }
+  refreshProceduresData().catch(() => {
+    setHint(weekCardHintEl, "Unable to refresh bookings.");
+    setHint(pendingCardHintEl, "Unable to refresh bookings.");
+  });
 }
 
 function updateConnectionIndicator(state) {

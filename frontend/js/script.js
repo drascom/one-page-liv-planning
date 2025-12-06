@@ -1,5 +1,6 @@
 import { fetchCurrentUser, handleUnauthorized, initSessionControls } from "./session.js";
 import { navigateToPatientRecord, setPatientRouteBase } from "./patient-route.js";
+import { createRealtimeClient, showActivityToast } from "./realtime.js";
 
 const scheduleEl = document.getElementById("schedule");
 const weekTemplate = document.getElementById("week-template");
@@ -139,7 +140,6 @@ const MONTH_FORMATTER = new Intl.DateTimeFormat("en-US", { month: "long", year: 
 const DAY_FORMATTER = new Intl.DateTimeFormat("en-US", { weekday: "short" });
 const DAY_NAME_FORMATTER = new Intl.DateTimeFormat("en-US", { weekday: "long" });
 const TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
-const NOTIFICATION_SOUND_SRC = "/static/audio/notification.wav";
 
 const monthDisplay = document.getElementById("current-month-button");
 const monthPicker = document.getElementById("month-picker");
@@ -178,17 +178,9 @@ let searchQuery = "";
 let patientRecords = [];
 let procedureRecords = [];
 let activityEvents = [];
-let activityToastStackEl = null;
-const activityToastTimers = new Map();
-let realtimeSocket = null;
-let realtimeReconnectTimer = null;
-let realtimeConnectionState = "idle";
+let realtimeClient = null;
 let conflictActionCallback = null;
-let realtimeRetryDelay = 0;
 let shouldPreserveSelections = false;
-let notificationAudio = null;
-let soundPermissionBannerEl = null;
-let soundPermissionDismissed = false;
 
 if (searchClearBtn) {
   searchClearBtn.hidden = true;
@@ -254,7 +246,6 @@ function formatActivityTime(value) {
   return TIME_FORMATTER.format(date);
 }
 
-const ISO_DATE_PATTERN = /\b\d{4}-\d{2}-\d{2}\b/g;
 
 function formatHumanReadableDate(value) {
   if (!value) {
@@ -268,14 +259,6 @@ function formatHumanReadableDate(value) {
   const month = date.toLocaleString("en-US", { month: "short" });
   const year = date.getFullYear();
   return `${day}, ${month} ${year}`;
-}
-
-function formatToastMessage(message) {
-  const fallback = "New activity received";
-  if (!message || typeof message !== "string") {
-    return fallback;
-  }
-  return message.replace(ISO_DATE_PATTERN, (match) => formatHumanReadableDate(match) || match);
 }
 
 function handleActivityNavigation(payload = {}) {
@@ -443,117 +426,6 @@ function setActivityStatus(text, connectionState) {
   }
 }
 
-function getNotificationAudio() {
-  if (notificationAudio !== null) {
-    return notificationAudio;
-  }
-  try {
-    const audio = new Audio(NOTIFICATION_SOUND_SRC);
-    audio.preload = "auto";
-    audio.volume = 0.4;
-    notificationAudio = audio;
-  } catch (error) {
-    console.warn("Unable to initialize notification sound", error);
-    notificationAudio = null;
-  }
-  return notificationAudio;
-}
-
-function hideSoundPermissionPrompt() {
-  if (soundPermissionBannerEl) {
-    soundPermissionBannerEl.remove();
-    soundPermissionBannerEl = null;
-  }
-}
-
-function showSoundPermissionPrompt(messageOverride = null) {
-  if (soundPermissionDismissed) {
-    return;
-  }
-  if (!soundPermissionBannerEl) {
-    const banner = document.createElement("div");
-    banner.className = "sound-permission-banner";
-
-    const text = document.createElement("p");
-    text.className = "sound-permission-banner__text";
-    text.textContent = "Enable notification sounds to hear live updates.";
-
-    const actions = document.createElement("div");
-    actions.className = "sound-permission-banner__actions";
-
-    const allowBtn = document.createElement("button");
-    allowBtn.type = "button";
-    allowBtn.className = "sound-permission-banner__btn";
-    allowBtn.textContent = "Enable sound";
-    allowBtn.addEventListener("click", () => requestNotificationSoundPermission());
-
-    const dismissBtn = document.createElement("button");
-    dismissBtn.type = "button";
-    dismissBtn.className = "sound-permission-banner__dismiss";
-    dismissBtn.setAttribute("aria-label", "Dismiss sound prompt");
-    dismissBtn.textContent = "×";
-    dismissBtn.addEventListener("click", () => {
-      soundPermissionDismissed = true;
-      hideSoundPermissionPrompt();
-    });
-
-    actions.appendChild(allowBtn);
-    banner.append(text, actions, dismissBtn);
-    document.body.appendChild(banner);
-    soundPermissionBannerEl = banner;
-  }
-  const textEl = soundPermissionBannerEl.querySelector(".sound-permission-banner__text");
-  if (messageOverride && textEl) {
-    textEl.textContent = messageOverride;
-  }
-  soundPermissionBannerEl.hidden = false;
-}
-
-function requestNotificationSoundPermission() {
-  const audio = getNotificationAudio();
-  if (!audio) {
-    showSoundPermissionPrompt("Audio could not be initialized.");
-    return;
-  }
-  try {
-    audio.currentTime = 0;
-    const playPromise = audio.play();
-    if (!playPromise || typeof playPromise.then !== "function") {
-      hideSoundPermissionPrompt();
-      return;
-    }
-    playPromise
-      .then(() => {
-        hideSoundPermissionPrompt();
-      })
-      .catch(() => {
-        showSoundPermissionPrompt("Tap enable to allow notification sounds.");
-      });
-  } catch (_error) {
-    showSoundPermissionPrompt("Tap enable to allow notification sounds.");
-  }
-}
-
-function playNotificationSound() {
-  const audio = getNotificationAudio();
-  if (!audio) {
-    return;
-  }
-  try {
-    audio.currentTime = 0;
-    const playPromise = audio.play();
-    if (playPromise && typeof playPromise.catch === "function") {
-      playPromise.catch((error) => {
-        console.warn("Notification sound blocked", error);
-        showSoundPermissionPrompt("Notification sounds need your permission.");
-      });
-    }
-  } catch (error) {
-    console.warn("Unable to play notification sound", error);
-    showSoundPermissionPrompt("Notification sounds need your permission.");
-  }
-}
-
 function addActivityEvent(event) {
   if (!event) {
     return;
@@ -565,78 +437,6 @@ function addActivityEvent(event) {
   renderActivityFeed();
 }
 
-function ensureActivityToastStack() {
-  if (activityToastStackEl) {
-    return;
-  }
-  activityToastStackEl = document.createElement("div");
-  activityToastStackEl.className = "activity-toast-stack";
-  document.body.appendChild(activityToastStackEl);
-}
-
-function removeToastImmediately(toastEl) {
-  if (!toastEl) {
-    return;
-  }
-  const timer = activityToastTimers.get(toastEl);
-  if (timer) {
-    clearTimeout(timer);
-    activityToastTimers.delete(toastEl);
-  }
-  toastEl.remove();
-}
-
-function dismissActivityToast(toastEl) {
-  if (!toastEl) {
-    return;
-  }
-  const timer = activityToastTimers.get(toastEl);
-  if (timer) {
-    clearTimeout(timer);
-    activityToastTimers.delete(toastEl);
-  }
-  toastEl.classList.remove("activity-toast--enter");
-  toastEl.classList.add("activity-toast--exit");
-  toastEl.addEventListener(
-    "animationend",
-    () => {
-      toastEl.remove();
-    },
-    { once: true }
-  );
-}
-
-function showActivityToast(message) {
-  ensureActivityToastStack();
-  if (!activityToastStackEl) {
-    return;
-  }
-  playNotificationSound();
-
-  const toastEl = document.createElement("div");
-  toastEl.className = "activity-toast activity-toast--enter";
-
-  const messageEl = document.createElement("div");
-  messageEl.className = "activity-toast__message";
-  messageEl.textContent = formatToastMessage(message);
-
-  const closeBtn = document.createElement("button");
-  closeBtn.type = "button";
-  closeBtn.className = "activity-toast__close";
-  closeBtn.setAttribute("aria-label", "Dismiss notification");
-  closeBtn.textContent = "×";
-  closeBtn.addEventListener("click", () => dismissActivityToast(toastEl));
-
-  toastEl.append(messageEl, closeBtn);
-  activityToastStackEl.appendChild(toastEl);
-
-  const timer = setTimeout(() => dismissActivityToast(toastEl), 5000);
-  activityToastTimers.set(toastEl, timer);
-
-  while (activityToastStackEl.children.length > 3) {
-    removeToastImmediately(activityToastStackEl.firstElementChild);
-  }
-}
 
 function showConflictNotice(message, actionCallback = null) {
   if (!conflictBanner || !conflictMessageEl) {
@@ -2466,76 +2266,31 @@ async function initializeSchedule() {
 }
 
 function initializeRealtimeChannel() {
-  if (typeof window === "undefined") {
-    return;
+  if (realtimeClient) {
+    realtimeClient.close();
+    realtimeClient = null;
   }
-  if (realtimeSocket) {
-    try {
-      realtimeSocket.close();
-    } catch (_error) {
-      // ignore
-    }
-    realtimeSocket = null;
-  }
-  const wsUrl = buildWebSocketUrl("/ws/updates");
-  try {
-    realtimeSocket = new WebSocket(wsUrl);
-  } catch (error) {
-    console.error("Unable to open realtime channel", error);
-    setActivityStatus("Offline", "offline");
-    return;
-  }
-  realtimeConnectionState = "connecting";
-  setActivityStatus("Connecting…", "offline");
-  realtimeSocket.addEventListener("open", () => {
-    realtimeConnectionState = "open";
-    realtimeRetryDelay = 0;
-    setActivityStatus("Live", "live");
-  });
-  realtimeSocket.addEventListener("message", (event) => {
-    try {
-      const payload = JSON.parse(event.data);
-      handleRealtimeMessage(payload);
-    } catch (error) {
-      console.error("Unable to parse realtime payload", error);
-    }
-  });
-  realtimeSocket.addEventListener("close", () => {
-    realtimeConnectionState = "closed";
-    setActivityStatus("Reconnecting…", "offline");
-    scheduleRealtimeReconnect();
-  });
-  realtimeSocket.addEventListener("error", (error) => {
-    console.error("Realtime channel error", error);
-    if (realtimeSocket) {
-      try {
-        realtimeSocket.close();
-      } catch (_closeError) {
-        // already closed
+  realtimeClient = createRealtimeClient({
+    getWebSocketUrl: () => buildWebSocketUrl("/ws/updates"),
+    onActivitySync(items) {
+      activityEvents = items.slice(0, 10);
+      renderActivityFeed();
+    },
+    onEvent: handleRealtimeEvent,
+    onConnectionChange(state) {
+      if (state === "live") {
+        setActivityStatus("Live", "live");
+      } else if (state === "connecting") {
+        setActivityStatus("Connecting…", "offline");
+      } else {
+        setActivityStatus("Reconnecting…", "offline");
       }
-    }
+    },
   });
 }
 
-function scheduleRealtimeReconnect() {
-  if (realtimeReconnectTimer) {
-    return;
-  }
-  const baseDelay = realtimeRetryDelay || 2000;
-  realtimeRetryDelay = Math.min(baseDelay * 1.5, 15000);
-  realtimeReconnectTimer = setTimeout(() => {
-    realtimeReconnectTimer = null;
-    initializeRealtimeChannel();
-  }, realtimeRetryDelay);
-}
-
-function handleRealtimeMessage(payload) {
+function handleRealtimeEvent(payload) {
   if (!payload) {
-    return;
-  }
-  if (payload.type === "activity.sync" && Array.isArray(payload.items)) {
-    activityEvents = payload.items.slice(0, 10);
-    renderActivityFeed();
     return;
   }
   addActivityEvent(payload);
