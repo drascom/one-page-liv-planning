@@ -3301,6 +3301,14 @@ body.app-shell {
   gap: 1rem;
 }
 
+.dashboard-grid.dashboard-grid--two-up {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dashboard-grid.dashboard-grid--full {
+  grid-template-columns: 1fr;
+}
+
 .dashboard-card {
   background: #ffffff;
   border: 1px solid #e5e7eb;
@@ -3312,8 +3320,64 @@ body.app-shell {
   gap: 0.75rem;
 }
 
+.dashboard-card--bookings {
+  background: linear-gradient(180deg, #f7fbff 0%, #eef4ff 100%);
+  border-color: #dbeafe;
+}
+
+.dashboard-card--activity {
+  background: linear-gradient(180deg, #fffdf8 0%, #fff7ec 100%);
+  border-color: #f5d0a6;
+}
+
+.dashboard-card--activity .dashboard-card__eyebrow {
+  color: #94a3b8;
+}
+
+.dashboard-card--activity h2 {
+  color: #334155;
+  font-weight: 700;
+}
+
+.dashboard-card--activity .dashboard-card__hint {
+  color: #a1a1aa;
+}
+
+.dashboard-card--activity .activity-list {
+  gap: 0.15rem;
+}
+
+.dashboard-card--activity .activity-list__item {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #e2e8f0;
+  border-radius: 0;
+  padding: 0.35rem 0;
+  cursor: default;
+  gap: 0.35rem;
+}
+
+.dashboard-card--activity .activity-list__item:last-child {
+  border-bottom: none;
+}
+
+.dashboard-card--activity .activity-list__summary {
+  color: #475569;
+  font-weight: 400;
+}
+
+.dashboard-card--activity .activity-list__meta {
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.dashboard-card--activity .activity-list__time {
+  color: #94a3b8;
+  font-weight: 400;
+}
+
 .dashboard-card--wide {
-  grid-column: span 2;
+  grid-column: 1 / -1;
 }
 
 .dashboard-card__header {

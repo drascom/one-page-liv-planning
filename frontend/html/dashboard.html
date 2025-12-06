@@ -39,10 +39,6 @@
           <p class="dashboard__eyebrow">Overview</p>
           <h1 class="dashboard__title">Today’s snapshot</h1>
           <p class="dashboard__subtitle">Stay on top of bookings, missing paperwork, and team activity.</p>
-          <div class="dashboard__actions">
-            <a class="btn btn-primary" href="/schedule">Go to full schedule</a>
-            <a class="btn btn-secondary" href="customers.html" data-admin-customers hidden>Manage customers</a>
-          </div>
         </div>
         <div class="dashboard__stats">
           <div class="stat-chip">
@@ -60,20 +56,20 @@
         </div>
       </section>
 
-      <section class="dashboard-grid">
-        <article class="card dashboard-card">
+      <section class="dashboard-grid dashboard-grid--two-up">
+        <article class="card dashboard-card dashboard-card--bookings">
           <header class="dashboard-card__header">
             <div>
               <p class="dashboard-card__eyebrow">Bookings</p>
               <h2>Current week</h2>
               <p class="dashboard-card__hint" id="week-card-hint">Loading week bookings…</p>
             </div>
-            <a class="link" href="index.html">View schedule</a>
+            <a class="link" href="/schedule">View schedule</a>
           </header>
           <div class="dashboard-card__body" id="week-bookings"></div>
         </article>
 
-        <article class="card dashboard-card">
+        <article class="card dashboard-card dashboard-card--activity">
           <header class="dashboard-card__header">
             <div>
               <p class="dashboard-card__eyebrow">Activity</p>

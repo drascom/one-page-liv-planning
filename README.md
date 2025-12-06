@@ -66,8 +66,48 @@ The `Dockerfile` installs uv, syncs dependencies with `uv sync --no-dev`, copies
 
 ## Configuration
 
-- `.env.example` declares `APP_SECRET_KEY`, `DEFAULT_ADMIN_PASSWORD`, `BACKEND_URL`, `FRONTEND_URL`, and Google OAuth variables (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_PROJECT_ID`, `GOOGLE_REDIRECT_URIS`, `GOOGLE_AUTH_URI`, `GOOGLE_TOKEN_URI`, and optional `GOOGLE_TOKEN_JSON`). `GOOGLE_TOKEN_JSON` lets you paste a pre-authorized credential set so the Drive proxy works without going through the browser flow.
-- When configuring Google OAuth, whitelist the callback `https://<your-domain>/auth/google/callback` (or `http://localhost:8000/auth/google/callback` for local dev). The settings page lets you override the domain used in the login URL if your app runs behind a proxy.
+### `.env` file content
+
+- `APP_SECRET_KEY`: A secret key for signing session cookies. Change this to a random, secure string in production.
+- `DEFAULT_ADMIN_PASSWORD`: The initial password for the `admin` user. This should be changed after the first login.
+- `BACKEND_URL`: The public URL of the backend server (e.g., `https://liv.drascom.uk`).
+- `FRONTEND_URL`: The public URL of the frontend application (e.g., `https://liv.drascom.uk`).
+- `GOOGLE_CLIENT_ID`: Google OAuth 2.0 Client ID.
+- `GOOGLE_CLIENT_SECRET`: Google OAuth 2.0 Client Secret.
+- `GOOGLE_PROJECT_ID`: Your Google Cloud project ID.
+- `GOOGLE_REDIRECT_URIS`: The callback URL for Google OAuth. For local development, this is typically `http://localhost:8000/auth/google/callback`.
+- `GOOGLE_AUTH_URI`: The Google OAuth 2.0 authorization endpoint. Default is `https://accounts.google.com/o/oauth2/auth`.
+- `GOOGLE_TOKEN_URI`: The Google OAuth 2.0 token endpoint. Default is `https://oauth2.googleapis.com/token`.
+- `GOOGLE_TOKEN_JSON`: (Optional) A JSON string containing a pre-authorized token. This allows the application to access Google Drive without requiring a user to go through the OAuth flow in the browser.
+
+### Setting up Google Drive connection
+
+To enable the Google Drive integration for fetching photos, you need to configure Google OAuth 2.0 credentials.
+
+1.  **Create a Google Cloud Project:**
+    - Go to the [Google Cloud Console](https://console.cloud.google.com/).
+    - Create a new project or select an existing one.
+
+2.  **Enable the Google Drive API:**
+    - In your project, navigate to "APIs & Services" > "Library".
+    - Search for "Google Drive API" and enable it.
+
+3.  **Create OAuth 2.0 Credentials:**
+    - Go to "APIs & Services" > "Credentials".
+    - Click "Create Credentials" and select "OAuth client ID".
+    - Choose "Web application" as the application type.
+    - Add an authorized redirect URI. For local development, use `http://localhost:8000/auth/google/callback`. For production, use `https://<your-domain>/auth/google/callback`.
+    - Click "Create" and take note of the **Client ID** and **Client Secret**.
+
+4.  **Update your `.env` file:**
+    - Copy the Client ID, Client Secret, and Project ID into the corresponding variables in your `.env` file.
+
+5.  **Authorize the application:**
+    - Run the application and navigate to the settings page.
+    - Click the "Connect to Google Drive" button.
+    - You will be redirected to a Google consent screen. Log in and grant the requested permissions.
+    - After authorization, you will be redirected back to the application, and a `GOOGLE_TOKEN_JSON` will be generated and stored. You can copy this value into your `.env` file to avoid re-authorizing in the future.
+
 - `backend/settings.py` exposes `static_root` (serving `frontend/`), `uploads_root` (`uploads/`), and the paths used by `app-config`. The `uploads/` directory stores patient photo files and must be writable.
 - The `private/` directory currently holds a sample Google client secret; copy yours into the environment variables instead of checking in secrets.
 
