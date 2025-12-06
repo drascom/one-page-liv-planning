@@ -18,9 +18,12 @@ const DEFAULT_FIELD_OPTIONS = {
   ],
   procedure_type: [
     { value: "sfue", label: "sFUE" },
+    { value: "hair_transplant", label: "Hair Transplant" },
     { value: "beard", label: "Beard" },
     { value: "woman", label: "Woman" },
     { value: "eyebrow", label: "Eyebrow" },
+    { value: "face_to_face", label: "Face to Face Consultation" },
+    { value: "video_consultation", label: "Video Consultation" },
   ],
   package_type: [
     { value: "small", label: "Small" },
