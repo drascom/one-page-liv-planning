@@ -215,7 +215,15 @@ _register_frontend_security_middleware(app)
 
 
 @app.get("/", include_in_schema=False)
-def serve_index(request: Request):
+@app.get("/dashboard", include_in_schema=False)
+def serve_dashboard(request: Request):
+    if not get_current_user(request):
+        return _redirect_to_login(request)
+    return FileResponse(settings.html_root / "dashboard.html")
+
+
+@app.get("/schedule", include_in_schema=False)
+def serve_schedule(request: Request):
     if not get_current_user(request):
         return _redirect_to_login(request)
     return FileResponse(settings.html_root / "index.html")

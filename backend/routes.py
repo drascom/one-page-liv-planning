@@ -1441,8 +1441,8 @@ def list_drive_folder_files(folder_id: str):
         "q": f"'{folder_id}' in parents and trashed=false",
         "fields": "files(id,name,mimeType,webViewLink,thumbnailLink),nextPageToken",
         "pageSize": 200,
-        "supportsAllDrives": True,
-        "includeItemsFromAllDrives": True,
+        "supportsAllDrives": "true",
+        "includeItemsFromAllDrives": "true",
         "corpora": "allDrives",
         "spaces": "drive",
     }

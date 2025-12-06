@@ -12,11 +12,11 @@
 <body class="app-shell">
   <div class="app-layout">
     <nav class="top-nav">
-      <div class="top-nav__brand">
+      <a class="top-nav__brand top-nav__brand-link" href="/dashboard">
         <span class="top-nav__brand-icon" aria-hidden="true">❖</span>
         <span>Liv Planner</span>
         <span class="connection-indicator" id="connection-indicator" aria-hidden="true"></span>
-      </div>
+      </a>
       <form class="top-nav__search patient-search" id="patient-search-form" role="search" autocomplete="off">
         <label class="visually-hidden" for="patient-search">Search patients</label>
         <span class="search-icon" aria-hidden="true">🔍</span>
@@ -126,16 +126,6 @@
         </div>
       </section>
 
-      <section class="activity-panel" aria-live="polite">
-        <div class="activity-panel__header">
-          <div>
-            <h2>Live activity</h2>
-            <p>Changes from other teammates and integrations appear here.</p>
-          </div>
-          <span class="activity-panel__status" id="activity-connection-status">Connecting…</span>
-        </div>
-        <div class="activity-feed" id="activity-feed"></div>
-      </section>
     </main>
   </div>
 

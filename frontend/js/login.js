@@ -8,7 +8,7 @@ const passwordInput = document.getElementById("login-password");
 const passwordToggle = document.getElementById("password-toggle");
 const loginStatus = document.getElementById("login-status");
 const params = new URLSearchParams(window.location.search);
-const nextPath = params.get("next") || "/";
+const nextPath = params.get("next");
 
 function buildApiUrl(path) {
   return new URL(path, API_BASE_URL).toString();
@@ -36,7 +36,20 @@ async function handleLogin(event) {
       }
       throw new Error("Unable to sign in.");
     }
-    window.location.href = nextPath || "/";
+    if (nextPath) {
+      // Re-add current query params to the next path if they're not already there
+      const nextUrl = new URL(nextPath, window.location.origin);
+      let hasChanged = false;
+      params.forEach((value, key) => {
+        if (key !== "next" && !nextUrl.searchParams.has(key)) {
+          nextUrl.searchParams.set(key, value);
+          hasChanged = true;
+        }
+      });
+      window.location.href = hasChanged ? nextUrl.toString() : nextPath;
+    } else {
+      window.location.href = "/";
+    }
   } catch (error) {
     loginStatus.textContent = error.message;
   } finally {
@@ -57,7 +70,11 @@ async function checkExistingSession() {
   try {
     const response = await fetch(buildApiUrl("/auth/me"));
     if (response.ok) {
-      window.location.href = nextPath || "/";
+      if (nextPath) {
+        window.location.href = nextPath;
+      } else {
+        window.location.href = "/";
+      }
     }
   } catch (_error) {
     // ignore

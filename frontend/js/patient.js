@@ -1374,7 +1374,7 @@ async function savePatient(event) {
     procedureFormStatusEl.textContent = "Procedure saved.";
     persistReturnToScheduleContext(currentPatient, savedProcedure);
     formStatusEl.textContent = "Record saved. Returning to schedule...";
-    window.location.href = "/";
+    window.location.href = "/schedule";
   } catch (error) {
     console.error(error);
     procedureFormStatusEl.textContent = error.message;
@@ -1549,7 +1549,7 @@ async function handleDeletePatient() {
       throw new Error(`Failed to remove (status ${response.status})`);
     }
     persistReturnToScheduleContext(currentPatient, activeProcedure);
-    window.location.href = "/";
+    window.location.href = "/schedule";
   } catch (error) {
     console.error(error);
     alert(`Unable to remove this patient: ${error.message}`);

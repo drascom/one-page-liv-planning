@@ -186,7 +186,7 @@ async function handleNavSearchSubmit(event) {
       // Ignore storage failures
     }
   }
-  window.location.href = "/";
+  window.location.href = "/schedule";
 }
 
 if (searchResultsEl) {

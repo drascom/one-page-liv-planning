@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard • Liv Planner</title>
+  <link rel="stylesheet" href="/static/css/styles.css" />
+  <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg" />
+</head>
+<body class="app-shell">
+  <div class="app-layout">
+    <nav class="top-nav">
+      <a class="top-nav__brand top-nav__brand-link" href="/dashboard">
+        <span class="top-nav__brand-icon" aria-hidden="true">❖</span>
+        <span>Liv Planner</span>
+      </a>
+      <div class="top-nav__actions">
+        <a class="nav-btn nav-btn--ghost" href="index.html">Schedule</a>
+        <a class="nav-btn nav-btn--ghost" href="customers.html" data-admin-customers hidden>Customers</a>
+        <a class="nav-btn nav-btn--ghost" href="settings.html" data-admin-link hidden>Settings</a>
+        <button type="button" class="nav-btn nav-btn--primary" id="open-chatbot-btn">Chat</button>
+        <button type="button" class="nav-btn nav-btn--primary" data-logout-btn>Logout</button>
+      </div>
+    </nav>
+
+    <main class="main-container dashboard">
+      <div id="chatbot-popup" class="chatbot-popup" hidden>
+        <div class="chatbot-popup__header">
+          <h2>Chatbot</h2>
+          <button type="button" class="chatbot-popup__close-btn" id="close-chatbot-btn">×</button>
+        </div>
+        <div class="chatbot-popup__body">
+          <iframe src="chatbot.html" class="chatbot-popup__iframe"></iframe>
+        </div>
+      </div>
+
+      <section class="dashboard__hero">
+        <div>
+          <p class="dashboard__eyebrow">Overview</p>
+          <h1 class="dashboard__title">Today’s snapshot</h1>
+          <p class="dashboard__subtitle">Stay on top of bookings, missing paperwork, and team activity.</p>
+          <div class="dashboard__actions">
+            <a class="btn btn-primary" href="/schedule">Go to full schedule</a>
+            <a class="btn btn-secondary" href="customers.html" data-admin-customers hidden>Manage customers</a>
+          </div>
+        </div>
+        <div class="dashboard__stats">
+          <div class="stat-chip">
+            <span class="stat-chip__label">Week</span>
+            <span class="stat-chip__value" id="stat-week-range">Loading…</span>
+          </div>
+          <div class="stat-chip">
+            <span class="stat-chip__label">Bookings this week</span>
+            <span class="stat-chip__value" id="stat-week-count">–</span>
+          </div>
+          <div class="stat-chip">
+            <span class="stat-chip__label">Pending paperwork</span>
+            <span class="stat-chip__value" id="stat-pending-count">–</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="dashboard-grid">
+        <article class="card dashboard-card">
+          <header class="dashboard-card__header">
+            <div>
+              <p class="dashboard-card__eyebrow">Bookings</p>
+              <h2>Current week</h2>
+              <p class="dashboard-card__hint" id="week-card-hint">Loading week bookings…</p>
+            </div>
+            <a class="link" href="index.html">View schedule</a>
+          </header>
+          <div class="dashboard-card__body" id="week-bookings"></div>
+        </article>
+
+        <article class="card dashboard-card">
+          <header class="dashboard-card__header">
+            <div>
+              <p class="dashboard-card__eyebrow">Activity</p>
+              <h2>Live feed</h2>
+              <p class="dashboard-card__hint" id="activity-card-hint">Waiting for updates…</p>
+            </div>
+            <span class="connection-indicator" id="dashboard-connection-indicator" aria-hidden="true"></span>
+          </header>
+          <div class="dashboard-card__body" id="activity-feed"></div>
+        </article>
+
+        <article class="card dashboard-card dashboard-card--wide">
+          <header class="dashboard-card__header">
+            <div>
+              <p class="dashboard-card__eyebrow">Follow up</p>
+              <h2>Upcoming with missing forms/consents</h2>
+              <p class="dashboard-card__hint" id="pending-card-hint">Looking for gaps in the next bookings…</p>
+            </div>
+          </header>
+          <div class="dashboard-card__body" id="pending-bookings"></div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script src="/app-config.js"></script>
+  <script src="/static/js/nav-search.js" type="module"></script>
+  <script src="/static/js/dashboard.js" type="module"></script>
+</body>
+</html>

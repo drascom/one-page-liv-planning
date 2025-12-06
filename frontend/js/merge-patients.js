@@ -522,7 +522,7 @@ openDirectoryBtn?.addEventListener("click", () => {
 });
 
 openCustomersBtn?.addEventListener("click", () => {
-  window.location.href = "/";
+  window.location.href = "/schedule";
 });
 
 viewPatientBtn?.addEventListener("click", () => {
