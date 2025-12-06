@@ -86,6 +86,72 @@ function normalizeName(value) {
   return (value || "").toString().trim().toLowerCase();
 }
 
+function getCustomerDisplayName(customer) {
+  return `${customer?.first_name || ""} ${customer?.last_name || ""}`.trim() || `Patient #${customer?.id ?? ""}`;
+}
+
+function sortCustomersByName(customers) {
+  return [...customers].sort((a, b) =>
+    getCustomerDisplayName(a).localeCompare(getCustomerDisplayName(b), undefined, { sensitivity: "base" })
+  );
+}
+
+function findDuplicateGroups(customers) {
+  const groups = new Map();
+  customers.forEach((customer) => {
+    const first = normalizeName(customer.first_name);
+    const last = normalizeName(customer.last_name);
+    const key = `${first} ${last}`.trim();
+    if (!key) {
+      return;
+    }
+    if (!groups.has(key)) {
+      groups.set(key, []);
+    }
+    groups.get(key).push(customer);
+  });
+  return Array.from(groups.values())
+    .filter((items) => items.length > 1)
+    .map((items) => ({
+      displayName: getCustomerDisplayName(items[0]),
+      items: sortCustomersByName(items),
+    }))
+    .sort((a, b) => a.displayName.localeCompare(b.displayName, undefined, { sensitivity: "base" }));
+}
+
+function buildDuplicateSection(groups) {
+  if (!Array.isArray(groups) || !groups.length) {
+    return "";
+  }
+  const itemsMarkup = groups
+    .map((group) => {
+      const links = group.items
+        .map((customer) => {
+          const url = buildPatientRecordUrlSync(customer.id, { patientName: getCustomerDisplayName(customer) });
+          return `<a href="${url}" class="customer-duplicates__link">#${customer.id}</a>`;
+        })
+        .join("");
+      return `
+        <li class="customer-duplicates__item">
+          <span class="customer-duplicates__name">${group.displayName}</span>
+          <div class="customer-duplicates__links">${links}</div>
+        </li>
+      `;
+    })
+    .join("");
+  return `
+    <li class="customer-duplicates">
+      <div class="customer-duplicates__header">
+        <p class="customer-duplicates__title">Possible duplicate names</p>
+        <p class="customer-duplicates__subtitle">${groups.length} name${groups.length === 1 ? "" : "s"} found</p>
+      </div>
+      <ul class="customer-duplicates__list">
+        ${itemsMarkup}
+      </ul>
+    </li>
+  `;
+}
+
 function pruneSelectedPatients() {
   const validIds = new Set(allCustomers.map((customer) => Number(customer.id)));
   let changed = false;
@@ -137,20 +203,22 @@ function buildCustomerEntry(patient, proceduresByPatient) {
 
 function renderCustomers(customers) {
   if (!listEl) return;
+  const duplicatesMarkup = buildDuplicateSection(findDuplicateGroups(customers));
+  let cardsMarkup = "";
   if (!customers.length) {
-    listEl.innerHTML =
+    cardsMarkup =
       '<li class="customer-empty">No patients match your search. Try another name or address.</li>';
   } else {
-    listEl.innerHTML = customers
+    cardsMarkup = customers
       .map((customer) => {
         const isSelected = selectedPatientIds.has(Number(customer.id));
-        const customerName = `${customer.first_name || ""} ${customer.last_name || ""}`.trim();
+        const customerName = getCustomerDisplayName(customer);
         const patientUrl = buildPatientRecordUrlSync(customer.id, { patientName: customerName });
         return `
         <li class="customer-card ${isSelected ? "customer-card--selected" : ""}" data-patient-id="${customer.id}">
           <div class="customer-card__primary">
             <a class="customer-card__name" href="${patientUrl}">
-              ${customer.first_name || ""} ${customer.last_name || ""}
+              ${customerName}
             </a>
             <p class="customer-card__meta">
               ${customer.address || customer.city || "Address unknown"} • ${customer.email || "No email"}
@@ -173,16 +241,14 @@ function renderCustomers(customers) {
                 class="customer-card__select-input"
                 data-select-patient="${customer.id}"
                 ${isSelected ? "checked" : ""}
-                aria-label="Select ${customer.first_name || ""} ${customer.last_name || ""} for merge"
+                aria-label="Select ${customerName} for merge"
               />
               <span>${isSelected ? "Selected" : "Select"}</span>
             </label>
-            <p class="customer-card__status">${customer.nextProcedureLabel}</p>
-            <a class="secondary-btn customer-card__link" href="${patientUrl}">Open</a>
             ${
               isAdminUser
                 ? `<button type="button" class="danger-btn customer-card__delete-btn" data-delete-patient="${customer.id}">Delete</button>`
-              : ""
+                : ""
             }
           </div>
         </li>
@@ -190,6 +256,7 @@ function renderCustomers(customers) {
       })
       .join("");
   }
+  listEl.innerHTML = `${duplicatesMarkup}${cardsMarkup}`;
   if (visibleCountEl) {
     visibleCountEl.textContent = String(customers.length);
   }
@@ -242,14 +309,16 @@ function togglePatientSelection(patientId, isSelected) {
 function applyCustomerFilter(query) {
   const normalized = normalizeName(query);
   if (!normalized) {
-    filteredCustomers = [...allCustomers];
+    filteredCustomers = sortCustomersByName(allCustomers);
   } else {
-    filteredCustomers = allCustomers.filter((customer) => {
-      const name = `${normalizeName(customer.first_name)} ${normalizeName(customer.last_name)}`.trim();
-      const address = normalizeName(customer.address || customer.city);
-      const email = normalizeName(customer.email);
-      return name.includes(normalized) || address.includes(normalized) || email.includes(normalized);
-    });
+    filteredCustomers = sortCustomersByName(
+      allCustomers.filter((customer) => {
+        const name = `${normalizeName(customer.first_name)} ${normalizeName(customer.last_name)}`.trim();
+        const address = normalizeName(customer.address || customer.city);
+        const email = normalizeName(customer.email);
+        return name.includes(normalized) || address.includes(normalized) || email.includes(normalized);
+      })
+    );
   }
   renderCustomers(filteredCustomers);
 }
@@ -380,13 +449,9 @@ async function loadCustomers() {
         id: Number.isFinite(numericId) ? numericId : patient.id,
       };
     });
-    allCustomers = normalizedPatients
-      .map((patient) => buildCustomerEntry(patient, proceduresByPatient))
-      .sort((a, b) => {
-        const lastCompare = a.last_name.localeCompare(b.last_name);
-        if (lastCompare !== 0) return lastCompare;
-        return a.first_name.localeCompare(b.first_name);
-      });
+    allCustomers = sortCustomersByName(
+      normalizedPatients.map((patient) => buildCustomerEntry(patient, proceduresByPatient))
+    );
     pruneSelectedPatients();
     filteredCustomers = [...allCustomers];
     hasCustomerData = true;

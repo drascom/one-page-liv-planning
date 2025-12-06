@@ -2442,10 +2442,10 @@ body.app-shell {
 
 .customer-card {
   display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
+  flex-wrap: nowrap;
+  gap: 1.5rem;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   border-radius: 16px;
   border: 1px solid #e2e8f0;
   background: #ffffff;
@@ -2454,8 +2454,8 @@ body.app-shell {
 }
 
 .customer-card__primary {
-  flex: 1;
-  min-width: 220px;
+  flex: 2 1 280px;
+  min-width: 240px;
 }
 
 .customer-card__name {
@@ -2479,8 +2479,10 @@ body.app-shell {
   display: flex;
   gap: 1.5rem;
   align-items: center;
-  flex-wrap: wrap;
+  justify-content: center;
+  flex-wrap: nowrap;
   min-width: 200px;
+  flex: 1 1 220px;
 }
 
 .customer-card__stat {
@@ -2503,20 +2505,12 @@ body.app-shell {
 
 .customer-card__actions {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.75rem;
-  min-width: 180px;
-}
-
-.customer-card__status {
-  margin: 0;
-  color: #0f172a;
-  font-weight: 600;
-}
-
-.customer-card__link {
-  width: max-content;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1rem;
+  min-width: 200px;
+  flex: 1 1 220px;
 }
 
 @media (max-width: 720px) {
@@ -2527,17 +2521,93 @@ body.app-shell {
 
   .customer-card {
     flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
   }
 
   .customer-card__actions {
     width: 100%;
     align-items: flex-start;
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 
   .customer-card__stats {
     width: 100%;
     justify-content: space-between;
+    flex-wrap: wrap;
   }
+}
+
+.customer-duplicates {
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #f8fafc;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.customer-duplicates__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.customer-duplicates__title {
+  margin: 0;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.customer-duplicates__subtitle {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.customer-duplicates__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.customer-duplicates__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.35rem 0;
+  border-top: 1px solid #e2e8f0;
+}
+
+.customer-duplicates__item:first-child {
+  border-top: none;
+}
+
+.customer-duplicates__name {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.customer-duplicates__links {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.customer-duplicates__link {
+  font-size: 0.85rem;
+  color: #0ea5e9;
+  text-decoration: none;
+}
+
+.customer-duplicates__link:hover {
+  text-decoration: underline;
 }
 
 .patient-bookings {
