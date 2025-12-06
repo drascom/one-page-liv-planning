@@ -15,9 +15,8 @@
         <span>Liv Planner</span>
       </a>
       <div class="top-nav__actions">
-        <a class="nav-btn nav-btn--ghost" href="index.html">Schedule</a>
-        <a class="nav-btn nav-btn--ghost" href="customers.html" data-admin-customers hidden>Customers</a>
-        <a class="nav-btn nav-btn--ghost" href="settings.html" data-admin-link hidden>Settings</a>
+        <a class="nav-btn nav-btn--ghost" href="/customers" data-admin-customers hidden>Customers</a>
+        <a class="nav-btn nav-btn--ghost" href="/settings" data-admin-link hidden>Settings</a>
         <button type="button" class="nav-btn nav-btn--primary" id="open-chatbot-btn">Chat</button>
         <button type="button" class="nav-btn nav-btn--primary" data-logout-btn>Logout</button>
       </div>
@@ -38,13 +37,18 @@
         <div>
           <p class="dashboard__eyebrow">Overview</p>
           <h1 class="dashboard__title">Today’s snapshot</h1>
-          <p class="dashboard__subtitle">Stay on top of bookings, missing paperwork, and team activity.</p>
+          <p class="dashboard__subtitle">
+            Week:
+            <span id="stat-week-range">Loading…</span>
+          </p>
+          <div class="dashboard__actions">
+        </div>
         </div>
         <div class="dashboard__stats">
-          <div class="stat-chip">
-            <span class="stat-chip__label">Week</span>
-            <span class="stat-chip__value" id="stat-week-range">Loading…</span>
-          </div>
+          <a class="stat-chip stat-chip--link" href="/schedule">
+            <span class="stat-chip__label">Open</span>
+            <span class="stat-chip__value">Schedule</span>
+          </a>
           <div class="stat-chip">
             <span class="stat-chip__label">Bookings this week</span>
             <span class="stat-chip__value" id="stat-week-count">–</span>

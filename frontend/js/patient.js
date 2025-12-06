@@ -2,10 +2,9 @@ import { fetchCurrentUser, handleUnauthorized, initSessionControls } from "./ses
 
 const DEFAULT_FIELD_OPTIONS = {
   status: [
-    { value: "reserved", label: "Reserved" },
     { value: "confirmed", label: "Confirmed" },
+    { value: "reserved", label: "Reserved" },
     { value: "cancelled", label: "Cancelled" },
-    { value: "insurgery", label: "In Surgery" },
     { value: "done", label: "Done" },
   ],
   procedure_type: [

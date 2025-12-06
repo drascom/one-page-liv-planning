@@ -359,10 +359,9 @@ def delete_user(user_id: int) -> bool:
 
 DEFAULT_FIELD_OPTIONS: Dict[str, List[Dict[str, str]]] = {
     "status": [
-        {"value": "consultation", "label": "Consultation"},
-        {"value": "reserved", "label": "Reserved"},
         {"value": "confirmed", "label": "Confirmed"},
-        {"value": "insurgery", "label": "In Surgery"},
+        {"value": "reserved", "label": "Reserved"},
+        {"value": "cancelled", "label": "Cancelled"},
         {"value": "done", "label": "Done"},
     ],
     "procedure_type": [

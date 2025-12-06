@@ -237,6 +237,7 @@ def serve_patient(request: Request):
 
 
 @app.get("/settings.html", include_in_schema=False)
+@app.get("/settings", include_in_schema=False)
 def serve_settings(request: Request):
     if not get_current_user(request):
         return _redirect_to_login(request)

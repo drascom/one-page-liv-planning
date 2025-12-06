@@ -3279,6 +3279,8 @@ body.app-shell {
   padding: 0.75rem 1rem;
   min-width: 160px;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+  text-decoration: none;
+  color: inherit;
 }
 
 .stat-chip__label {

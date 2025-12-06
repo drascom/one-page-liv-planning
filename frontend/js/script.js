@@ -9,9 +9,9 @@ const searchResultsEl = document.getElementById("patient-search-results");
 
 const DEFAULT_FIELD_OPTIONS = {
   status: [
-    { value: "reserved", label: "Reserved" },
     { value: "confirmed", label: "Confirmed" },
-    { value: "insurgery", label: "In Surgery" },
+    { value: "reserved", label: "Reserved" },
+    { value: "cancelled", label: "Cancelled" },
     { value: "done", label: "Done" },
   ],
   procedure_type: [
@@ -201,6 +201,7 @@ setActivityStatus("Offline", "offline");
   await initializeActivityFeed();
   await initializeSchedule();
   initializeRealtimeChannel();
+  hideChatbotForNonAdmins();
 })();
 
 function parseMonthParam(param) {
@@ -2639,6 +2640,15 @@ function handleProcedureConflict(procedureId, summary, { deleted = false, wasSel
 const openChatbotBtn = document.getElementById("open-chatbot-btn");
 const closeChatbotBtn = document.getElementById("close-chatbot-btn");
 const chatbotPopup = document.getElementById("chatbot-popup");
+
+function hideChatbotForNonAdmins() {
+  if (!openChatbotBtn) return;
+  const userIsAdmin = Boolean(currentUser?.is_admin);
+  if (!userIsAdmin) {
+    openChatbotBtn.remove();
+    if (chatbotPopup) chatbotPopup.remove();
+  }
+}
 
 if (openChatbotBtn && closeChatbotBtn && chatbotPopup) {
     openChatbotBtn.addEventListener("click", () => {

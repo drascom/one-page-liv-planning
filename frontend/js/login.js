@@ -48,7 +48,7 @@ async function handleLogin(event) {
       });
       window.location.href = hasChanged ? nextUrl.toString() : nextPath;
     } else {
-      window.location.href = "/";
+      window.location.href = "/dashboard";
     }
   } catch (error) {
     loginStatus.textContent = error.message;
@@ -73,7 +73,7 @@ async function checkExistingSession() {
       if (nextPath) {
         window.location.href = nextPath;
       } else {
-        window.location.href = "/";
+        window.location.href = "/dashboard";
       }
     }
   } catch (_error) {

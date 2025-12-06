@@ -104,6 +104,7 @@ async function bootstrap() {
       document.querySelectorAll("[data-admin-customers]").forEach((el) => el.removeAttribute("hidden"));
     } else {
       document.querySelectorAll("[data-admin-customers]").forEach((el) => el.remove());
+      if (openChatbotBtn) openChatbotBtn.remove();
     }
   } catch (_err) {
     // ignore auth banner, backend will redirect if needed
