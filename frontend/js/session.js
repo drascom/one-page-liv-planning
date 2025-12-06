@@ -5,6 +5,7 @@ export function currentPathWithQuery() {
 const API_BASE_URL =
   window.APP_CONFIG?.backendUrl ??
   `${window.location.protocol}//${window.location.host}`;
+const DEFAULT_VERSION_LABEL = "Version dev";
 
 function buildApiUrl(path) {
   return new URL(path, API_BASE_URL).toString();
@@ -37,6 +38,15 @@ export function initSessionControls() {
       event.preventDefault();
       await logout();
     });
+  });
+}
+
+export function initAppVersionDisplay() {
+  const version = window.APP_CONFIG?.version;
+  const label = version ? `Version ${version}` : DEFAULT_VERSION_LABEL;
+  document.querySelectorAll("[data-app-version]").forEach((el) => {
+    el.textContent = label;
+    el.removeAttribute("hidden");
   });
 }
 

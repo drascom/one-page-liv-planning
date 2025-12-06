@@ -1,4 +1,9 @@
-import { fetchCurrentUser, handleUnauthorized, initSessionControls } from "./session.js";
+import {
+  fetchCurrentUser,
+  handleUnauthorized,
+  initAppVersionDisplay,
+  initSessionControls,
+} from "./session.js";
 import { navigateToPatientRecord, setPatientRouteBase } from "./patient-route.js";
 import { createRealtimeClient, showActivityToast } from "./realtime.js";
 
@@ -169,6 +174,7 @@ const conflictRefreshBtn = document.getElementById("conflict-refresh-btn");
 const conflictDismissBtn = document.getElementById("conflict-dismiss-btn");
 
 initSessionControls();
+initAppVersionDisplay();
 let activePatientContext = loadActivePatientContext();
 let isAdminUser = false;
 const selectedProcedureIds = new Set();

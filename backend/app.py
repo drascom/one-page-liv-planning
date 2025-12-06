@@ -28,6 +28,7 @@ from .chatbot import router as chatbot_router
 from .google_routes import router as google_auth_router
 from .realtime import realtime_router
 from .settings import get_settings
+from .version import get_app_version
 
 def _resolve_allowed_origins() -> list[str]:
     settings = get_settings()
@@ -42,7 +43,9 @@ def _build_cors_config() -> dict[str, object]:
     return {"allow_origins": [], "allow_origin_regex": r"https?://.*"}
 
 
-app = FastAPI(title="Liv Planning API", version="0.1.0")
+APP_VERSION = get_app_version()
+
+app = FastAPI(title="Liv Planning API", version=APP_VERSION)
 settings = get_settings()
 settings.uploads_root.mkdir(parents=True, exist_ok=True)
 
@@ -122,7 +125,7 @@ def create_app() -> FastAPI:
     """Return a configured FastAPI app (useful for testing)."""
     database.init_db()
     database.seed_default_admin_user(hash_password(settings.default_admin_password))
-    api = FastAPI(title="Liv Planning API", version="0.1.0")
+    api = FastAPI(title="Liv Planning API", version=APP_VERSION)
     api.include_router(config_router)
     api.include_router(auth_router)
     auth_dependency = [Depends(require_current_user)]

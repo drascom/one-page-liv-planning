@@ -1,4 +1,9 @@
-import { fetchCurrentUser, handleUnauthorized, initSessionControls } from "./session.js";
+import {
+  fetchCurrentUser,
+  handleUnauthorized,
+  initAppVersionDisplay,
+  initSessionControls,
+} from "./session.js";
 import { buildPatientRecordUrlSync, setPatientRouteBase } from "./patient-route.js";
 
 const API_BASE_URL =
@@ -35,6 +40,7 @@ let hasCustomerData = false;
 const selectedPatientIds = new Set();
 
 initSessionControls();
+initAppVersionDisplay();
 
 if (searchResultsEl) {
   searchResultsEl.hidden = true;

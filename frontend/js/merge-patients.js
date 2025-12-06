@@ -1,4 +1,9 @@
-import { fetchCurrentUser, handleUnauthorized, initSessionControls } from "./session.js";
+import {
+  fetchCurrentUser,
+  handleUnauthorized,
+  initAppVersionDisplay,
+  initSessionControls,
+} from "./session.js";
 import { navigateToPatientRecord, setPatientRouteBase } from "./patient-route.js";
 
 const API_BASE_URL =
@@ -36,6 +41,7 @@ let primaryPatientId = null;
 let duplicatePatientIds = new Set();
 
 initSessionControls();
+initAppVersionDisplay();
 
 function buildApiUrl(path) {
   return new URL(path, API_BASE_URL).toString();

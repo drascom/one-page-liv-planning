@@ -1,4 +1,9 @@
-import { fetchCurrentUser, handleUnauthorized, initSessionControls } from "./session.js";
+import {
+  fetchCurrentUser,
+  handleUnauthorized,
+  initAppVersionDisplay,
+  initSessionControls,
+} from "./session.js";
 import { setPatientRouteBase } from "./patient-route.js";
 
 const DEFAULT_FIELD_OPTIONS = {
@@ -87,6 +92,7 @@ function getOptionLabel(field, value) {
 }
 
 initSessionControls();
+initAppVersionDisplay();
 
 async function fetchFieldOptions() {
   try {

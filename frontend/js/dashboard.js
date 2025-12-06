@@ -1,4 +1,9 @@
-import { fetchCurrentUser, handleUnauthorized, initSessionControls } from "./session.js";
+import {
+  fetchCurrentUser,
+  handleUnauthorized,
+  initAppVersionDisplay,
+  initSessionControls,
+} from "./session.js";
 import { navigateToPatientRecord, setPatientRouteBase } from "./patient-route.js";
 import { createRealtimeClient, showActivityToast } from "./realtime.js";
 
@@ -34,6 +39,7 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
 const TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
 
 initSessionControls();
+initAppVersionDisplay();
 bootstrap();
 wireChatbot();
 

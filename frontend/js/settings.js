@@ -1,4 +1,9 @@
-import { handleUnauthorized, initSessionControls, requireAdminUser } from "./session.js";
+import {
+  handleUnauthorized,
+  initAppVersionDisplay,
+  initSessionControls,
+  requireAdminUser,
+} from "./session.js";
 import { buildPatientRecordUrlSync, setPatientRouteBase } from "./patient-route.js";
 
 const API_BASE_URL =
@@ -56,6 +61,7 @@ if (dataIntegrityResults) {
 }
 
 initSessionControls();
+initAppVersionDisplay();
 
 const sectionNames = new Set(settingsSections.map((section) => section.dataset.settingsSection));
 const defaultSection = settingsTabs[0]?.dataset.settingsTab ?? null;

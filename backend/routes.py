@@ -73,6 +73,7 @@ from .models import (
 )
 from .realtime import publish_event
 from .settings import ENV_PATH, get_settings
+from .version import get_app_version
 
 router = APIRouter(prefix="/plans", tags=["plans"])
 patients_router = APIRouter(prefix="/patients", tags=["patients"])
@@ -1034,25 +1035,24 @@ def _resolve_frontend_url(request: Request) -> str:
     return backend_url
 
 
-@config_router.get("/app-config", response_class=JSONResponse)
-def app_config(request: Request) -> dict[str, str]:
-    """Expose backend/frontend URLs so the UI can configure itself."""
+def _build_app_config_payload(request: Request) -> dict[str, str]:
     return {
         "backendUrl": _resolve_backend_url(request),
         "frontendUrl": _resolve_frontend_url(request),
+        "version": get_app_version(),
     }
+
+
+@config_router.get("/app-config", response_class=JSONResponse)
+def app_config(request: Request) -> dict[str, str]:
+    """Expose backend/frontend URLs plus build metadata for the UI."""
+    return _build_app_config_payload(request)
 
 
 @config_router.get("/app-config.js", response_class=PlainTextResponse)
 def app_config_js(request: Request) -> str:
     """Serve a JS snippet that sets window.APP_CONFIG."""
-    payload = json.dumps(
-        {
-            "backendUrl": _resolve_backend_url(request),
-            "frontendUrl": _resolve_frontend_url(request),
-        },
-        ensure_ascii=False,
-    )
+    payload = json.dumps(_build_app_config_payload(request), ensure_ascii=False)
     return f"window.APP_CONFIG = {payload};"
 
 
