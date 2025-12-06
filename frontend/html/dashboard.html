@@ -10,10 +10,36 @@
 <body class="app-shell">
   <div class="app-layout">
     <nav class="top-nav">
-      <a class="top-nav__brand top-nav__brand-link" href="/dashboard">
-        <span class="top-nav__brand-icon" aria-hidden="true">❖</span>
-        <span>Liv Planner</span>
-      </a>
+      <div class="top-nav__brand">
+        <a class="top-nav__brand-link" href="/dashboard">
+          <span class="top-nav__brand-icon" aria-hidden="true">❖</span>
+          Liv Planner
+        </a>
+        <span class="top-nav__divider" aria-hidden="true">•</span>
+        <span class="top-nav__section">Dashboard</span>
+      </div>
+      <form class="top-nav__search patient-search" id="patient-search-form" role="search" autocomplete="off">
+        <label class="visually-hidden" for="patient-search">Search patients</label>
+        <span class="search-icon" aria-hidden="true">🔍</span>
+        <input
+          id="patient-search"
+          type="search"
+          name="patientSearch"
+          class="search-input"
+          placeholder="Search by name or surname"
+          enterkeyhint="search"
+        />
+        <button
+          type="button"
+          class="patient-search__clear"
+          id="patient-search-clear"
+          aria-label="Clear search"
+          title="Clear search"
+        >
+          ×
+        </button>
+        <ul class="patient-search__results" id="patient-search-results" role="listbox"></ul>
+      </form>
       <div class="top-nav__actions">
         <a class="nav-btn nav-btn--ghost" href="/customers" data-admin-customers hidden>Customers</a>
         <a class="nav-btn nav-btn--ghost" href="/settings" data-admin-link hidden>Settings</a>
