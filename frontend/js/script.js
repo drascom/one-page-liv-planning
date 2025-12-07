@@ -6,6 +6,7 @@ import {
 } from "./session.js";
 import { navigateToPatientRecord, setPatientRouteBase } from "./patient-route.js";
 import { createRealtimeClient, showActivityToast } from "./realtime.js";
+import { APP_TIMEZONE } from "./timezone.js";
 
 const scheduleEl = document.getElementById("schedule");
 const weekTemplate = document.getElementById("week-template");
@@ -144,10 +145,18 @@ const GLOBAL_SEARCH_KEY = "globalSearchQuery";
 const API_BASE_URL =
   window.APP_CONFIG?.backendUrl ??
   `${window.location.protocol}//${window.location.host}`;
-const MONTH_FORMATTER = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" });
-const DAY_FORMATTER = new Intl.DateTimeFormat("en-US", { weekday: "short" });
-const DAY_NAME_FORMATTER = new Intl.DateTimeFormat("en-US", { weekday: "long" });
-const TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
+const MONTH_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  month: "long",
+  year: "numeric",
+  timeZone: APP_TIMEZONE,
+});
+const DAY_FORMATTER = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: APP_TIMEZONE });
+const DAY_NAME_FORMATTER = new Intl.DateTimeFormat("en-US", { weekday: "long", timeZone: APP_TIMEZONE });
+const TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: APP_TIMEZONE,
+});
 
 const monthDisplay = document.getElementById("current-month-button");
 const monthPicker = document.getElementById("month-picker");
@@ -265,7 +274,7 @@ function formatHumanReadableDate(value) {
     return null;
   }
   const day = date.getDate();
-  const month = date.toLocaleString("en-US", { month: "short" });
+  const month = date.toLocaleString("en-US", { month: "short", timeZone: APP_TIMEZONE });
   const year = date.getFullYear();
   return `${day}, ${month} ${year}`;
 }
@@ -1371,7 +1380,7 @@ function formatDayDateHeading(procedureDate, fallbackDayLabel) {
   const date = procedureDate ? new Date(procedureDate) : null;
   if (date && !Number.isNaN(date.getTime())) {
     const dayName = DAY_NAME_FORMATTER.format(date);
-    const monthName = date.toLocaleString("en-US", { month: "short" });
+    const monthName = date.toLocaleString("en-US", { month: "short", timeZone: APP_TIMEZONE });
     const dayNumber = date.getDate();
     return `${dayNumber} ${monthName}, ${dayName}`;
   }
@@ -1405,8 +1414,8 @@ function getWeekMetaForDate(date) {
   weekStart.setDate(date.getDate() - weekdayMondayFirst);
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekStart.getDate() + 6);
-  const monthStartShort = weekStart.toLocaleString("en-US", { month: "short" });
-  const monthEndShort = weekEnd.toLocaleString("en-US", { month: "short" });
+  const monthStartShort = weekStart.toLocaleString("en-US", { month: "short", timeZone: APP_TIMEZONE });
+  const monthEndShort = weekEnd.toLocaleString("en-US", { month: "short", timeZone: APP_TIMEZONE });
   return {
     label: `Week ${weekIndex}`,
     range: `${monthStartShort} ${weekStart.getDate()} – ${monthEndShort} ${weekEnd.getDate()}`,

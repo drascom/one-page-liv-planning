@@ -12,6 +12,8 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from .timezone import london_now_iso
+
 DB_PATH = Path(__file__).resolve().parent / "liv_planning.db"
 DEFAULT_PROCEDURE_TIME = "08:30"
 
@@ -864,11 +866,7 @@ def _normalize_note_entry(
         or existing_note.get("id")
         or secrets.token_hex(8)
     )
-    created_at = (
-        base.get("created_at")
-        or existing_note.get("created_at")
-        or datetime.utcnow().isoformat() + "Z"
-    )
+    created_at = base.get("created_at") or existing_note.get("created_at") or london_now_iso()
     completed = bool(base.get("completed", existing_note.get("completed", False)))
     user_id_value = base.get("user_id", existing_note.get("user_id", default_user))
     try:
@@ -1339,7 +1337,7 @@ def list_procedures(
 
 
 def log_api_request(path: str, method: str, payload: Any, response_payload: Any | None = None) -> None:
-    timestamp = datetime.utcnow().isoformat() + "Z"
+    timestamp = london_now_iso()
     try:
         payload_text = json.dumps(payload)
     except Exception:
@@ -1382,7 +1380,7 @@ def fetch_api_requests(limit: int = 100) -> List[Dict[str, Any]]:
 def run_data_integrity_check(limit: int = 50) -> Dict[str, Any]:
     """Scan patient/procedure tables for missing required data."""
     safe_limit = max(1, min(limit, 500))
-    checked_at = datetime.utcnow().isoformat() + "Z"
+    checked_at = london_now_iso()
 
     def _blank(value: Any) -> bool:
         if value is None:
@@ -2079,7 +2077,7 @@ def _generate_token_value(length: int = 48) -> str:
 
 def create_api_token(name: str, user_id: int) -> Dict[str, Any]:
     token_value = _generate_token_value()
-    created_at = datetime.utcnow().isoformat()
+    created_at = london_now_iso()
     with closing(get_connection()) as conn:
         conn.execute(
             "INSERT INTO api_tokens (name, token, created_at, user_id) VALUES (?, ?, ?, ?)",

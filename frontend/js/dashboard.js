@@ -6,6 +6,7 @@ import {
 } from "./session.js";
 import { navigateToPatientRecord, setPatientRouteBase } from "./patient-route.js";
 import { createRealtimeClient, showActivityToast } from "./realtime.js";
+import { APP_TIMEZONE } from "./timezone.js";
 
 const API_BASE_URL =
   window.APP_CONFIG?.backendUrl ?? `${window.location.protocol}//${window.location.host}`;
@@ -35,8 +36,13 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
   weekday: "short",
   day: "numeric",
   month: "short",
+  timeZone: APP_TIMEZONE,
 });
-const TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
+const TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: APP_TIMEZONE,
+});
 
 initSessionControls();
 initAppVersionDisplay();

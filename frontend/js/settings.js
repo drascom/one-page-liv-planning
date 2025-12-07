@@ -5,6 +5,7 @@ import {
   requireAdminUser,
 } from "./session.js";
 import { buildPatientRecordUrlSync, setPatientRouteBase } from "./patient-route.js";
+import { toLondonDateString, toLondonLocaleString } from "./timezone.js";
 
 const API_BASE_URL =
   window.APP_CONFIG?.backendUrl ??
@@ -172,7 +173,7 @@ function renderTokens(tokens) {
         <div class="token-card" data-token-id="${token.id}">
           <div>
             <p class="token-name">${token.name}</p>
-            <p class="token-created">Created ${new Date(token.created_at).toLocaleString()}</p>
+            <p class="token-created">Created ${toLondonLocaleString(token.created_at)}</p>
           </div>
           <div class="token-value-group">
             <code class="token-value">${token.token}</code>
@@ -321,7 +322,7 @@ function renderApiRequests(requests) {
           <summary>
             <div>
               <p class="token-name">${entry.method} ${entry.path}</p>
-              <p class="token-created">${new Date(entry.created_at).toLocaleString()}</p>
+              <p class="token-created">${toLondonLocaleString(entry.created_at)}</p>
             </div>
           </summary>
           <div class="api-request__body">
@@ -969,7 +970,7 @@ function renderDataIntegrityResults(report) {
   const totalPatients = Number(report?.total_patients ?? 0);
   const totalProcedures = Number(report?.total_procedures ?? 0);
   const issueCount = Number(report?.issue_count ?? issues.length);
-  const checkedAt = report?.checked_at ? new Date(report.checked_at).toLocaleString() : null;
+  const checkedAt = report?.checked_at ? toLondonLocaleString(report.checked_at) : null;
   const summaryText = `Patients: ${totalPatients} • Procedures: ${totalProcedures}`;
 
   if (!issues.length) {
@@ -1083,7 +1084,7 @@ function formatProcedureDateText(value) {
   if (Number.isNaN(parsed.getTime())) {
     return escapeHtml(String(value));
   }
-  return parsed.toLocaleDateString();
+  return toLondonDateString(parsed) || "Date not recorded";
 }
 
 function renderDeletedProcedures(records) {

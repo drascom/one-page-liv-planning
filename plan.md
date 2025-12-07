@@ -21,3 +21,8 @@
 - [x] Add a `procedure_time` column (default `08:30`) to the `procedures` table plus migrations/seed data.
 - [x] Extend backend models & serializers so API payloads can read/write `procedure_time` while defaulting missing values.
 - [x] Expose the value via patient/procedure endpoints and update automated tests to cover the default behavior.
+
+### London timezone standardization
+- [x] Introduce a shared backend timezone helper pinned to Europe/London and replace all UTC `now()` usages.
+- [x] Ensure frontend formatting utilities (Intl/locale strings) explicitly use the London timezone constant.
+- [x] Provide a shared frontend timezone module so every page renders timestamps consistently.

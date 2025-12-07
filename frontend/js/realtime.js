@@ -1,3 +1,5 @@
+import { APP_TIMEZONE } from "./timezone.js";
+
 const NOTIFICATION_SOUND_SRC = "/static/audio/notification.wav";
 const ISO_DATE_PATTERN = /\b\d{4}-\d{2}-\d{2}\b/g;
 
@@ -14,7 +16,7 @@ function formatHumanReadableDate(value) {
     return null;
   }
   const day = date.getDate();
-  const month = date.toLocaleString("en-US", { month: "short" });
+  const month = date.toLocaleString("en-US", { month: "short", timeZone: APP_TIMEZONE });
   const year = date.getFullYear();
   return `${day}, ${month} ${year}`;
 }

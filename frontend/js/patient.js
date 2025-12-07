@@ -5,6 +5,7 @@ import {
   initSessionControls,
 } from "./session.js";
 import { setPatientRouteBase } from "./patient-route.js";
+import { APP_TIMEZONE, toLondonTimeString } from "./timezone.js";
 
 const DEFAULT_FIELD_OPTIONS = {
   status: [
@@ -69,9 +70,14 @@ const BOOKING_DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
   month: "short",
   day: "numeric",
   year: "numeric",
+  timeZone: APP_TIMEZONE,
 });
-const MONTH_FORMATTER = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" });
-const DAY_FORMATTER = new Intl.DateTimeFormat("en-US", { weekday: "short" });
+const MONTH_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  month: "long",
+  year: "numeric",
+  timeZone: APP_TIMEZONE,
+});
+const DAY_FORMATTER = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: APP_TIMEZONE });
 
 function buildApiUrl(path) {
   return new URL(path, API_BASE_URL).toString();
@@ -1036,8 +1042,8 @@ function getWeekMetaForDate(date) {
   weekStart.setDate(date.getDate() - weekdayMondayFirst);
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekStart.getDate() + 6);
-  const monthStartShort = weekStart.toLocaleString("en-US", { month: "short" });
-  const monthEndShort = weekEnd.toLocaleString("en-US", { month: "short" });
+  const monthStartShort = weekStart.toLocaleString("en-US", { month: "short", timeZone: APP_TIMEZONE });
+  const monthEndShort = weekEnd.toLocaleString("en-US", { month: "short", timeZone: APP_TIMEZONE });
   return {
     label: `Week ${weekIndex}`,
     range: `${monthStartShort} ${weekStart.getDate()} – ${monthEndShort} ${weekEnd.getDate()}`,
@@ -1799,7 +1805,7 @@ if (debugTestDriveBtn) {
 function logDebug(msg) {
   if (!debugConsoleEl) return;
   const line = document.createElement("div");
-  line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  line.textContent = `[${toLondonTimeString(new Date())}] ${msg}`;
   debugConsoleEl.appendChild(line);
   debugConsoleEl.scrollTop = debugConsoleEl.scrollHeight;
 }

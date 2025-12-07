@@ -5,6 +5,7 @@ import {
   initSessionControls,
 } from "./session.js";
 import { buildPatientRecordUrlSync, setPatientRouteBase } from "./patient-route.js";
+import { APP_TIMEZONE } from "./timezone.js";
 
 const API_BASE_URL =
   window.APP_CONFIG?.backendUrl ??
@@ -31,6 +32,7 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   month: "short",
   year: "numeric",
+  timeZone: APP_TIMEZONE,
 });
 
 let allCustomers = [];

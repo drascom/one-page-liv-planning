@@ -4,20 +4,16 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections import deque
-from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
 
 from . import database
+from .timezone import london_now_iso
 
 realtime_router = APIRouter()
 logger = logging.getLogger(__name__)
-
-
-def _utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 class RealtimeHub:
@@ -90,7 +86,7 @@ async def publish_event(
         "entityId": entity_id,
         "summary": summary,
         "data": data or {},
-        "timestamp": _utc_now_iso(),
+        "timestamp": london_now_iso(),
         "actor": _format_actor(request),
     }
     try:
