@@ -16,3 +16,8 @@
 - [x] Add a git-driven `get_app_version()` helper and wire it into FastAPI/config responses.
 - [x] Provide the version via `window.APP_CONFIG` and hydrate `[data-app-version]` slots with a shared session helper.
 - [x] Refresh every top navigation bar (HTML + CSS) so the muted version label appears beneath the Liv Planner logo.
+
+### Procedure time support
+- [x] Add a `procedure_time` column (default `08:30`) to the `procedures` table plus migrations/seed data.
+- [x] Extend backend models & serializers so API payloads can read/write `procedure_time` while defaulting missing values.
+- [x] Expose the value via patient/procedure endpoints and update automated tests to cover the default behavior.

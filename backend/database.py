@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 DB_PATH = Path(__file__).resolve().parent / "liv_planning.db"
+DEFAULT_PROCEDURE_TIME = "08:30"
 
 
 def _table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
@@ -56,6 +57,22 @@ def _date_only(value: Optional[str]) -> Optional[str]:
             return datetime.strptime(date_part, "%Y-%m-%d").date().isoformat()
         except ValueError:
             return date_part
+
+
+def _normalize_time(value: Optional[str]) -> str:
+    """Return HH:MM string, falling back to DEFAULT_PROCEDURE_TIME."""
+    text = (value or "").strip()
+    if not text:
+        return DEFAULT_PROCEDURE_TIME
+    parts = text.split(":")
+    try:
+        hours = int(parts[0])
+        minutes = int(parts[1]) if len(parts) > 1 else 0
+    except (ValueError, IndexError):
+        return DEFAULT_PROCEDURE_TIME
+    if not (0 <= hours <= 23 and 0 <= minutes <= 59):
+        return DEFAULT_PROCEDURE_TIME
+    return f"{hours:02d}:{minutes:02d}"
 
 
 def _create_weekly_plans(conn: sqlite3.Connection) -> None:
@@ -151,6 +168,7 @@ def _reset_procedures_table(conn: sqlite3.Connection) -> None:
         "id",
         "patient_id",
         "procedure_date",
+        "procedure_time",
         "status",
         "procedure_type",
         "package_type",
@@ -168,7 +186,7 @@ def _reset_procedures_table(conn: sqlite3.Connection) -> None:
     }
     if columns:
         missing = desired - columns
-        alterable = {"package_type", "agency", "outstanding_balance", "notes"}
+        alterable = {"package_type", "agency", "outstanding_balance", "notes", "procedure_time"}
         grafts_type = column_types.get("grafts", "")
         grafts_numeric = grafts_type in {"REAL", "INTEGER", "NUMERIC", "FLOAT", "DOUBLE"}
         if not missing and grafts_numeric:
@@ -182,6 +200,10 @@ def _reset_procedures_table(conn: sqlite3.Connection) -> None:
                 conn.execute("ALTER TABLE procedures ADD COLUMN outstanding_balance REAL")
             if "notes" in missing:
                 conn.execute("ALTER TABLE procedures ADD COLUMN notes TEXT NOT NULL DEFAULT '[]'")
+            if "procedure_time" in missing:
+                conn.execute(
+                    f"ALTER TABLE procedures ADD COLUMN procedure_time TEXT NOT NULL DEFAULT '{DEFAULT_PROCEDURE_TIME}'"
+                )
             conn.commit()
             return
         _migrate_procedures_table(conn, columns)
@@ -196,6 +218,7 @@ def _create_procedures_table(conn: sqlite3.Connection) -> None:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             patient_id INTEGER NOT NULL,
             procedure_date TEXT,
+            procedure_time TEXT NOT NULL DEFAULT '08:30',
             status TEXT NOT NULL,
             procedure_type TEXT NOT NULL,
             package_type TEXT NOT NULL DEFAULT '',
@@ -234,6 +257,7 @@ def _migrate_procedures_table(conn: sqlite3.Connection, existing_columns: set[st
             id,
             patient_id,
             procedure_date,
+            procedure_time,
             status,
             procedure_type,
             package_type,
@@ -253,6 +277,7 @@ def _migrate_procedures_table(conn: sqlite3.Connection, existing_columns: set[st
             id,
             patient_id,
             procedure_date,
+            {col('procedure_time', f"'{DEFAULT_PROCEDURE_TIME}'")},
             status,
             procedure_type,
             {col('package_type', "''")},
@@ -947,6 +972,11 @@ def _row_to_procedure(row: sqlite3.Row) -> Dict[str, Any]:
         "id": row["id"],
         "patient_id": row["patient_id"],
         "procedure_date": procedure_date,
+        "procedure_time": (
+            row["procedure_time"]
+            if "procedure_time" in row.keys() and row["procedure_time"]
+            else DEFAULT_PROCEDURE_TIME
+        ),
         "status": row["status"],
         "procedure_type": row["procedure_type"],
         "package_type": (row["package_type"] if "package_type" in row.keys() else "") or "",
@@ -1568,9 +1598,11 @@ def _serialize_procedure_payload(data: Dict[str, Any]) -> Dict[str, Any]:
     normalized_date = _date_only(data.get("procedure_date"))
     if not normalized_date:
         raise ValueError("procedure_date is required")
+    normalized_time = _normalize_time(data.get("procedure_time"))
 
     return {
         "procedure_date": normalized_date,
+        "procedure_time": normalized_time,
         "status": data.get("status", ""),
         "procedure_type": data.get("procedure_type", ""),
         "package_type": data.get("package_type") or "",
@@ -1845,13 +1877,14 @@ def create_procedure(patient_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
         cursor = conn.execute(
             """
             INSERT INTO procedures (
-                patient_id, procedure_date, status, procedure_type, package_type, agency, grafts, outstanding_balance, payment,
+                patient_id, procedure_date, procedure_time, status, procedure_type, package_type, agency, grafts, outstanding_balance, payment,
                 consultation, forms, consents, notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 patient_id,
                 payload["procedure_date"],
+                payload["procedure_time"],
                 payload["status"],
                 payload["procedure_type"],
                 payload["package_type"],
@@ -1882,6 +1915,7 @@ def update_procedure(procedure_id: int, data: Dict[str, Any]) -> Optional[Dict[s
             UPDATE procedures
             SET
                 procedure_date = ?,
+                procedure_time = ?,
                 status = ?,
                 procedure_type = ?,
                 package_type = ?,
@@ -1898,6 +1932,7 @@ def update_procedure(procedure_id: int, data: Dict[str, Any]) -> Optional[Dict[s
             """,
             (
                 payload["procedure_date"],
+                payload["procedure_time"],
                 payload["status"],
                 payload["procedure_type"],
                 payload["package_type"],
@@ -2152,13 +2187,14 @@ def _seed_demo_procedures(conn: sqlite3.Connection, patient_ids: List[int], rng:
     conn.execute(
         """
         INSERT INTO procedures (
-            patient_id, procedure_date, status, procedure_type, package_type, agency, grafts, payment,
+            patient_id, procedure_date, procedure_time, status, procedure_type, package_type, agency, grafts, payment,
             consultation, forms, consents, notes
-        ) VALUES (?, ?, 'reserved', 'sfue', 'small', 'want_hair', '2500', 'waiting', '[]', '[]', '[]', '[]')
+        ) VALUES (?, ?, ?, 'reserved', 'sfue', 'small', 'want_hair', '2500', 'waiting', '[]', '[]', '[]', '[]')
         """,
         (
             patient_id,
             scheduled_for,
+            DEFAULT_PROCEDURE_TIME,
         ),
     )
     conn.commit()

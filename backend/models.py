@@ -9,6 +9,9 @@ from typing import Any, Dict, List, Optional, Union
 from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field, model_validator
 
 
+DEFAULT_PROCEDURE_TIME = "08:30"
+
+
 class WeeklyPlanBase(BaseModel):
     week_start: date = Field(..., description="ISO week start date (e.g. 2023-09-04)")
     focus_area: str = Field(..., description="Main business focus for the week")
@@ -83,6 +86,10 @@ class PatientMergeRequest(BaseModel):
 class ProcedureBase(BaseModel):
     """Procedure model - contains scheduling and booking metadata."""
     procedure_date: str = Field(..., description="ISO date for the scheduled procedure")
+    procedure_time: str = Field(
+        DEFAULT_PROCEDURE_TIME,
+        description="Scheduled start time for the procedure (24-hour HH:MM).",
+    )
     status: str = Field(..., description="Procedure workflow status")
     procedure_type: str = Field(..., description="Buckets used to filter procedures")
     package_type: str = Field(..., description="Package/bundle selection for the procedure")

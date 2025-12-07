@@ -10,6 +10,7 @@ if str(ROOT) not in sys.path:
 
 from backend import database
 from backend.app import create_app
+from backend.database import DEFAULT_PROCEDURE_TIME
 
 
 @pytest.fixture()
@@ -173,6 +174,7 @@ def test_patients_search_by_meta_filters_by_date_and_falls_back(client: TestClie
     match = match_body["matches"][0]
     assert len(match["procedures"]) == 1
     assert match["procedures"][0]["id"] == procedure_id
+    assert match["procedures"][0]["procedure_time"] == DEFAULT_PROCEDURE_TIME
 
     # Non-matching date falls back to all procedures for the patient
     fallback = client.get(
