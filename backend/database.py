@@ -104,6 +104,7 @@ def _reset_patients_table(conn: sqlite3.Connection) -> None:
         "phone",
         "address",
         "drive_folder_id",
+        "photo_count",
         "deleted",
         "created_at",
         "updated_at",
@@ -115,7 +116,7 @@ def _reset_patients_table(conn: sqlite3.Connection) -> None:
             conn.execute("UPDATE patients SET address = city WHERE address IS NULL OR address = ''")
             columns.add("address")
         missing = desired - columns
-        alterable = {"drive_folder_id"}
+        alterable = {"drive_folder_id", "photo_count"}
         extra = columns - desired
         allowed_extras = {"city"}
         if not missing and not (extra - allowed_extras):
@@ -124,6 +125,8 @@ def _reset_patients_table(conn: sqlite3.Connection) -> None:
         if missing and missing.issubset(alterable) and not (extra - allowed_extras):
             if "drive_folder_id" in missing:
                 conn.execute("ALTER TABLE patients ADD COLUMN drive_folder_id TEXT")
+            if "photo_count" in missing:
+                conn.execute("ALTER TABLE patients ADD COLUMN photo_count INTEGER NOT NULL DEFAULT 0")
             conn.commit()
             return
         # If there are unexpected columns (e.g., legacy file_details), recreate the table
@@ -141,6 +144,7 @@ def _reset_patients_table(conn: sqlite3.Connection) -> None:
             phone TEXT NOT NULL,
             address TEXT NOT NULL,
             drive_folder_id TEXT,
+            photo_count INTEGER NOT NULL DEFAULT 0,
             deleted INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -987,6 +991,7 @@ def _row_to_patient(row: sqlite3.Row) -> Dict[str, Any]:
         "phone": row["phone"],
         "address": address_value or "",
         "drive_folder_id": row["drive_folder_id"] if "drive_folder_id" in row.keys() else None,
+        "photo_count": row["photo_count"] if "photo_count" in row.keys() else 0,
         "deleted": bool(row["deleted"]),
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
@@ -1003,6 +1008,17 @@ def _row_to_procedure(row: sqlite3.Row) -> Dict[str, Any]:
     except Exception:
         loaded_notes = _deserialize_json_list(notes_raw)
     notes = normalize_notes_payload(loaded_notes)
+    photo_count_value = 0
+    if "photo_count" in row.keys():
+        try:
+            photo_count_value = int(row["photo_count"] or 0)
+        except (TypeError, ValueError):
+            photo_count_value = 0
+    elif "patient_photo_count" in row.keys():
+        try:
+            photo_count_value = int(row["patient_photo_count"] or 0)
+        except (TypeError, ValueError):
+            photo_count_value = 0
     procedure_date = _date_only(row["procedure_date"]) or ""
     balance: Optional[float] = None
     balance_raw = row["outstanding_balance"] if "outstanding_balance" in row.keys() else None
@@ -1034,7 +1050,7 @@ def _row_to_procedure(row: sqlite3.Row) -> Dict[str, Any]:
         "consents": consents,
         "notes": notes,
         "outstanding_balance": balance,
-        "photos": 0,
+        "photos": max(0, photo_count_value),
         "deleted": bool(row["deleted"]),
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
@@ -1371,8 +1387,9 @@ def list_procedures(
     with closing(get_connection()) as conn:
         cursor = conn.execute(
             f"""
-            SELECT procedures.*
+            SELECT procedures.*, patients.photo_count AS patient_photo_count
             FROM procedures
+            LEFT JOIN patients ON patients.id = procedures.patient_id
             {where}
             ORDER BY
                 CASE WHEN procedure_date IS NULL OR procedure_date = '' THEN 1 ELSE 0 END,
@@ -1601,6 +1618,11 @@ def _serialize_patient_payload(data: Dict[str, Any]) -> Dict[str, Any]:
     normalized_first = (data.get("first_name") or "").strip()
     normalized_last = (data.get("last_name") or "").strip()
     normalized_address = (data.get("address") or data.get("city") or "").strip()
+    photo_count_value = data.get("photo_count")
+    try:
+        normalized_photo_count = max(0, int(photo_count_value))
+    except (TypeError, ValueError):
+        normalized_photo_count = 0
     
     return {
         "first_name": normalized_first,
@@ -1609,6 +1631,7 @@ def _serialize_patient_payload(data: Dict[str, Any]) -> Dict[str, Any]:
         "phone": data.get("phone", ""),
         "address": normalized_address,
         "drive_folder_id": data.get("drive_folder_id"),
+        "photo_count": normalized_photo_count,
     }
 
 
@@ -1672,9 +1695,9 @@ def create_patient(data: Dict[str, Any]) -> Dict[str, Any]:
             """
             INSERT INTO patients (
                 first_name, last_name, email, phone, address,
-                drive_folder_id
+                drive_folder_id, photo_count
             )
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 payload["first_name"],
@@ -1683,6 +1706,7 @@ def create_patient(data: Dict[str, Any]) -> Dict[str, Any]:
                 payload["phone"],
                 payload["address"],
                 payload["drive_folder_id"],
+                payload["photo_count"],
             ),
         )
         conn.commit()
@@ -1708,6 +1732,7 @@ def update_patient(patient_id: int, data: Dict[str, Any]) -> Optional[Dict[str, 
                 phone = ?,
                 address = ?,
                 drive_folder_id = ?,
+                photo_count = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
             """,
@@ -1718,6 +1743,7 @@ def update_patient(patient_id: int, data: Dict[str, Any]) -> Optional[Dict[str, 
                 payload["phone"],
                 payload["address"],
                 payload["drive_folder_id"],
+                payload["photo_count"],
                 patient_id,
             ),
         )
@@ -1772,6 +1798,7 @@ def merge_patients(
         "phone": target["phone"],
         "address": target.get("address", ""),
         "drive_folder_id": target.get("drive_folder_id"),
+        "photo_count": target.get("photo_count", 0),
     }
     if updates:
         for field in ("first_name", "last_name", "email", "phone", "address", "drive_folder_id"):
@@ -1780,6 +1807,7 @@ def merge_patients(
 
     normalized_sources: List[int] = []
     seen: set[int] = set()
+    total_photo_count = merged_values.get("photo_count", 0) or 0
     for patient_id in source_patient_ids:
         if patient_id == target_patient_id or patient_id in seen:
             continue
@@ -1788,6 +1816,11 @@ def merge_patients(
             raise ValueError(f"Patient #{patient_id} was not found or is deleted.")
         normalized_sources.append(patient_id)
         seen.add(patient_id)
+        total_photo_count += patient.get("photo_count", 0) or 0
+
+    merged_values["photo_count"] = total_photo_count
+    if updates and updates.get("photo_count") is not None:
+        merged_values["photo_count"] = max(0, int(updates["photo_count"]))
 
     if not normalized_sources:
         raise ValueError("Add at least one other existing patient to merge.")
@@ -1886,12 +1919,13 @@ def find_procedure_by_patient_and_date(
     with closing(get_connection()) as conn:
         cursor = conn.execute(
             """
-            SELECT procedures.*
+            SELECT procedures.*, patients.photo_count AS patient_photo_count
             FROM procedures
-            WHERE patient_id = ?
+            LEFT JOIN patients ON patients.id = procedures.patient_id
+            WHERE procedures.patient_id = ?
               AND procedure_date = ?
-              AND deleted = ?
-            ORDER BY id ASC
+              AND procedures.deleted = ?
+            ORDER BY procedures.id ASC
             LIMIT 1
             """,
             (patient_id, normalized_date, 1 if include_deleted else 0),
@@ -1904,13 +1938,14 @@ def fetch_procedure(procedure_id: int, *, include_deleted: bool = False) -> Opti
     """Fetch a single procedure by ID."""
     with closing(get_connection()) as conn:
         query = """
-            SELECT procedures.*
+            SELECT procedures.*, patients.photo_count AS patient_photo_count
             FROM procedures
-            WHERE id = ?
+            LEFT JOIN patients ON patients.id = procedures.patient_id
+            WHERE procedures.id = ?
         """
         params: Tuple[int, ...] = (procedure_id,)
         if not include_deleted:
-            query += " AND deleted = 0"
+            query += " AND procedures.deleted = 0"
         cursor = conn.execute(query, params)
         row = cursor.fetchone()
         return _row_to_procedure(row) if row else None

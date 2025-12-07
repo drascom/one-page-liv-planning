@@ -39,6 +39,7 @@ class PatientBase(BaseModel):
     phone: str = Field(..., description="Preferred phone number")
     address: str = Field(..., description="Patient address")
     drive_folder_id: Optional[str] = Field(None, description="The ID of the patient's folder")
+    photo_count: int = Field(0, ge=0, description="Number of Google Drive photos linked to the patient")
 
 
 class PatientCreate(PatientBase):
@@ -53,6 +54,7 @@ class PatientUpdate(BaseModel):
     phone: Optional[str] = Field(None, description="Preferred phone number")
     address: Optional[str] = Field(None, description="Patient address")
     drive_folder_id: Optional[str] = Field(None, description="The ID of the patient's folder")
+    photo_count: Optional[int] = Field(None, ge=0, description="Number of linked Drive photos")
 
 
 class Patient(PatientBase):
@@ -73,6 +75,7 @@ class PatientMergeUpdate(BaseModel):
     phone: Optional[str] = Field(None, description="Updated phone for the surviving patient")
     address: Optional[str] = Field(None, description="Updated address for the surviving patient")
     drive_folder_id: Optional[str] = Field(None, description="Drive folder to keep on the surviving patient")
+    photo_count: Optional[int] = Field(None, ge=0, description="Updated total photo count for the patient")
 
 
 class PatientMergeRequest(BaseModel):
@@ -184,6 +187,7 @@ class Procedure(ProcedureBase):
     deleted: bool = Field(False, description="Whether the record is hidden (soft deleted)")
     created_at: str = Field(..., description="Timestamp when the procedure was created")
     updated_at: str = Field(..., description="Timestamp when the procedure was last updated")
+    photos: int = Field(0, ge=0, description="Number of Google Drive photos available for the patient")
 
     class Config:
         from_attributes = True

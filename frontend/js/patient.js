@@ -1364,13 +1364,16 @@ function renderDriveDocuments(pdfFiles = [], archiveFiles = [], otherFiles = [])
 
 function renderDriveGallery(images = getDriveImageFiles()) {
   if (!galleryContainer || !galleryEmptyState) return;
+  const driveImages = Array.isArray(images) ? images : [];
   galleryContainer.innerHTML = "";
-  if (!images.length) {
+  if (!driveImages.length) {
     galleryEmptyState.textContent = "No Google Drive photos yet.";
+    persistPatientPhotoCount(0);
     return;
   }
-  galleryEmptyState.textContent = `${images.length} photo${images.length === 1 ? "" : "s"} available`;
-  images.forEach((fileObj, index) => {
+  galleryEmptyState.textContent = `${driveImages.length} photo${driveImages.length === 1 ? "" : "s"} available`;
+  persistPatientPhotoCount(driveImages.length);
+  driveImages.forEach((fileObj, index) => {
     const card = document.createElement("div");
     card.className = "photo-thumb";
     const thumbUrl = fileObj.thumbnailLink || buildDriveFileUrl(fileObj);
@@ -1382,6 +1385,44 @@ function renderDriveGallery(images = getDriveImageFiles()) {
     card.addEventListener("click", () => openDrivePhotoViewer(index));
     galleryContainer.appendChild(card);
   });
+}
+
+function persistPatientPhotoCount(count) {
+  if (!currentPatient || isReadOnlyPatientPage || !currentPatient.id) {
+    return;
+  }
+  const normalized = Number.isFinite(Number(count)) ? Math.max(0, Math.floor(Number(count))) : 0;
+  const existing = Number.isFinite(Number(currentPatient.photo_count))
+    ? Number(currentPatient.photo_count)
+    : 0;
+  if (existing === normalized) {
+    return;
+  }
+  currentPatient.photo_count = normalized;
+  if (activeProcedure) {
+    activeProcedure = { ...activeProcedure, photos: normalized };
+  }
+  if (Array.isArray(patientProcedures) && patientProcedures.length) {
+    patientProcedures = patientProcedures.map((procedure) =>
+      Number(procedure?.patient_id) === Number(currentPatient.id)
+        ? { ...procedure, photos: normalized }
+        : procedure
+    );
+  }
+  fetch(buildApiUrl(`/patients/${currentPatient.id}`), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ photo_count: normalized }),
+  })
+    .then((response) => {
+      handleUnauthorized(response);
+      if (!response.ok) {
+        throw new Error(`Unable to update photo count (${response.status})`);
+      }
+    })
+    .catch((error) => {
+      console.warn("Unable to persist photo count", error);
+    });
 }
 
 function openDrivePhotoViewer(index) {
