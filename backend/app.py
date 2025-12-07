@@ -69,6 +69,15 @@ PROTECTED_FRONTEND_PREFIXES: tuple[str, ...] = (
 )
 
 
+def _seed_default_users() -> None:
+    admin_hash = hash_password(settings.default_admin_password)
+    automation_hash = hash_password(settings.automation_user_password)
+    database.seed_default_admin_user(
+        admin_hash,
+        automation_password_hash=automation_hash,
+    )
+
+
 def _redirect_to_login(request: Request) -> RedirectResponse:
     # If already at /login, avoid infinite redirect
     if request.url.path == "/login":
@@ -118,13 +127,13 @@ def _register_frontend_security_middleware(api: FastAPI) -> None:
 def startup_event() -> None:
     print(f"Initializing database at: {database.DB_PATH}")
     database.init_db()
-    database.seed_default_admin_user(hash_password(settings.default_admin_password))
+    _seed_default_users()
 
 
 def create_app() -> FastAPI:
     """Return a configured FastAPI app (useful for testing)."""
     database.init_db()
-    database.seed_default_admin_user(hash_password(settings.default_admin_password))
+    _seed_default_users()
     api = FastAPI(title="Liv Planning API", version=APP_VERSION)
     api.include_router(config_router)
     api.include_router(auth_router)

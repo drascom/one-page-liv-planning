@@ -1365,7 +1365,10 @@ def delete_database_file(_: dict = Depends(require_admin_user)) -> dict[str, str
     if db_path.exists():
         db_path.unlink()
     database.init_db()
-    database.seed_default_admin_user(hash_password(settings.default_admin_password))
+    database.seed_default_admin_user(
+        hash_password(settings.default_admin_password),
+        automation_password_hash=hash_password(settings.automation_user_password),
+    )
     return {"detail": "Database deleted and reinitialized."}
 
 

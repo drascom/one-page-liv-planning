@@ -24,6 +24,7 @@ class Settings(BaseModel):
     uploads_root: Path = BASE_DIR / "uploads"
     secret_key: str = os.getenv("APP_SECRET_KEY", "change-me")
     default_admin_password: str = os.getenv("DEFAULT_ADMIN_PASSWORD", "changeme")
+    automation_user_password: str = os.getenv("AUTOMATION_USER_PASSWORD", "Daral1972@")
     
     # Google Auth Settings
     google_client_id: Optional[str] = os.getenv("GOOGLE_CLIENT_ID")

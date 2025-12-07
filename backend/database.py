@@ -343,25 +343,36 @@ def _create_payments_table(conn: sqlite3.Connection) -> None:
 
 def seed_default_admin_user(
     password_hash: str,
+    *,
     username: str = "admin",
     automation_username: str = "automation",
+    automation_password_hash: Optional[str] = None,
 ) -> None:
-    """Ensure the default admin and automation users exist."""
+    """Ensure the default admin and automation users exist with expected privileges."""
     with closing(get_connection()) as conn:
         cursor = conn.execute("SELECT username FROM users")
         existing_usernames = {row[0] for row in cursor.fetchall()}
-        inserts: List[Tuple[str, int]] = []
+        inserts: List[Tuple[str, str, int]] = []
         if username not in existing_usernames:
-            inserts.append((username, 1))
+            inserts.append((username, password_hash, 1))
+        automation_hash = automation_password_hash or password_hash
         if automation_username and automation_username not in existing_usernames:
-            inserts.append((automation_username, 0))
-        if not inserts:
-            return
-        conn.executemany(
-            "INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, ?)",
-            [(name, password_hash, is_admin) for name, is_admin in inserts],
-        )
-        conn.commit()
+            inserts.append((automation_username, automation_hash, 1))
+        operations = 0
+        if inserts:
+            conn.executemany(
+                "INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, ?)",
+                inserts,
+            )
+            operations += len(inserts)
+        if automation_username and automation_username in existing_usernames:
+            conn.execute(
+                "UPDATE users SET password_hash = ?, is_admin = 1 WHERE username = ?",
+                (automation_hash, automation_username),
+            )
+            operations += 1
+        if operations:
+            conn.commit()
 
 
 def list_users() -> List[Dict[str, Any]]:
