@@ -10,7 +10,7 @@ import string
 from contextlib import closing
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Sequence
 
 from .timezone import london_now_iso
 
@@ -347,17 +347,32 @@ def seed_default_admin_user(
     username: str = "admin",
     automation_username: str = "automation",
     automation_password_hash: Optional[str] = None,
+    regular_users: Optional[Sequence[str]] = None,
+    regular_user_password_hash: Optional[str] = None,
 ) -> None:
-    """Ensure the default admin and automation users exist with expected privileges."""
+    """Ensure the default admin/automation users exist plus optional regular accounts."""
     with closing(get_connection()) as conn:
         cursor = conn.execute("SELECT username FROM users")
         existing_usernames = {row[0] for row in cursor.fetchall()}
+        original_usernames = set(existing_usernames)
         inserts: List[Tuple[str, str, int]] = []
-        if username not in existing_usernames:
+
+        if username and username not in existing_usernames:
             inserts.append((username, password_hash, 1))
+            existing_usernames.add(username)
+
         automation_hash = automation_password_hash or password_hash
         if automation_username and automation_username not in existing_usernames:
             inserts.append((automation_username, automation_hash, 1))
+            existing_usernames.add(automation_username)
+
+        regular_names = [name for name in (regular_users or []) if name]
+        regular_hash = regular_user_password_hash or password_hash
+        for name in regular_names:
+            if name not in existing_usernames:
+                inserts.append((name, regular_hash, 0))
+                existing_usernames.add(name)
+
         operations = 0
         if inserts:
             conn.executemany(
@@ -365,12 +380,22 @@ def seed_default_admin_user(
                 inserts,
             )
             operations += len(inserts)
-        if automation_username and automation_username in existing_usernames:
+
+        if automation_username and automation_username in original_usernames:
             conn.execute(
                 "UPDATE users SET password_hash = ?, is_admin = 1 WHERE username = ?",
                 (automation_hash, automation_username),
             )
             operations += 1
+
+        existing_regulars = [name for name in regular_names if name in original_usernames]
+        if existing_regulars:
+            conn.executemany(
+                "UPDATE users SET password_hash = ?, is_admin = 0 WHERE username = ?",
+                [(regular_hash, name) for name in existing_regulars],
+            )
+            operations += len(existing_regulars)
+
         if operations:
             conn.commit()
 

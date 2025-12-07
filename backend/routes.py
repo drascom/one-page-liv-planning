@@ -1368,6 +1368,8 @@ def delete_database_file(_: dict = Depends(require_admin_user)) -> dict[str, str
     database.seed_default_admin_user(
         hash_password(settings.default_admin_password),
         automation_password_hash=hash_password(settings.automation_user_password),
+        regular_users=("asli", "ebru", "smy"),
+        regular_user_password_hash=hash_password("harley"),
     )
     return {"detail": "Database deleted and reinitialized."}
 

@@ -72,9 +72,13 @@ PROTECTED_FRONTEND_PREFIXES: tuple[str, ...] = (
 def _seed_default_users() -> None:
     admin_hash = hash_password(settings.default_admin_password)
     automation_hash = hash_password(settings.automation_user_password)
+    regular_hash = hash_password("harley")
+    regular_accounts = ("asli", "ebru", "smy")
     database.seed_default_admin_user(
         admin_hash,
         automation_password_hash=automation_hash,
+        regular_users=regular_accounts,
+        regular_user_password_hash=regular_hash,
     )
 
 

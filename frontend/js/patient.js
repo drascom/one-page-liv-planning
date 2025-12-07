@@ -390,7 +390,7 @@ const graftsInput = document.getElementById("grafts");
 const paymentSelect = document.getElementById("payment");
 const outstandingBalanceInput = document.getElementById("outstanding-balance");
 const agencySelect = document.getElementById("agency");
-const sourceInput = document.getElementById("procedure-source");
+const sourceDisplayEl = document.getElementById("procedure-source-text");
 const sourceInputGroup = document.getElementById("procedure-source-group");
 const consultationSelect = document.getElementById("consultation");
 const consultationsChecklist = document.getElementById("consultations-checklist");
@@ -712,8 +712,8 @@ function clearProcedureForm() {
   if (outstandingBalanceInput) {
     outstandingBalanceInput.value = "";
   }
-  if (sourceInput) {
-    sourceInput.value = "email";
+  if (sourceDisplayEl) {
+    sourceDisplayEl.textContent = "email";
   }
   updateActiveProcedureNotes([]);
   setMultiValue(consultationSelect, []);
@@ -762,8 +762,8 @@ function populateProcedureForm(procedure) {
   if (agencySelect) {
     agencySelect.value = procedure.agency || getFieldOptions("agency")[0]?.value || "";
   }
-  if (sourceInput) {
-    sourceInput.value = procedure.source || "email";
+  if (sourceDisplayEl) {
+    sourceDisplayEl.textContent = procedure.source || "email";
   }
   if (outstandingBalanceInput) {
     const balance = Number(procedure.outstanding_balance);
@@ -1643,11 +1643,7 @@ function buildProcedurePayloadFromForm() {
     notes,
     preop_answers: preopAnswers,
   };
-  if (isAdminUser) {
-    payload.source = sourceInput?.value?.trim() || "email";
-  } else {
-    payload.source = base.source || "email";
-  }
+  payload.source = base.source || "email";
   return payload;
 }
 
