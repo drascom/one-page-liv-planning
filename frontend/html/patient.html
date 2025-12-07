@@ -36,10 +36,30 @@
         <ul class="patient-search__results" id="patient-search-results" role="listbox"></ul>
       </form>
       <div class="top-nav__actions">
-        <a class="nav-btn nav-btn--ghost" href="/schedule">Schedule</a>
-        <a class="nav-btn nav-btn--ghost" href="/customers" data-admin-customers hidden>Customers</a>
-        <a class="nav-btn nav-btn--ghost" href="/settings" data-admin-link hidden>Settings</a>
-        <button type="button" class="nav-btn nav-btn--primary" data-logout-btn>Logout</button>
+        <a class="nav-btn nav-btn--ghost" href="/schedule" aria-label="Schedule">
+          <svg class="nav-btn__icon" aria-hidden="true" focusable="false">
+            <use href="/static/img/nav-icons.svg#icon-schedule"></use>
+          </svg>
+          <span class="nav-btn__label">Schedule</span>
+        </a>
+        <a class="nav-btn nav-btn--ghost" href="/customers" data-admin-customers hidden aria-label="Customers">
+          <svg class="nav-btn__icon" aria-hidden="true" focusable="false">
+            <use href="/static/img/nav-icons.svg#icon-customers"></use>
+          </svg>
+          <span class="nav-btn__label">Customers</span>
+        </a>
+        <a class="nav-btn nav-btn--ghost" href="/settings" data-admin-link hidden aria-label="Settings">
+          <svg class="nav-btn__icon" aria-hidden="true" focusable="false">
+            <use href="/static/img/nav-icons.svg#icon-settings"></use>
+          </svg>
+          <span class="nav-btn__label">Settings</span>
+        </a>
+        <button type="button" class="nav-btn nav-btn--primary" data-logout-btn aria-label="Logout">
+          <svg class="nav-btn__icon" aria-hidden="true" focusable="false">
+            <use href="/static/img/nav-icons.svg#icon-logout"></use>
+          </svg>
+          <span class="nav-btn__label">Logout</span>
+        </button>
       </div>
     </nav>
 

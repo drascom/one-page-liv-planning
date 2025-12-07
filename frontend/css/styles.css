@@ -201,6 +201,28 @@ body.app-shell {
   cursor: pointer;
   font-size: 0.9rem;
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  position: relative;
+}
+
+.nav-btn__icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+}
+
+.nav-btn__icon use {
+  pointer-events: none;
+}
+
+.nav-btn__label {
+  white-space: nowrap;
 }
 
 .nav-btn--ghost {
@@ -817,6 +839,48 @@ body.app-shell {
   .top-nav__actions {
     width: 100%;
     justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 640px) {
+  .top-nav {
+    padding: 0.75rem 1rem;
+    gap: 1rem;
+  }
+
+  .top-nav__brand {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .top-nav__actions {
+    order: 2;
+    width: 100%;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .top-nav__actions .nav-btn {
+    flex: 1;
+    min-width: 0;
+    padding: 0.45rem 0.5rem;
+  }
+
+  .top-nav__actions .nav-btn__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+  }
+
+  .top-nav__actions .nav-btn__icon {
+    width: 1.35rem;
+    height: 1.35rem;
   }
 }
 

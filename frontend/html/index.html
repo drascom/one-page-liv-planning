@@ -43,10 +43,46 @@
         <ul class="patient-search__results" id="patient-search-results" role="listbox"></ul>
       </form>
       <div class="top-nav__actions">
-        <a class="nav-btn nav-btn--ghost" href="/customers" data-admin-customers hidden target="_blank" rel="noopener noreferrer">Customers</a>
-        <a class="nav-btn nav-btn--ghost" href="/settings" data-admin-link hidden target="_blank" rel="noopener noreferrer">Settings</a>
-        <button type="button" class="nav-btn nav-btn--primary" id="open-chatbot-btn">Chat</button>
-        <button type="button" class="nav-btn nav-btn--primary" data-logout-btn>Logout</button>
+        <a
+          class="nav-btn nav-btn--ghost"
+          href="/customers"
+          data-admin-customers
+          hidden
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Customers"
+        >
+          <svg class="nav-btn__icon" aria-hidden="true" focusable="false">
+            <use href="/static/img/nav-icons.svg#icon-customers"></use>
+          </svg>
+          <span class="nav-btn__label">Customers</span>
+        </a>
+        <a
+          class="nav-btn nav-btn--ghost"
+          href="/settings"
+          data-admin-link
+          hidden
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Settings"
+        >
+          <svg class="nav-btn__icon" aria-hidden="true" focusable="false">
+            <use href="/static/img/nav-icons.svg#icon-settings"></use>
+          </svg>
+          <span class="nav-btn__label">Settings</span>
+        </a>
+        <button type="button" class="nav-btn nav-btn--primary" id="open-chatbot-btn" aria-label="Chat">
+          <svg class="nav-btn__icon" aria-hidden="true" focusable="false">
+            <use href="/static/img/nav-icons.svg#icon-chat"></use>
+          </svg>
+          <span class="nav-btn__label">Chat</span>
+        </button>
+        <button type="button" class="nav-btn nav-btn--primary" data-logout-btn aria-label="Logout">
+          <svg class="nav-btn__icon" aria-hidden="true" focusable="false">
+            <use href="/static/img/nav-icons.svg#icon-logout"></use>
+          </svg>
+          <span class="nav-btn__label">Logout</span>
+        </button>
       </div>
     </nav>
 
