@@ -502,6 +502,63 @@ def test_procedure_creation_ignores_empty_notes(client: TestClient):
     assert fetched.json()["notes"] == []
 
 
+def test_preop_answers_are_persisted_and_can_be_cleared(client: TestClient):
+    patient_id = _create_patient(client)
+    payload = {
+        "patient_id": patient_id,
+        "procedure_date": "2025-07-01",
+        "status": "reserved",
+        "procedure_type": "sfue",
+        "package_type": "small",
+        "grafts": 0,
+        "payment": "waiting",
+        "consultation": [],
+        "forms": [],
+        "consents": [],
+        "preop_answers": {
+            "prp_session": "Yes",
+            "medical_alerts": "None",
+        },
+    }
+    created = client.post("/procedures", json=payload)
+    assert created.status_code == 201
+    procedure_id = created.json()["id"]
+
+    fetched = client.get(f"/procedures/{procedure_id}")
+    assert fetched.status_code == 200
+    body = fetched.json()
+    assert body["preop_answers"]["prp_session"] == "Yes"
+    assert body["preop_answers"]["medical_alerts"] == "None"
+
+    update_payload = {
+        **payload,
+        "preop_answers": {
+            "medical_alerts": "Requires clearance",
+        },
+    }
+    updated = client.put(f"/procedures/{procedure_id}", json=update_payload)
+    assert updated.status_code == 200
+
+    refreshed = client.get(f"/procedures/{procedure_id}")
+    assert refreshed.status_code == 200
+    refreshed_body = refreshed.json()
+    assert "prp_session" not in refreshed_body["preop_answers"]
+    assert refreshed_body["preop_answers"]["medical_alerts"] == "Requires clearance"
+
+    cleared_payload = {
+        **payload,
+        "preop_answers": {
+            "prp_session": "",
+            "medical_alerts": "",
+        },
+    }
+    cleared = client.put(f"/procedures/{procedure_id}", json=cleared_payload)
+    assert cleared.status_code == 200
+    after_clear = client.get(f"/procedures/{procedure_id}")
+    assert after_clear.status_code == 200
+    assert after_clear.json()["preop_answers"] == {}
+
+
 def test_procedure_creation_rejects_blank_date(client: TestClient):
     patient_id = _create_patient(client)
     payload = {

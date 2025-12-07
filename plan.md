@@ -26,3 +26,10 @@
 - [x] Introduce a shared backend timezone helper pinned to Europe/London and replace all UTC `now()` usages.
 - [x] Ensure frontend formatting utilities (Intl/locale strings) explicitly use the London timezone constant.
 - [x] Provide a shared frontend timezone module so every page renders timestamps consistently.
+
+### Permanent procedure questions
+- [ ] Extend the `procedures` table with a new JSON column (e.g. `preop_answers`) that stores structured question/answer pairs so automation can save fixed prompts without mixing them into free-form notes.
+- [ ] Update backend models (`ProcedureBase`, `ProcedureCreate`, API serializers) plus validation helpers to read/write the new `preop_answers` field, defaulting to `{}` and ensuring only the supported keys (PRP session + medications/conditions) are stored.
+- [ ] Adjust procedure create/update routes to persist `preop_answers` separately from notes, ensuring payload logging reflects the new structure.
+- [ ] Surface the two permanent responses in the frontend patient/procedure view with dedicated inputs bound to `preop_answers`, leaving the notes UI untouched for user-entered content.
+- [ ] Provide a convenience helper for automation (and future UI code) that maps the canonical prompts to the structured JSON keys so callers can keep sending `{ "preop_answers": { "prp_session": "Yes", "medical_alerts": "No" } }`.

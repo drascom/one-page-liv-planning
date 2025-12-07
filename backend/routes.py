@@ -137,6 +137,7 @@ def _merge_procedure_payload(existing: dict, incoming: dict) -> dict:
         "consultation",
         "forms",
         "consents",
+        "preop_answers",
         "notes",
         "outstanding_balance",
     }
@@ -188,6 +189,7 @@ def _ensure_note_delete_permissions(
 ) -> None:
     user = _current_user(request)
     user_id = user.get("id") if user else None
+    is_admin = bool(user.get("is_admin")) if user else False
     next_ids = {entry.get("id") for entry in (next_notes or []) if isinstance(entry, dict) and entry.get("id")}
     for note in existing_notes or []:
         note_id = note.get("id")
@@ -196,11 +198,46 @@ def _ensure_note_delete_permissions(
         owner_id = note.get("user_id")
         if owner_id is None:
             continue  # allow cleanup of legacy ownerless notes
+        if is_admin:
+            continue
         if user_id is None or owner_id != user_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You can only delete your own notes.",
             )
+
+
+def _merge_notes_with_existing(
+    existing_notes: Optional[List[dict]],
+    incoming_notes: Optional[List[dict]],
+    *,
+    request: Request,
+) -> List[dict]:
+    """Return the final list of notes, keeping entries the user is not allowed to remove."""
+    existing_list = [note for note in (existing_notes or []) if isinstance(note, dict)]
+    incoming_list = [note for note in (incoming_notes or []) if isinstance(note, dict)]
+    user = _current_user(request)
+    user_id = user.get("id") if user else None
+    is_admin = bool(user.get("is_admin")) if user else False
+    incoming_by_id = {note.get("id"): note for note in incoming_list if note.get("id")}
+    merged: List[dict] = []
+    matched_ids: set[str] = set()
+    for note in existing_list:
+        note_id = note.get("id")
+        owner_id = note.get("user_id")
+        if note_id and note_id in incoming_by_id:
+            merged.append(incoming_by_id[note_id])
+            matched_ids.add(note_id)
+            continue
+        if is_admin or owner_id == user_id or owner_id is None:
+            continue  # user may remove this note
+        merged.append(note)
+    for note in incoming_list:
+        note_id = note.get("id")
+        if note_id and note_id in matched_ids:
+            continue
+        merged.append(note)
+    return merged
 
 
 def _procedure_summary(action: str, procedure: dict, patient: Optional[dict]) -> str:
@@ -296,6 +333,10 @@ def require_api_token(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API token")
     token = ApiToken(**record)
     request.state.api_token = token
+    if token.user_id:
+        token_user = database.get_user(token.user_id)
+        if token_user:
+            request.state.current_user = token_user
     return token
 
 
@@ -553,8 +594,9 @@ async def update_procedure(
                 request=request,
                 existing_notes=existing_notes,
             )
-            _ensure_note_delete_permissions(existing_notes, normalized_notes, request=request)
-            payload_data["notes"] = normalized_notes
+            merged_notes = _merge_notes_with_existing(existing_notes, normalized_notes, request=request)
+            _ensure_note_delete_permissions(existing_notes, merged_notes, request=request)
+            payload_data["notes"] = merged_notes
         merged_payload = _merge_procedure_payload(procedure, payload_data)
         request_payload = {"patient_id": patient_id, **payload_data}
         updated = database.update_procedure(procedure_id, merged_payload)
@@ -915,8 +957,9 @@ async def update_procedure_route(
                 request=request,
                 existing_notes=existing_notes,
             )
-            _ensure_note_delete_permissions(existing_notes, normalized_notes, request=request)
-            payload_data["notes"] = normalized_notes
+            merged_notes = _merge_notes_with_existing(existing_notes, normalized_notes, request=request)
+            _ensure_note_delete_permissions(existing_notes, merged_notes, request=request)
+            payload_data["notes"] = merged_notes
         merged_payload = _merge_procedure_payload(existing, payload_data)
         request_payload = {"patient_id": payload.patient_id, **payload_data}
         updated = database.update_procedure(procedure_id, merged_payload)

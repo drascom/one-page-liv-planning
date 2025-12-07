@@ -66,6 +66,7 @@ const PROCEDURE_TIME_SLOTS = buildProcedureTimeSlots();
 const PROCEDURE_TIME_SET = new Set(PROCEDURE_TIME_SLOTS);
 
 const DEFAULT_RETURN_PATH = "/dashboard";
+const PREOP_ANSWER_KEYS = ["prp_session", "medical_alerts"];
 const MISSING_PATIENT_REDIRECT_DELAY_MS = 3500;
 
 let fieldOptions = JSON.parse(JSON.stringify(DEFAULT_FIELD_OPTIONS));
@@ -323,6 +324,9 @@ function updateProcedureDisplay(procedure) {
     formatNumberValue(Number(data.outstanding_balance))
   );
   setDisplayValue(procedureDisplayFields, "agency", getOptionLabel("agency", data.agency));
+  const preopAnswers = normalizePreopAnswers(data.preop_answers);
+  setDisplayValue(procedureDisplayFields, "preop_prp_session", preopAnswers.prp_session || "");
+  setDisplayValue(procedureDisplayFields, "preop_medical_alerts", preopAnswers.medical_alerts || "");
 }
 
 function renderChecklistStatusList(container, fieldKey, values = []) {
@@ -384,6 +388,8 @@ const formsSelect = document.getElementById("forms");
 const formsChecklist = document.getElementById("forms-checklist");
 const consentsChecklist = document.getElementById("consents-checklist");
 const consentsSelect = document.getElementById("consents");
+const preopPrpInput = document.getElementById("preop-prp-session");
+const preopMedicalInput = document.getElementById("preop-medical-alerts");
 const noteInput = document.getElementById("procedure-note-input");
 const addNoteBtn = document.getElementById("add-procedure-note");
 const notesListEl = document.getElementById("procedure-notes-list");
@@ -538,6 +544,21 @@ function normalizeNotes(rawNotes) {
     .filter(Boolean);
 }
 
+function normalizePreopAnswers(rawAnswers) {
+  if (!rawAnswers || typeof rawAnswers !== "object" || Array.isArray(rawAnswers)) {
+    return {};
+  }
+  return PREOP_ANSWER_KEYS.reduce((acc, key) => {
+    if (rawAnswers[key] != null) {
+      const text = String(rawAnswers[key]).trim();
+      if (text) {
+        acc[key] = text;
+      }
+    }
+    return acc;
+  }, {});
+}
+
 function canDeleteNote(note) {
   if (!note) return false;
   if (note.user_id == null) {
@@ -687,6 +708,8 @@ function clearProcedureForm() {
   renderChecklistStatusList(formsStatusList, "forms", []);
   renderChecklistStatusList(consentsStatusList, "consents", []);
   renderChecklistStatusList(consultationsStatusList, "consultation", []);
+  if (preopPrpInput) preopPrpInput.value = "";
+  if (preopMedicalInput) preopMedicalInput.value = "";
   updateProcedureDisplay(null);
   if (procedureFormStatusEl) {
     procedureFormStatusEl.textContent = "";
@@ -740,6 +763,14 @@ function populateProcedureForm(procedure) {
   refreshFormsChecklist();
   setMultiValue(consentsSelect, procedure.consents || []);
   refreshConsentsChecklist();
+  const preopAnswers = normalizePreopAnswers(procedure.preop_answers);
+  if (preopPrpInput) {
+    preopPrpInput.value = preopAnswers.prp_session || "";
+  }
+  if (preopMedicalInput) {
+    preopMedicalInput.value = preopAnswers.medical_alerts || "";
+  }
+  procedure.preop_answers = preopAnswers;
   syncHeader(currentPatient || {}, procedure);
   renderChecklistStatusList(formsStatusList, "forms", procedure.forms || []);
   renderChecklistStatusList(consentsStatusList, "consents", procedure.consents || []);
@@ -1567,6 +1598,11 @@ function buildProcedurePayloadFromForm() {
     }
   }
   const notes = [...procedureNotes];
+  const existingPreop = normalizePreopAnswers(activeProcedure?.preop_answers);
+  const preopAnswers = {
+    prp_session: preopPrpInput ? preopPrpInput.value.trim() : existingPreop.prp_session || "",
+    medical_alerts: preopMedicalInput ? preopMedicalInput.value.trim() : existingPreop.medical_alerts || "",
+  };
   const timeValue = normalizeProcedureTimeValue(
     procedureTimeSelect?.value || base.procedure_time || DEFAULT_PROCEDURE_TIME
   );
@@ -1585,6 +1621,7 @@ function buildProcedurePayloadFromForm() {
     consents: collectMultiValue(consentsSelect),
     outstanding_balance: parsedBalance,
     notes,
+    preop_answers: preopAnswers,
   };
   return payload;
 }

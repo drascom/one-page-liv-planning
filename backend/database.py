@@ -16,6 +16,7 @@ from .timezone import london_now_iso
 
 DB_PATH = Path(__file__).resolve().parent / "liv_planning.db"
 DEFAULT_PROCEDURE_TIME = "08:30"
+PREOP_ANSWER_KEYS: Tuple[str, ...] = ("prp_session", "medical_alerts")
 
 
 def _table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
@@ -186,13 +187,14 @@ def _reset_procedures_table(conn: sqlite3.Connection) -> None:
         "forms",
         "consents",
         "notes",
+        "preop_answers",
         "deleted",
         "created_at",
         "updated_at",
     }
     if columns:
         missing = desired - columns
-        alterable = {"package_type", "agency", "outstanding_balance", "notes", "procedure_time"}
+        alterable = {"package_type", "agency", "outstanding_balance", "notes", "procedure_time", "preop_answers"}
         grafts_type = column_types.get("grafts", "")
         grafts_numeric = grafts_type in {"REAL", "INTEGER", "NUMERIC", "FLOAT", "DOUBLE"}
         if not missing and grafts_numeric:
@@ -210,6 +212,8 @@ def _reset_procedures_table(conn: sqlite3.Connection) -> None:
                 conn.execute(
                     f"ALTER TABLE procedures ADD COLUMN procedure_time TEXT NOT NULL DEFAULT '{DEFAULT_PROCEDURE_TIME}'"
                 )
+            if "preop_answers" in missing:
+                conn.execute("ALTER TABLE procedures ADD COLUMN preop_answers TEXT NOT NULL DEFAULT '{}'")
             conn.commit()
             return
         _migrate_procedures_table(conn, columns)
@@ -235,6 +239,7 @@ def _create_procedures_table(conn: sqlite3.Connection) -> None:
             consultation TEXT NOT NULL DEFAULT '[]',
             forms TEXT NOT NULL DEFAULT '[]',
             consents TEXT NOT NULL DEFAULT '[]',
+            preop_answers TEXT NOT NULL DEFAULT '{}',
             notes TEXT NOT NULL DEFAULT '[]',
             deleted INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -274,6 +279,7 @@ def _migrate_procedures_table(conn: sqlite3.Connection, existing_columns: set[st
             consultation,
             forms,
             consents,
+            preop_answers,
             notes,
             deleted,
             created_at,
@@ -294,6 +300,7 @@ def _migrate_procedures_table(conn: sqlite3.Connection, existing_columns: set[st
             {col('consultation', "'[]'")},
             {col('forms', "'[]'")},
             {col('consents', "'[]'")},
+            {col('preop_answers', "'{}'")},
             {col('notes', "'[]'")},
             {col('deleted', '0')},
             {col('created_at', 'CURRENT_TIMESTAMP')},
@@ -843,6 +850,18 @@ def _deserialize_json_list(value: Optional[str]) -> List[str]:
     return []
 
 
+def _deserialize_json_object(value: Optional[str]) -> Dict[str, Any]:
+    if not value:
+        return {}
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return {}
+    if isinstance(parsed, dict):
+        return parsed
+    return {}
+
+
 def _flatten_note_entries(entries: Any) -> List[Any]:
     """Flatten nested note payloads into a simple list of candidate entries."""
     flattened: List[Any] = []
@@ -1008,6 +1027,8 @@ def _row_to_procedure(row: sqlite3.Row) -> Dict[str, Any]:
     except Exception:
         loaded_notes = _deserialize_json_list(notes_raw)
     notes = normalize_notes_payload(loaded_notes)
+    preop_raw = row["preop_answers"] if "preop_answers" in row.keys() else "{}"
+    preop_answers = _deserialize_json_object(preop_raw)
     photo_count_value = 0
     if "photo_count" in row.keys():
         try:
@@ -1048,6 +1069,7 @@ def _row_to_procedure(row: sqlite3.Row) -> Dict[str, Any]:
         "consultation": _deserialize_consultation(row["consultation"]),
         "forms": forms,
         "consents": consents,
+        "preop_answers": preop_answers,
         "notes": notes,
         "outstanding_balance": balance,
         "photos": max(0, photo_count_value),
@@ -1635,6 +1657,20 @@ def _serialize_patient_payload(data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _normalize_preop_answers(value: Any) -> Dict[str, str]:
+    if not isinstance(value, dict):
+        return {}
+    normalized: Dict[str, str] = {}
+    for key in PREOP_ANSWER_KEYS:
+        raw = value.get(key)
+        if raw is None:
+            continue
+        text = str(raw).strip()
+        if text:
+            normalized[key] = text
+    return normalized
+
+
 def _serialize_procedure_payload(data: Dict[str, Any]) -> Dict[str, Any]:
     """Serialize procedure data."""
     if "outstaning_balance" in data and "outstanding_balance" not in data:
@@ -1668,6 +1704,7 @@ def _serialize_procedure_payload(data: Dict[str, Any]) -> Dict[str, Any]:
     if not normalized_date:
         raise ValueError("procedure_date is required")
     normalized_time = _normalize_time(data.get("procedure_time"))
+    normalized_preop = _normalize_preop_answers(data.get("preop_answers"))
 
     return {
         "procedure_date": normalized_date,
@@ -1682,6 +1719,7 @@ def _serialize_procedure_payload(data: Dict[str, Any]) -> Dict[str, Any]:
         "outstanding_balance": normalized_balance,
         "forms": json.dumps(data.get("forms") or []),
         "consents": json.dumps(data.get("consents") or []),
+        "preop_answers": json.dumps(normalized_preop),
         "notes": json.dumps(normalize_notes_payload(data.get("notes"))),
     }
 
@@ -1959,8 +1997,8 @@ def create_procedure(patient_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
             """
             INSERT INTO procedures (
                 patient_id, procedure_date, procedure_time, status, procedure_type, package_type, agency, grafts, outstanding_balance, payment,
-                consultation, forms, consents, notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                consultation, forms, consents, preop_answers, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 patient_id,
@@ -1976,6 +2014,7 @@ def create_procedure(patient_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
                 payload["consultation"],
                 payload["forms"],
                 payload["consents"],
+                payload["preop_answers"],
                 payload["notes"],
             ),
         )
@@ -2007,6 +2046,7 @@ def update_procedure(procedure_id: int, data: Dict[str, Any]) -> Optional[Dict[s
                 consultation = ?,
                 forms = ?,
                 consents = ?,
+                preop_answers = ?,
                 notes = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
@@ -2024,6 +2064,7 @@ def update_procedure(procedure_id: int, data: Dict[str, Any]) -> Optional[Dict[s
                 payload["consultation"],
                 payload["forms"],
                 payload["consents"],
+                payload["preop_answers"],
                 payload["notes"],
                 procedure_id,
             ),

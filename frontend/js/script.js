@@ -1676,6 +1676,7 @@ function buildDefaultPatientPayloads() {
     photos: 0,
     outstanding_balance: null,
     notes: [],
+    preop_answers: {},
   };
 
   return { patientPayload, procedurePayload };

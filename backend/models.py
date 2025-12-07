@@ -107,6 +107,10 @@ class ProcedureBase(BaseModel):
     consultation: List[str] = Field(default_factory=list, description="Consultations recorded for the procedure")
     forms: List[str] = Field(default_factory=list, description="Completed form identifiers")
     consents: List[str] = Field(default_factory=list, description="Completed consent identifiers")
+    preop_answers: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Stored responses for permanent pre-op questions",
+    )
     notes: Optional[List["ProcedureNote"]] = Field(None, description="To-do style notes for the procedure")
 
     @model_validator(mode="before")
