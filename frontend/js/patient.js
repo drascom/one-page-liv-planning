@@ -468,7 +468,6 @@ function normalizeNotes(rawNotes) {
         return {
           id: generateNoteId(),
           text,
-          completed: false,
           user_id: null,
           author: null,
           created_at: new Date().toISOString(),
@@ -479,7 +478,6 @@ function normalizeNotes(rawNotes) {
       return {
         id: entry.id || entry._id || generateNoteId(),
         text,
-        completed: Boolean(entry.completed || entry.done),
         user_id: entry.user_id ?? null,
         author: entry.author ?? null,
         created_at: entry.created_at || new Date().toISOString(),
@@ -528,22 +526,9 @@ function renderNotesList() {
     const main = document.createElement("div");
     main.className = "todo-item__main";
 
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.checked = Boolean(note.completed);
-    if (isReadOnlyPatientPage) {
-      checkbox.disabled = true;
-    } else {
-      checkbox.addEventListener("change", () => {
-        note.completed = checkbox.checked;
-        updateActiveProcedureNotes([...procedureNotes]);
-      });
-    }
-
     const textWrapper = document.createElement("div");
     const textEl = document.createElement("p");
     textEl.className = "todo-text";
-    if (note.completed) textEl.classList.add("is-completed");
     textEl.textContent = note.text;
     const meta = document.createElement("p");
     meta.className = "todo-meta";
@@ -551,13 +536,10 @@ function renderNotesList() {
       note.user_id != null && currentUser && Number(note.user_id) === Number(currentUser.id)
         ? "You"
         : note.author || "Someone";
-    meta.textContent = note.completed
-      ? `Completed • ${authorLabel}`
-      : `Added by ${authorLabel}`;
+    meta.textContent = `Added by ${authorLabel}`;
     textWrapper.appendChild(textEl);
     textWrapper.appendChild(meta);
 
-    main.appendChild(checkbox);
     main.appendChild(textWrapper);
 
     if (!isReadOnlyPatientPage) {
@@ -591,7 +573,6 @@ function addNoteFromInput() {
   const note = {
     id: generateNoteId(),
     text,
-    completed: false,
     user_id: currentUser?.id ?? null,
     author: currentUser?.username ?? "You",
     created_at: new Date().toISOString(),
