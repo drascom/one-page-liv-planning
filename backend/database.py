@@ -180,6 +180,7 @@ def _reset_procedures_table(conn: sqlite3.Connection) -> None:
         "procedure_type",
         "package_type",
         "agency",
+        "source",
         "grafts",
         "outstanding_balance",
         "payment",
@@ -194,7 +195,15 @@ def _reset_procedures_table(conn: sqlite3.Connection) -> None:
     }
     if columns:
         missing = desired - columns
-        alterable = {"package_type", "agency", "outstanding_balance", "notes", "procedure_time", "preop_answers"}
+        alterable = {
+            "package_type",
+            "agency",
+            "source",
+            "outstanding_balance",
+            "notes",
+            "procedure_time",
+            "preop_answers",
+        }
         grafts_type = column_types.get("grafts", "")
         grafts_numeric = grafts_type in {"REAL", "INTEGER", "NUMERIC", "FLOAT", "DOUBLE"}
         if not missing and grafts_numeric:
@@ -204,6 +213,8 @@ def _reset_procedures_table(conn: sqlite3.Connection) -> None:
                 conn.execute("ALTER TABLE procedures ADD COLUMN package_type TEXT NOT NULL DEFAULT ''")
             if "agency" in missing:
                 conn.execute("ALTER TABLE procedures ADD COLUMN agency TEXT NOT NULL DEFAULT ''")
+            if "source" in missing:
+                conn.execute("ALTER TABLE procedures ADD COLUMN source TEXT NOT NULL DEFAULT 'email'")
             if "outstanding_balance" in missing:
                 conn.execute("ALTER TABLE procedures ADD COLUMN outstanding_balance REAL")
             if "notes" in missing:
@@ -233,6 +244,7 @@ def _create_procedures_table(conn: sqlite3.Connection) -> None:
             procedure_type TEXT NOT NULL,
             package_type TEXT NOT NULL DEFAULT '',
             agency TEXT NOT NULL DEFAULT '',
+            source TEXT NOT NULL DEFAULT 'email',
             grafts REAL NOT NULL DEFAULT 0,
             outstanding_balance REAL,
             payment TEXT NOT NULL,
@@ -273,6 +285,7 @@ def _migrate_procedures_table(conn: sqlite3.Connection, existing_columns: set[st
             procedure_type,
             package_type,
             agency,
+            source,
             grafts,
             outstanding_balance,
             payment,
@@ -294,6 +307,7 @@ def _migrate_procedures_table(conn: sqlite3.Connection, existing_columns: set[st
             procedure_type,
             {col('package_type', "''")},
             {col('agency', "''")},
+            {col('source', "'email'")},
             CAST({col('grafts', '0')} AS REAL),
             {col(balance_column, 'NULL')},
             payment,
@@ -1064,6 +1078,7 @@ def _row_to_procedure(row: sqlite3.Row) -> Dict[str, Any]:
         "procedure_type": row["procedure_type"],
         "package_type": (row["package_type"] if "package_type" in row.keys() else "") or "",
         "agency": (row["agency"] if "agency" in row.keys() else "") or "",
+        "source": (row["source"] if "source" in row.keys() else "email") or "email",
         "grafts": grafts_value,
         "payment": row["payment"],
         "consultation": _deserialize_consultation(row["consultation"]),
@@ -1705,6 +1720,12 @@ def _serialize_procedure_payload(data: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError("procedure_date is required")
     normalized_time = _normalize_time(data.get("procedure_time"))
     normalized_preop = _normalize_preop_answers(data.get("preop_answers"))
+    source_value = data.get("source")
+    normalized_source = "email"
+    if isinstance(source_value, str):
+        normalized_source = source_value.strip() or "email"
+    elif source_value is not None:
+        normalized_source = str(source_value).strip() or "email"
 
     return {
         "procedure_date": normalized_date,
@@ -1713,6 +1734,7 @@ def _serialize_procedure_payload(data: Dict[str, Any]) -> Dict[str, Any]:
         "procedure_type": data.get("procedure_type", ""),
         "package_type": data.get("package_type") or "",
         "agency": data.get("agency") or "",
+        "source": normalized_source,
         "grafts": grafts_number,
         "payment": (data.get("payment") or ""),
         "consultation": json.dumps(consultation_list),
@@ -1996,9 +2018,9 @@ def create_procedure(patient_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
         cursor = conn.execute(
             """
             INSERT INTO procedures (
-                patient_id, procedure_date, procedure_time, status, procedure_type, package_type, agency, grafts, outstanding_balance, payment,
+                patient_id, procedure_date, procedure_time, status, procedure_type, package_type, agency, source, grafts, outstanding_balance, payment,
                 consultation, forms, consents, preop_answers, notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 patient_id,
@@ -2008,6 +2030,7 @@ def create_procedure(patient_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
                 payload["procedure_type"],
                 payload["package_type"],
                 payload["agency"],
+                payload["source"],
                 payload["grafts"],
                 payload["outstanding_balance"],
                 payload["payment"],
@@ -2040,6 +2063,7 @@ def update_procedure(procedure_id: int, data: Dict[str, Any]) -> Optional[Dict[s
                 procedure_type = ?,
                 package_type = ?,
                 agency = ?,
+                source = ?,
                 grafts = ?,
                 outstanding_balance = ?,
                 payment = ?,
@@ -2058,6 +2082,7 @@ def update_procedure(procedure_id: int, data: Dict[str, Any]) -> Optional[Dict[s
                 payload["procedure_type"],
                 payload["package_type"],
                 payload["agency"],
+                payload["source"],
                 payload["grafts"],
                 payload["outstanding_balance"],
                 payload["payment"],

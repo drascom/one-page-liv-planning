@@ -265,6 +265,13 @@ function buildConsultationsChecklist() {
   buildChecklist(consultationsChecklist, consultationSelect, "consultation");
 }
 
+function setAdminOnlyVisibility(isVisible) {
+  adminOnlyElements.forEach((el) => {
+    if (!el) return;
+    el.hidden = !isVisible;
+  });
+}
+
 function setDisplayValue(map, key, value) {
   if (!isReadOnlyPatientPage) return;
   const target = map.get(key);
@@ -324,6 +331,7 @@ function updateProcedureDisplay(procedure) {
     formatNumberValue(Number(data.outstanding_balance))
   );
   setDisplayValue(procedureDisplayFields, "agency", getOptionLabel("agency", data.agency));
+  setDisplayValue(procedureDisplayFields, "source", data.source || "email");
   const preopAnswers = normalizePreopAnswers(data.preop_answers);
   setDisplayValue(procedureDisplayFields, "preop_prp_session", preopAnswers.prp_session || "");
   setDisplayValue(procedureDisplayFields, "preop_medical_alerts", preopAnswers.medical_alerts || "");
@@ -382,6 +390,8 @@ const graftsInput = document.getElementById("grafts");
 const paymentSelect = document.getElementById("payment");
 const outstandingBalanceInput = document.getElementById("outstanding-balance");
 const agencySelect = document.getElementById("agency");
+const sourceInput = document.getElementById("procedure-source");
+const sourceInputGroup = document.getElementById("procedure-source-group");
 const consultationSelect = document.getElementById("consultation");
 const consultationsChecklist = document.getElementById("consultations-checklist");
 const formsSelect = document.getElementById("forms");
@@ -425,6 +435,7 @@ const debugDriveCountEl = document.getElementById("debug-drive-count");
 const debugApiErrorEl = document.getElementById("debug-api-error");
 const debugTestDriveBtn = document.getElementById("debug-test-drive");
 const debugConsoleEl = document.getElementById("debug-console");
+const adminOnlyElements = document.querySelectorAll("[data-admin-only]");
 const patientDisplayFields = new Map();
 document.querySelectorAll("[data-patient-display]").forEach((el) => {
   patientDisplayFields.set(el.dataset.patientDisplay, el);
@@ -677,6 +688,9 @@ function populatePatientForm(record) {
   if (driveFolderGroup) {
     driveFolderGroup.hidden = !isAdminUser;
   }
+  if (sourceInputGroup) {
+    sourceInputGroup.hidden = !isAdminUser;
+  }
   refreshDeleteButtonState();
   syncHeader(record, activeProcedure);
   updatePatientDisplay(record);
@@ -697,6 +711,9 @@ function clearProcedureForm() {
   }
   if (outstandingBalanceInput) {
     outstandingBalanceInput.value = "";
+  }
+  if (sourceInput) {
+    sourceInput.value = "email";
   }
   updateActiveProcedureNotes([]);
   setMultiValue(consultationSelect, []);
@@ -744,6 +761,9 @@ function populateProcedureForm(procedure) {
   }
   if (agencySelect) {
     agencySelect.value = procedure.agency || getFieldOptions("agency")[0]?.value || "";
+  }
+  if (sourceInput) {
+    sourceInput.value = procedure.source || "email";
   }
   if (outstandingBalanceInput) {
     const balance = Number(procedure.outstanding_balance);
@@ -1623,6 +1643,11 @@ function buildProcedurePayloadFromForm() {
     notes,
     preop_answers: preopAnswers,
   };
+  if (isAdminUser) {
+    payload.source = sourceInput?.value?.trim() || "email";
+  } else {
+    payload.source = base.source || "email";
+  }
   return payload;
 }
 
@@ -1977,6 +2002,10 @@ async function initializePatientPage() {
   } else {
     adminCustomerLinks.forEach((link) => link.remove());
   }
+  if (sourceInputGroup) {
+    sourceInputGroup.hidden = !isAdminUser;
+  }
+  setAdminOnlyVisibility(isAdminUser);
   refreshDeleteButtonState();
   await fetchPatient();
   if (isAdminUser && adminDebugSection) {

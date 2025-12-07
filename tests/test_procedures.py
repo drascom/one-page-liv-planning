@@ -89,6 +89,7 @@ def test_procedure_crud_and_filtering(client: TestClient):
     fetched_body = fetched_after_create.json()
     assert fetched_body["patient_id"] == patient_id
     assert fetched_body["procedure_time"] == DEFAULT_PROCEDURE_TIME
+    assert fetched_body["source"] == "email"
 
     listed = client.get(f"/procedures?patient_id={patient_id}")
     assert listed.status_code == 200
@@ -98,6 +99,7 @@ def test_procedure_crud_and_filtering(client: TestClient):
         **create_payload,
         "status": "complete",
         "payment": "paid",
+        "source": "referral",
     }
     updated = client.put(f"/procedures/{procedure_id}", json=update_payload)
     assert updated.status_code == 200
@@ -110,6 +112,7 @@ def test_procedure_crud_and_filtering(client: TestClient):
     assert details["status"] == "complete"
     assert details["payment"] == "paid"
     assert details["procedure_time"] == DEFAULT_PROCEDURE_TIME
+    assert details["source"] == "referral"
 
     deleted = client.delete(f"/procedures/{procedure_id}")
     assert deleted.status_code == 200

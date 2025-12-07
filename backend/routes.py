@@ -132,6 +132,7 @@ def _merge_procedure_payload(existing: dict, incoming: dict) -> dict:
         "procedure_type",
         "package_type",
         "agency",
+        "source",
         "grafts",
         "payment",
         "consultation",
@@ -303,12 +304,21 @@ async def _emit_procedure_event(
 def _coerce_patient_payload(data: dict) -> PatientCreate:
     """Validate and normalize patient payloads (personal details only)."""
     try:
-        return PatientCreate.model_validate(data)
+        payload = PatientCreate.model_validate(data)
     except ValidationError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=json.loads(exc.json()),
         ) from exc
+
+    first = (payload.first_name or "").strip()
+    last = (payload.last_name or "").strip()
+    if not first or not last:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Name or surname required",
+        )
+    return payload.model_copy(update={"first_name": first, "last_name": last})
 
 
 def _authorization_header_token(header_value: Optional[str]) -> Optional[str]:

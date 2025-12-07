@@ -57,6 +57,24 @@ def test_partial_patient_update_preserves_existing_fields(client: TestClient):
     assert body["address"] == "Bristol"
 
 
+def test_patient_creation_requires_names(client: TestClient):
+    base_payload = {
+        "email": "missing@example.com",
+        "phone": "+4400000000",
+        "address": "London",
+    }
+
+    missing_first = {**base_payload, "first_name": "", "last_name": "Example"}
+    response_first = client.post("/patients", json=missing_first)
+    assert response_first.status_code == 422
+    assert response_first.json()["detail"] == "Name or surname required"
+
+    missing_last = {**base_payload, "first_name": "Alice", "last_name": "  "}
+    response_last = client.post("/patients", json=missing_last)
+    assert response_last.status_code == 422
+    assert response_last.json()["detail"] == "Name or surname required"
+
+
 def test_search_handles_middle_name(client: TestClient):
     create_payload = {
         "first_name": "Steven",

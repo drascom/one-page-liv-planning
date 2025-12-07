@@ -98,6 +98,7 @@ class ProcedureBase(BaseModel):
     package_type: str = Field(..., description="Package/bundle selection for the procedure")
     grafts: float = Field(..., description="Number of grafts or imported numeric detail", ge=0)
     agency: Optional[str] = Field(None, description="Agency or referral source for the procedure")
+    source: str = Field("email", description="Text note describing where the lead came from")
     payment: Optional[str] = Field(None, description="Payment collection status")
     outstanding_balance: Optional[float] = Field(
         None,
