@@ -839,6 +839,43 @@ def _deserialize_json_list(value: Optional[str]) -> List[str]:
     return []
 
 
+def _flatten_note_entries(entries: Any) -> List[Any]:
+    """Flatten nested note payloads into a simple list of candidate entries."""
+    flattened: List[Any] = []
+
+    def _walk(item: Any, inherited: Optional[Dict[str, Any]] = None) -> None:
+        if item is None:
+            return
+        if isinstance(item, list):
+            for sub in item:
+                _walk(sub, inherited=inherited)
+            return
+        if isinstance(item, dict):
+            text_value = item.get("text")
+            # When the text itself is a list of note dictionaries, merge parent defaults.
+            if isinstance(text_value, list):
+                parent = dict(item)
+                parent.pop("text", None)
+                for sub in text_value:
+                    merged: Dict[str, Any]
+                    if isinstance(sub, dict):
+                        merged = {**parent, **sub}
+                    else:
+                        merged = dict(parent)
+                        merged["text"] = sub
+                    _walk(merged, inherited=None)
+                return
+            merged_entry = dict(inherited or {})
+            merged_entry.update(item)
+            flattened.append(merged_entry)
+            return
+        flattened.append(item if inherited is None else dict(inherited, text=item))
+
+    for entry in entries or []:
+        _walk(entry)
+    return flattened
+
+
 def _normalize_note_entry(
     entry: Any,
     *,
@@ -909,7 +946,7 @@ def normalize_notes_payload(
     }
     if notes is None:
         return []
-    raw_items = notes if isinstance(notes, list) else [notes]
+    raw_items = _flatten_note_entries(notes if isinstance(notes, list) else [notes])
     normalized: List[Dict[str, Any]] = []
     for entry in raw_items:
         base_existing = None
