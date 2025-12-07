@@ -533,7 +533,14 @@ function renderNotesList() {
     const textWrapper = document.createElement("div");
     const textEl = document.createElement("p");
     textEl.className = "todo-text";
-    textEl.textContent = note.text;
+    textEl.textContent = "";
+    const lines = String(note.text || "").split("\n");
+    lines.forEach((line, idx) => {
+      if (idx) {
+        textEl.appendChild(document.createElement("br"));
+      }
+      textEl.appendChild(document.createTextNode(line));
+    });
     const meta = document.createElement("p");
     meta.className = "todo-meta";
     const authorLabel =
