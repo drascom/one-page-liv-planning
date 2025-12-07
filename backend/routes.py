@@ -147,6 +147,24 @@ def _merge_procedure_payload(existing: dict, incoming: dict) -> dict:
     return merged
 
 
+_PATIENT_ALLOWED_EMPTY_FIELDS = frozenset({"first_name", "last_name"})
+_PROCEDURE_ALLOWED_EMPTY_FIELDS = frozenset({"procedure_date", "procedure_type"})
+
+
+def _omit_blank_update_values(data: Optional[dict], *, allow_empty: frozenset[str]) -> dict:
+    """Drop null/blank string fields unless they are explicitly allowed."""
+    if not data:
+        return {}
+    cleaned: dict[str, object] = {}
+    for key, value in data.items():
+        if value is None and key not in allow_empty:
+            continue
+        if isinstance(value, str) and not value.strip() and key not in allow_empty:
+            continue
+        cleaned[key] = value
+    return cleaned
+
+
 def _normalize_notes_for_request(
     notes: Optional[List[dict]] = None,
     *,
@@ -525,7 +543,10 @@ async def update_procedure(
     request_payload = None
     try:
         existing_notes = procedure.get("notes") or []
-        payload_data = payload.model_dump(exclude_unset=True)
+        payload_data = _omit_blank_update_values(
+            payload.model_dump(exclude_unset=True),
+            allow_empty=_PROCEDURE_ALLOWED_EMPTY_FIELDS,
+        )
         if "notes" in payload_data:
             normalized_notes = _normalize_notes_for_request(
                 payload_data.get("notes"),
@@ -622,7 +643,10 @@ async def update_patient(patient_id: int, payload: PatientUpdate, request: Reque
     existing = database.fetch_patient(patient_id)
     if not existing:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
-    incoming = payload.model_dump(exclude_unset=True)
+    incoming = _omit_blank_update_values(
+        payload.model_dump(exclude_unset=True),
+        allow_empty=_PATIENT_ALLOWED_EMPTY_FIELDS,
+    )
     merged = {**existing, **incoming}
     patient_payload = _coerce_patient_payload(merged)
     updated = database.update_patient(patient_id, patient_payload.model_dump())
@@ -881,7 +905,10 @@ async def update_procedure_route(
     request_payload = None
     try:
         existing_notes = existing.get("notes") or []
-        payload_data = payload.model_dump(exclude={"patient_id"}, exclude_unset=True)
+        payload_data = _omit_blank_update_values(
+            payload.model_dump(exclude={"patient_id"}, exclude_unset=True),
+            allow_empty=_PROCEDURE_ALLOWED_EMPTY_FIELDS,
+        )
         if "notes" in payload_data:
             normalized_notes = _normalize_notes_for_request(
                 payload_data.get("notes"),
