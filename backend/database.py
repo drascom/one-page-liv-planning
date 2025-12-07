@@ -316,14 +316,25 @@ def _create_payments_table(conn: sqlite3.Connection) -> None:
     )
 
 
-def seed_default_admin_user(password_hash: str, username: str = "admin") -> None:
+def seed_default_admin_user(
+    password_hash: str,
+    username: str = "admin",
+    automation_username: str = "automation",
+) -> None:
+    """Ensure the default admin and automation users exist."""
     with closing(get_connection()) as conn:
-        cursor = conn.execute("SELECT COUNT(*) FROM users")
-        if cursor.fetchone()[0]:
+        cursor = conn.execute("SELECT username FROM users")
+        existing_usernames = {row[0] for row in cursor.fetchall()}
+        inserts: List[Tuple[str, int]] = []
+        if username not in existing_usernames:
+            inserts.append((username, 1))
+        if automation_username and automation_username not in existing_usernames:
+            inserts.append((automation_username, 0))
+        if not inserts:
             return
-        conn.execute(
-            "INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, 1)",
-            (username, password_hash),
+        conn.executemany(
+            "INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, ?)",
+            [(name, password_hash, is_admin) for name, is_admin in inserts],
         )
         conn.commit()
 

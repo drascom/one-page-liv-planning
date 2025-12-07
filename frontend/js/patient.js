@@ -61,6 +61,9 @@ const DEFAULT_CONTACT = {
   address: "London",
 };
 
+const DEFAULT_RETURN_PATH = "/dashboard";
+const MISSING_PATIENT_REDIRECT_DELAY_MS = 3500;
+
 let fieldOptions = JSON.parse(JSON.stringify(DEFAULT_FIELD_OPTIONS));
 const ACTIVE_PATIENT_KEY = "activePatient";
 const API_BASE_URL =
@@ -395,6 +398,7 @@ let procedureNotes = [];
 let driveFolderFilesCache = [];
 let activeDrivePhotoIndex = 0;
 let lastDriveApiError = "";
+let missingPatientRedirectTimeout = null;
 
 function loadActiveContext() {
   if (typeof window === "undefined" || !window.localStorage) {
@@ -701,36 +705,101 @@ function disableForm(disabled) {
   }
 }
 
+function resetPatientRecordView({ driveErrorMessage = "Unable to load Drive files." } = {}) {
+  disableForm(true);
+  currentPatient = null;
+  patientProcedures = [];
+  activeProcedure = null;
+  updateActiveProcedureNotes([]);
+  driveFolderFilesCache = [];
+  renderDriveAssets();
+  setDriveApiError(driveErrorMessage);
+  refreshDeleteButtonState();
+  renderRelatedBookings(null);
+  updatePatientDisplay(null);
+  updateProcedureDisplay(null);
+  renderChecklistStatusList(formsStatusList, "forms", []);
+  renderChecklistStatusList(consentsStatusList, "consents", []);
+  renderChecklistStatusList(consultationsStatusList, "consultation", []);
+  if (patientStatusEl) {
+    patientStatusEl.textContent = "";
+  }
+  if (procedureFormStatusEl) {
+    procedureFormStatusEl.textContent = "";
+  }
+  if (proceduresStatusEl) {
+    proceduresStatusEl.textContent = "";
+  }
+}
+
+function getPreviousInternalUrl() {
+  if (typeof document === "undefined" || typeof window === "undefined") {
+    return null;
+  }
+  const referrer = (document.referrer || "").trim();
+  if (!referrer) {
+    return null;
+  }
+  try {
+    const parsed = new URL(referrer, window.location.origin);
+    if (parsed.origin === window.location.origin) {
+      return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    }
+  } catch (error) {
+    console.warn("Unable to parse referrer URL", error);
+  }
+  return null;
+}
+
+function handleMissingPatientRecord() {
+  const message =
+    "This patient record does not exist or is no longer available. Returning you to the previous page...";
+  resetPatientRecordView({ driveErrorMessage: "" });
+  if (patientNameEl) {
+    patientNameEl.textContent = "Patient Record";
+  }
+  if (patientWeekEl) {
+    patientWeekEl.textContent = "";
+  }
+  if (patientAddressEl) {
+    patientAddressEl.textContent = "";
+  }
+  if (formStatusEl) {
+    formStatusEl.textContent = message;
+  }
+  if (typeof window === "undefined") {
+    return;
+  }
+  if (missingPatientRedirectTimeout) {
+    clearTimeout(missingPatientRedirectTimeout);
+  }
+  const target = getPreviousInternalUrl() || DEFAULT_RETURN_PATH;
+  missingPatientRedirectTimeout = window.setTimeout(() => {
+    window.location.href = target;
+  }, MISSING_PATIENT_REDIRECT_DELAY_MS);
+}
+
 async function fetchPatient() {
   if (!requestedId) {
     const context = loadActiveContext();
     patientNameEl.textContent = context?.patient || requestedName || "Patient";
     patientWeekEl.textContent = context?.weekLabel || "";
-    formStatusEl.textContent = "Select a patient from the schedule first.";
-    patientStatusEl.textContent = "";
-    procedureFormStatusEl.textContent = "";
-    proceduresStatusEl.textContent = "";
-    disableForm(true);
-    currentPatient = null;
-    patientProcedures = [];
-    activeProcedure = null;
-    updateActiveProcedureNotes([]);
-    driveFolderFilesCache = [];
-    renderDriveAssets();
-    setDriveApiError("");
-    refreshDeleteButtonState();
-    renderRelatedBookings(null);
-    updatePatientDisplay(null);
-    updateProcedureDisplay(null);
-    renderChecklistStatusList(formsStatusList, "forms", []);
-    renderChecklistStatusList(consentsStatusList, "consents", []);
-    renderChecklistStatusList(consultationsStatusList, "consultation", []);
+    if (formStatusEl) {
+      formStatusEl.textContent = "Select a patient from the schedule first.";
+    }
+    resetPatientRecordView({ driveErrorMessage: "" });
     return;
   }
   try {
-    patientStatusEl.textContent = "Loading patient...";
+    if (patientStatusEl) {
+      patientStatusEl.textContent = "Loading patient...";
+    }
     const response = await fetch(buildApiUrl(`/patients/${requestedId}`));
     handleUnauthorized(response);
+    if (response.status === 404) {
+      handleMissingPatientRecord();
+      return;
+    }
     if (!response.ok) {
       throw new Error(`Server responded with ${response.status}`);
     }
@@ -754,23 +823,10 @@ async function fetchPatient() {
     }
   } catch (error) {
     console.error(error);
-    formStatusEl.textContent = "Unable to load patient details.";
-    patientStatusEl.textContent = "";
-    disableForm(true);
-    currentPatient = null;
-    patientProcedures = [];
-    activeProcedure = null;
-    updateActiveProcedureNotes([]);
-    driveFolderFilesCache = [];
-    renderDriveAssets();
-    setDriveApiError("Unable to load Drive files.");
-    refreshDeleteButtonState();
-    renderRelatedBookings(null);
-    updatePatientDisplay(null);
-    updateProcedureDisplay(null);
-    renderChecklistStatusList(formsStatusList, "forms", []);
-    renderChecklistStatusList(consentsStatusList, "consents", []);
-    renderChecklistStatusList(consultationsStatusList, "consultation", []);
+    if (formStatusEl) {
+      formStatusEl.textContent = "Unable to load patient details.";
+    }
+    resetPatientRecordView();
   }
 }
 
