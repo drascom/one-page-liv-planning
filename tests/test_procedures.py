@@ -121,6 +121,42 @@ def test_procedure_crud_and_filtering(client: TestClient):
     assert missing.status_code == 404
 
 
+def test_procedure_time_can_be_specified(client: TestClient):
+    patient_id = _create_patient(client)
+    create_payload = {
+        "patient_id": patient_id,
+        "procedure_date": "2025-03-05",
+        "procedure_time": "10:30",
+        "status": "reserved",
+        "procedure_type": "sfue",
+        "package_type": "small",
+        "grafts": 0,
+        "payment": "waiting",
+        "consultation": [],
+        "forms": [],
+        "consents": [],
+    }
+    created = client.post("/procedures", json=create_payload)
+    assert created.status_code == 201
+    procedure_id = created.json()["id"]
+
+    fetched = client.get(f"/procedures/{procedure_id}")
+    assert fetched.status_code == 200
+    assert fetched.json()["procedure_time"] == "10:30"
+
+    update_payload = {
+        **create_payload,
+        "procedure_time": "15:00",
+        "patient_id": patient_id,
+    }
+    updated = client.put(f"/procedures/{procedure_id}", json=update_payload)
+    assert updated.status_code == 200
+
+    refreshed = client.get(f"/procedures/{procedure_id}")
+    assert refreshed.status_code == 200
+    assert refreshed.json()["procedure_time"] == "15:00"
+
+
 def test_procedures_removed_with_patient(client: TestClient):
     patient_id = _create_patient(client)
 
@@ -157,6 +193,7 @@ def test_admin_manages_deleted_procedures(client: TestClient):
         "procedure_date": "2025-02-01",
         "status": "reserved",
         "procedure_type": "sfue",
+        "package_type": "small",
         "grafts": 0,
         "payment": "waiting",
         "consultation": [],
@@ -204,6 +241,7 @@ def test_procedure_recovery_requires_patient(client: TestClient):
         "procedure_date": "2025-03-04",
         "status": "reserved",
         "procedure_type": "sfue",
+        "package_type": "small",
         "grafts": 0,
         "payment": "waiting",
         "consultation": [],
@@ -237,6 +275,7 @@ def test_procedure_search_returns_success_and_message(client: TestClient):
         "procedure_date": "2025-04-05",
         "status": "reserved",
         "procedure_type": "sfue",
+        "package_type": "small",
         "grafts": 0,
         "payment": "waiting",
         "consultation": [],

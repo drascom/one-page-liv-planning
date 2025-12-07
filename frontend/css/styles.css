@@ -3777,6 +3777,19 @@ body.app-shell {
   }
 }
 
+@media (max-width: 720px) {
+  .dashboard-grid.dashboard-grid--two-up {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dashboard-card {
+    width: 100%;
+  }
+  .dashboard__stats {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
 .todo-item {
   display: flex;
   justify-content: space-between;

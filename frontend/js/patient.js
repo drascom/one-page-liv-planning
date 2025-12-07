@@ -60,6 +60,10 @@ const DEFAULT_CONTACT = {
   phone: "+44 12345678",
   address: "London",
 };
+const DEFAULT_PROCEDURE_TIME = "08:30";
+const TIME_SLOT_INTERVAL_MINUTES = 30;
+const PROCEDURE_TIME_SLOTS = buildProcedureTimeSlots();
+const PROCEDURE_TIME_SET = new Set(PROCEDURE_TIME_SLOTS);
 
 const DEFAULT_RETURN_PATH = "/dashboard";
 const MISSING_PATIENT_REDIRECT_DELAY_MS = 3500;
@@ -81,6 +85,40 @@ const MONTH_FORMATTER = new Intl.DateTimeFormat("en-US", {
   timeZone: APP_TIMEZONE,
 });
 const DAY_FORMATTER = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: APP_TIMEZONE });
+
+function buildProcedureTimeSlots() {
+  const slots = [];
+  for (let hour = 0; hour < 24; hour += 1) {
+    for (let minute = 0; minute < 60; minute += TIME_SLOT_INTERVAL_MINUTES) {
+      slots.push(`${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`);
+    }
+  }
+  return slots;
+}
+
+function normalizeProcedureTimeValue(value, fallback = DEFAULT_PROCEDURE_TIME) {
+  const text = (value ?? "").trim();
+  if (!text) {
+    return fallback;
+  }
+  const [hourText, minuteText = "0"] = text.split(":");
+  const hours = Number(hourText);
+  const minutes = Number(minuteText);
+  if (!Number.isInteger(hours) || hours < 0 || hours > 23) {
+    return fallback;
+  }
+  if (!Number.isInteger(minutes) || minutes < 0 || minutes > 59) {
+    return fallback;
+  }
+  const normalized = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+  return PROCEDURE_TIME_SET.has(normalized) ? normalized : fallback;
+}
+
+function populateProcedureTimeSelect(selectEl, selectedValue = DEFAULT_PROCEDURE_TIME) {
+  if (!selectEl) return;
+  selectEl.innerHTML = PROCEDURE_TIME_SLOTS.map((slot) => `<option value="${slot}">${slot}</option>`).join("");
+  selectEl.value = normalizeProcedureTimeValue(selectedValue);
+}
 
 function buildApiUrl(path) {
   return new URL(path, API_BASE_URL).toString();
@@ -269,6 +307,11 @@ function updateProcedureDisplay(procedure) {
   if (!isReadOnlyPatientPage) return;
   const data = procedure || {};
   setDisplayValue(procedureDisplayFields, "procedure_date", formatProcedureDateForDisplay(data.procedure_date));
+  setDisplayValue(
+    procedureDisplayFields,
+    "procedure_time",
+    normalizeProcedureTimeValue(data.procedure_time || "")
+  );
   setDisplayValue(procedureDisplayFields, "status", getOptionLabel("status", data.status));
   setDisplayValue(procedureDisplayFields, "procedure_type", getOptionLabel("procedure_type", data.procedure_type));
   setDisplayValue(procedureDisplayFields, "package_type", getOptionLabel("package_type", data.package_type));
@@ -324,6 +367,7 @@ const cancelProcedureBtn = document.getElementById("cancel-procedure-btn");
 const firstNameInput = document.getElementById("first-name");
 const lastNameInput = document.getElementById("last-name");
 const procedureDateInput = document.getElementById("procedure-date");
+const procedureTimeSelect = document.getElementById("procedure-time");
 const emailInput = document.getElementById("email");
 const phoneInput = document.getElementById("phone");
 const addressInput = document.getElementById("address");
@@ -345,6 +389,10 @@ const addNoteBtn = document.getElementById("add-procedure-note");
 const notesListEl = document.getElementById("procedure-notes-list");
 const driveFolderInput = document.getElementById("drive-folder-id");
 const driveFolderGroup = document.getElementById("drive-folder-group");
+
+if (procedureTimeSelect) {
+  populateProcedureTimeSelect(procedureTimeSelect);
+}
 
 const dropZone = document.getElementById("drop-zone");
 const uploadList = document.getElementById("upload-list");
@@ -615,6 +663,7 @@ function populatePatientForm(record) {
 
 function clearProcedureForm() {
   if (procedureDateInput) procedureDateInput.value = "";
+  if (procedureTimeSelect) procedureTimeSelect.value = DEFAULT_PROCEDURE_TIME;
   if (statusSelect) statusSelect.value = getFieldOptions("status")[0]?.value || "";
   if (procedureSelect) procedureSelect.value = getFieldOptions("procedure_type")[0]?.value || "";
   if (packageTypeSelect) {
@@ -651,6 +700,11 @@ function populateProcedureForm(procedure) {
     return;
   }
   if (procedureDateInput) procedureDateInput.value = procedure.procedure_date || "";
+  if (procedureTimeSelect) {
+    procedureTimeSelect.value = normalizeProcedureTimeValue(
+      procedure.procedure_time || DEFAULT_PROCEDURE_TIME
+    );
+  }
   if (statusSelect) statusSelect.value = procedure.status || getFieldOptions("status")[0]?.value || "";
   if (procedureSelect) {
     procedureSelect.value = procedure.procedure_type || getFieldOptions("procedure_type")[0]?.value || "";
@@ -1041,15 +1095,17 @@ function dateOnly(value) {
   return datePart;
 }
 
-function formatBookingDate(value) {
+function formatBookingDate(value, timeValue = "") {
   if (!value) {
     return "No date";
   }
   const parsed = new Date(value);
+  const normalizedTime = normalizeProcedureTimeValue(timeValue, "");
   if (Number.isNaN(parsed.getTime())) {
-    return value;
+    return normalizedTime ? `${value} ${normalizedTime}`.trim() : value;
   }
-  return BOOKING_DATE_FORMATTER.format(parsed);
+  const formattedDate = BOOKING_DATE_FORMATTER.format(parsed);
+  return normalizedTime ? `${formattedDate} ${normalizedTime}` : formattedDate;
 }
 
 function formatMonthLabelFromDate(date) {
@@ -1155,7 +1211,7 @@ async function confirmDuplicateIfNeeded(payload) {
 }
 
 function buildBookingLabel(entry) {
-  const dateText = formatBookingDate(entry.procedure_date);
+  const dateText = formatBookingDate(entry.procedure_date, entry.procedure_time);
   const statusLabel = getOptionLabel("status", entry.status) || entry.status || "Status not set";
   const typeLabel =
     getOptionLabel("procedure_type", entry.procedure_type) || entry.procedure_type || "Type not set";
@@ -1163,11 +1219,18 @@ function buildBookingLabel(entry) {
 }
 
 function getBookingSortValue(entry) {
-  const parsed = Date.parse(entry.procedure_date ?? "");
-  if (Number.isNaN(parsed)) {
+  const dateText = entry?.procedure_date ?? "";
+  if (!dateText) {
     return Number.MAX_SAFE_INTEGER;
   }
-  return parsed;
+  const parsedDate = new Date(`${dateText}T00:00:00`);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+  const normalizedTime = normalizeProcedureTimeValue(entry?.procedure_time, "00:00");
+  const [hours, minutes] = normalizedTime.split(":").map((value) => Number(value) || 0);
+  parsedDate.setHours(hours, minutes, 0, 0);
+  return parsedDate.getTime();
 }
 
 function renderRelatedBookings(entries) {
@@ -1191,7 +1254,7 @@ function renderRelatedBookings(entries) {
 
     const titleSpan = document.createElement("span");
     titleSpan.className = "settings-tab__title";
-    titleSpan.textContent = formatBookingDate(entry.procedure_date);
+    titleSpan.textContent = formatBookingDate(entry.procedure_date, entry.procedure_time);
 
     const subtitleSpan = document.createElement("span");
     subtitleSpan.className = "settings-tab__subtitle";
@@ -1226,7 +1289,7 @@ function getActiveProcedureButton() {
   return bookingListEl.querySelector(".settings-tab.is-active");
 }
 
-function updateActiveProcedureTitle(dateValue) {
+function updateActiveProcedureTitle(dateValue, timeValue = "") {
   if (!bookingListEl) {
     return;
   }
@@ -1236,7 +1299,7 @@ function updateActiveProcedureTitle(dateValue) {
   }
   const titleSpan = activeButton.querySelector(".settings-tab__title");
   if (titleSpan) {
-    titleSpan.textContent = formatBookingDate(dateValue);
+    titleSpan.textContent = formatBookingDate(dateValue, timeValue);
   }
 }
 
@@ -1504,9 +1567,13 @@ function buildProcedurePayloadFromForm() {
     }
   }
   const notes = [...procedureNotes];
+  const timeValue = normalizeProcedureTimeValue(
+    procedureTimeSelect?.value || base.procedure_time || DEFAULT_PROCEDURE_TIME
+  );
   const payload = {
     patient_id: currentPatient.id,
     procedure_date: procedureDateInput.value || base.procedure_date || "",
+    procedure_time: timeValue,
     status: statusSelect.value,
     procedure_type: procedureSelect.value,
     package_type: packageTypeSelect?.value || "",
@@ -1672,6 +1739,10 @@ if (procedureDateInput) {
   procedureDateInput.addEventListener("input", handleProcedureDateInputChange);
   procedureDateInput.addEventListener("change", handleProcedureDateInputChange);
 }
+if (procedureTimeSelect) {
+  procedureTimeSelect.addEventListener("input", handleProcedureTimeChange);
+  procedureTimeSelect.addEventListener("change", handleProcedureTimeChange);
+}
 
 function refreshDeletePatientButtonState() {
   if (!deletePatientBtn) {
@@ -1724,7 +1795,39 @@ function handleProcedureDateInputChange() {
   if (activeProcedure) {
     activeProcedure.procedure_date = nextValue;
   }
-  updateActiveProcedureTitle(nextValue);
+  const currentTime = normalizeProcedureTimeValue(
+    procedureTimeSelect?.value || activeProcedure?.procedure_time || DEFAULT_PROCEDURE_TIME
+  );
+  if (activeProcedure) {
+    activeProcedure.procedure_time = currentTime;
+  }
+  updateActiveProcedureTitle(nextValue, currentTime);
+  if (activeProcedure) {
+    renderRelatedBookings(patientProcedures);
+  }
+}
+
+function handleProcedureTimeChange() {
+  if (!procedureTimeSelect) {
+    return;
+  }
+  const normalizedValue = normalizeProcedureTimeValue(procedureTimeSelect.value);
+  procedureTimeSelect.value = normalizedValue;
+  if (!activeProcedure) {
+    const activeButton = getActiveProcedureButton();
+    const fallbackId = activeButton ? Number(activeButton.dataset.procedureId) : null;
+    if (Number.isFinite(fallbackId)) {
+      const fallback = patientProcedures.find((procedure) => procedure.id === fallbackId);
+      if (fallback) {
+        activeProcedure = fallback;
+      }
+    }
+  }
+  const dateValue = activeProcedure?.procedure_date || procedureDateInput?.value || "";
+  if (activeProcedure) {
+    activeProcedure.procedure_time = normalizedValue;
+  }
+  updateActiveProcedureTitle(dateValue, normalizedValue);
   if (activeProcedure) {
     renderRelatedBookings(patientProcedures);
   }

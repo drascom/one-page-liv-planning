@@ -127,6 +127,7 @@ def _merge_procedure_payload(existing: dict, incoming: dict) -> dict:
     """Merge incoming procedure fields onto existing record, keeping unspecified values."""
     allowed_keys = {
         "procedure_date",
+        "procedure_time",
         "status",
         "procedure_type",
         "package_type",
