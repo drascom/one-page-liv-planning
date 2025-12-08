@@ -449,9 +449,9 @@ def test_partial_update_preserves_existing_lists(client: TestClient):
         "package_type": "big",
         "grafts": 3000,
         "payment": "waiting",
-        "consultation": ["consultation1"],
-        "forms": ["form-1"],
-        "consents": ["consent-1"],
+        "consultation": ["consultation_1"],
+        "forms": ["form_1"],
+        "consents": ["consent_1"],
         "notes": [{"text": "initial note"}],
     }
     created = client.post("/procedures", json=payload)
@@ -478,9 +478,9 @@ def test_partial_update_preserves_existing_lists(client: TestClient):
     assert body["status"] == "confirmed"
     assert body["payment"] == "waiting"
     assert body["outstanding_balance"] == 1111
-    assert body["consultation"] == ["consultation1"]
-    assert body["forms"] == ["form-1"]
-    assert body["consents"] == ["consent-1"]
+    assert body["consultation"] == ["consultation_1"]
+    assert body["forms"] == ["form_1"]
+    assert body["consents"] == ["consent_1"]
     assert any(note["text"] == "updated note" for note in body["notes"])
 
 

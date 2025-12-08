@@ -38,20 +38,20 @@ const DEFAULT_FIELD_OPTIONS = {
     { value: "partially_paid", label: "Partially Paid" },
   ],
   forms: [
-    { value: "form-1", label: "Form 1" },
-    { value: "form-2", label: "Form 2" },
-    { value: "form-3", label: "Form 3" },
-    { value: "form-4", label: "Form 4" },
-    { value: "form-5", label: "Form 5" },
+    { value: "form_1", label: "Form 1" },
+    { value: "form_2", label: "Form 2" },
+    { value: "form_3", label: "Form 3" },
+    { value: "form_4", label: "Form 4" },
+    { value: "form_5", label: "Form 5" },
   ],
   consents: [
-    { value: "consent-1", label: "Consent 1" },
-    { value: "consent-2", label: "Consent 2" },
-    { value: "consent-3", label: "Consent 3" },
+    { value: "consent_1", label: "Consent 1" },
+    { value: "consent_2", label: "Consent 2" },
+    { value: "consent_3", label: "Consent 3" },
   ],
   consultation: [
-    { value: "consultation1", label: "Consultation 1" },
-    { value: "consultation2", label: "Consultation 2" },
+    { value: "consultation_1", label: "Consultation 1" },
+    { value: "consultation_2", label: "Consultation 2" },
   ],
 };
 

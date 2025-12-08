@@ -633,7 +633,7 @@ def _extract_sequential_suffix(base: str, value: str) -> Optional[int]:
     """Return the numeric suffix when the value matches the expected prefix."""
     if not value:
         return None
-    match = re.match(rf"^{re.escape(base)}-?(\d+)$", value)
+    match = re.match(rf"^{re.escape(base)}[-_]?(\d+)$", value)
     if not match:
         return None
     try:
@@ -644,7 +644,7 @@ def _extract_sequential_suffix(base: str, value: str) -> Optional[int]:
 
 def _normalize_sequential_field_options(conn: sqlite3.Connection, field: str) -> bool:
     """
-    Convert legacy values (e.g., form1) to the new dashed format (form-1) while preserving order.
+    Convert legacy values (e.g., form1/form-1) to the underscore format (form_1) while preserving order.
     """
     base = SEQUENTIAL_OPTION_PREFIXES.get(field)
     if not base:
@@ -666,7 +666,7 @@ def _normalize_sequential_field_options(conn: sqlite3.Connection, field: str) ->
             suffix = next_suffix
             changed = True
         next_suffix = max(next_suffix, suffix + 1)
-        new_value = f"{base}-{suffix}"
+        new_value = f"{base}_{suffix}"
         if new_value != option["value"]:
             changed = True
         normalized.append({"value": new_value, "label": option["label"]})
@@ -726,7 +726,7 @@ def update_field_options(field: str, options: List[Dict[str, str]]) -> List[Dict
                 if suffix is not None and suffix >= next_suffix:
                     next_suffix = suffix + 1
             while not candidate or candidate in seen:
-                candidate = f"{sequential_base}-{next_suffix}"
+                candidate = f"{sequential_base}_{next_suffix}"
                 next_suffix += 1
             value = candidate
         else:

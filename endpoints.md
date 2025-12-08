@@ -12,7 +12,7 @@ The frontend uses the base endpoints below directly and no token is required for
 - `GET /patients/deleted` – (Admin only) List soft-deleted patients.
 - `POST /patients/{id}/recover` – (Admin only) Restore a soft-deleted patient.
 - `DELETE /patients/{id}/purge` – (Admin only) Permanently delete a patient (removes all stored details/files).
-- Patient payloads include a `consultation` array (values `consultation1`, `consultation2`) to track completed consultations.
+- Patient payloads include a `consultation` array (values `consultation_1`, `consultation_2`) to track completed consultations.
 
 ## `/procedures`
 - `GET /procedures` – List every procedure; filter by `patient_id` to only view items attached to a specific patient.
