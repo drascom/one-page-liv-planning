@@ -481,6 +481,30 @@ DEFAULT_FIELD_OPTIONS: Dict[str, List[Dict[str, str]]] = {
         {"value": "liv_hair", "label": "Liv Hair"},
     ],
     "forms": [
+        {"value": "form_1", "label": "Registration"},
+        {"value": "form_2", "label": "PPAQ"},
+        {"value": "form_3", "label": "PPAQ Output (Dr)"},
+        {"value": "form_4", "label": "Booking (Dr)"},
+        {"value": "form_5", "label": "HT Forms (Pre Surgery)"},
+        {"value": "form_6", "label": "HT Forms (After Surgery)"},
+    ],
+    "consents": [
+        {"value": "consent_1", "label": "HT-1 Admission"},
+        {"value": "consent_2", "label": "HT-2 Consent (Surgery)"},
+    ],
+    "consultation": [
+        {"value": "consultation_1", "label": "Consultation 1"},
+        {"value": "consultation_2", "label": "Consultation 2"},
+    ],
+    "payment": [
+        {"value": "waiting", "label": "Waiting"},
+        {"value": "paid", "label": "Paid"},
+        {"value": "partially_paid", "label": "Partially Paid"},
+    ],
+}
+
+LEGACY_FIELD_OPTION_DEFAULTS: Dict[str, List[Dict[str, str]]] = {
+    "forms": [
         {"value": "form_1", "label": "Form 1"},
         {"value": "form_2", "label": "Form 2"},
         {"value": "form_3", "label": "Form 3"},
@@ -491,15 +515,6 @@ DEFAULT_FIELD_OPTIONS: Dict[str, List[Dict[str, str]]] = {
         {"value": "consent_1", "label": "Consent 1"},
         {"value": "consent_2", "label": "Consent 2"},
         {"value": "consent_3", "label": "Consent 3"},
-    ],
-    "consultation": [
-        {"value": "consultation_1", "label": "Consultation 1"},
-        {"value": "consultation_2", "label": "Consultation 2"},
-    ],
-    "payment": [
-        {"value": "waiting", "label": "Waiting"},
-        {"value": "paid", "label": "Paid"},
-        {"value": "partially_paid", "label": "Partially Paid"},
     ],
 }
 
@@ -539,8 +554,11 @@ def _ensure_field_options(conn: sqlite3.Connection) -> None:
                 (field, json.dumps(DEFAULT_FIELD_OPTIONS[field])),
             )
             updated = True
-        elif _normalize_sequential_field_options(conn, field):
-            updated = True
+        else:
+            normalized = _normalize_sequential_field_options(conn, field)
+            replaced = _replace_legacy_field_options(conn, field)
+            if normalized or replaced:
+                updated = True
     if updated:
         conn.commit()
 
@@ -676,6 +694,49 @@ def _normalize_sequential_field_options(conn: sqlite3.Connection, field: str) ->
             (json.dumps(normalized), field),
         )
     return changed
+
+
+def _canonical_option_value(field: str, value: str) -> str:
+    base = SEQUENTIAL_OPTION_PREFIXES.get(field)
+    if not base:
+        return value.strip()
+    suffix = _extract_sequential_suffix(base, value.strip())
+    return f"{base}_{suffix}" if suffix is not None else value.strip()
+
+
+def _options_match_legacy(field: str, options: List[Dict[str, str]]) -> bool:
+    legacy = LEGACY_FIELD_OPTION_DEFAULTS.get(field)
+    if not legacy or len(options) != len(legacy):
+        return False
+    for current, reference in zip(options, legacy):
+        current_label = str(current.get("label", "")).strip()
+        reference_label = str(reference.get("label", "")).strip()
+        if current_label != reference_label:
+            return False
+        current_value = _canonical_option_value(field, str(current.get("value", "")))
+        reference_value = _canonical_option_value(field, str(reference.get("value", "")))
+        if current_value != reference_value:
+            return False
+    return True
+
+
+def _replace_legacy_field_options(conn: sqlite3.Connection, field: str) -> bool:
+    if field not in LEGACY_FIELD_OPTION_DEFAULTS:
+        return False
+    cursor = conn.execute("SELECT options FROM field_options WHERE field = ?", (field,))
+    row = cursor.fetchone()
+    if not row:
+        return False
+    options = _deserialize_field_option_payload(row[0])
+    if not options:
+        return False
+    if not _options_match_legacy(field, options):
+        return False
+    conn.execute(
+        "UPDATE field_options SET options = ? WHERE field = ?",
+        (json.dumps(DEFAULT_FIELD_OPTIONS[field]), field),
+    )
+    return True
 
 
 def list_field_options() -> Dict[str, List[Dict[str, str]]]:
