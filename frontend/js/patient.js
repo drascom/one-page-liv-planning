@@ -863,6 +863,14 @@ function getPreviousInternalUrl() {
   return null;
 }
 
+function redirectToPreviousPage() {
+  if (typeof window === "undefined") {
+    return;
+  }
+  const target = getPreviousInternalUrl() || DEFAULT_RETURN_PATH;
+  window.location.href = target;
+}
+
 function handleMissingPatientRecord() {
   const message =
     "This patient record does not exist or is no longer available. Returning you to the previous page...";
@@ -1731,8 +1739,8 @@ async function savePatient(event) {
     refreshDeleteButtonState();
     procedureFormStatusEl.textContent = "Procedure saved.";
     persistReturnToScheduleContext(currentPatient, savedProcedure);
-    formStatusEl.textContent = "Record saved. Returning to schedule...";
-    window.location.href = "/schedule";
+    formStatusEl.textContent = "Record saved. Returning to previous page...";
+    redirectToPreviousPage();
   } catch (error) {
     console.error(error);
     procedureFormStatusEl.textContent = error.message;
@@ -1949,7 +1957,7 @@ async function handleDeletePatient() {
       throw new Error(`Failed to remove (status ${response.status})`);
     }
     persistReturnToScheduleContext(currentPatient, activeProcedure);
-    window.location.href = "/schedule";
+    redirectToPreviousPage();
   } catch (error) {
     console.error(error);
     alert(`Unable to remove this patient: ${error.message}`);

@@ -515,7 +515,7 @@ LEGACY_FIELD_OPTION_DEFAULTS: Dict[str, List[Dict[str, str]]] = {
         {"value": "consent_1", "label": "Consent 1"},
         {"value": "consent_2", "label": "Consent 2"},
         {"value": "consent_3", "label": "Consent 3"},
-    ],
+     ],
 }
 
 

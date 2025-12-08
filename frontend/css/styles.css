@@ -857,19 +857,28 @@ body.app-shell {
 @media (max-width: 960px) {
   .top-nav {
     flex-wrap: wrap;
-    justify-content: center;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .top-nav__brand {
+    flex: 1 1 40%;
+    min-width: 200px;
+  }
+
+  .top-nav__actions {
+    flex: 0 1 auto;
+    width: auto;
+    margin-left: auto;
+    justify-content: flex-end;
+    flex-wrap: wrap;
   }
 
   .top-nav__search {
     order: 3;
     width: 100%;
     max-width: none;
-  }
-
-  .top-nav__actions {
-    width: 100%;
-    justify-content: flex-end;
-    flex-wrap: wrap;
+    margin-top: 0.5rem;
   }
 }
 
@@ -1654,13 +1663,22 @@ body.app-shell {
 }
 
 .patient-card-mobile__open {
-  border: 1px solid #cbd5f5;
-  background: #f8fafc;
-  color: #0f172a;
+  border: none;
+  background: #2563eb;
+  color: #ffffff;
   border-radius: 10px;
-  padding: 0.4rem 0.7rem;
+  padding: 0.4rem 0.75rem;
   font-weight: 600;
   cursor: pointer;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.25);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.patient-card-mobile__open:hover,
+.patient-card-mobile__open:focus-visible {
+  background: #1d4ed8;
+  box-shadow: 0 8px 18px rgba(29, 78, 216, 0.35);
+  color: #ffffff;
 }
 
 .patient-card-mobile.patient-row--active {
@@ -2961,11 +2979,23 @@ body.app-shell {
 
 .primary-btn {
   background: #38bdf8;
-  color: #0f172a;
+  color: #ffffff;
 }
 
 .primary-btn:hover {
   background: #0ea5e9;
+  color: #ffffff;
+}
+
+#run-integrity-check-btn,
+#download-database-btn {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+#run-integrity-check-btn:hover,
+#download-database-btn:hover {
+  background: #1d4ed8;
 }
 
 .procedures-card__actions {
