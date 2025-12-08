@@ -484,6 +484,51 @@ def test_partial_update_preserves_existing_lists(client: TestClient):
     assert any(note["text"] == "updated note" for note in body["notes"])
 
 
+def test_patch_procedure_updates_subset_of_fields(client: TestClient):
+    patient_id = _create_patient(client)
+    payload = {
+        "patient_id": patient_id,
+        "procedure_date": "2025-10-01",
+        "status": "reserved",
+        "procedure_type": "hair_transplant",
+        "package_type": "small",
+        "grafts": 0,
+        "payment": "waiting",
+        "consultation": [],
+        "forms": [],
+        "consents": [],
+    }
+    created = client.post("/procedures", json=payload)
+    assert created.status_code == 201
+    procedure_id = created.json()["id"]
+
+    patch_payload = {
+        "status": "confirmed",
+        "forms": ["form_1"],
+        "outstanding_balance": 150.75,
+    }
+    patched = client.patch(f"/procedures/{procedure_id}", json=patch_payload)
+    assert patched.status_code == 200
+    assert patched.json()["success"] is True
+
+    refreshed = client.get(f"/procedures/{procedure_id}")
+    assert refreshed.status_code == 200
+    body = refreshed.json()
+    assert body["status"] == "confirmed"
+    assert body["forms"] == ["form_1"]
+    assert body["outstanding_balance"] == 150.75
+    assert body["package_type"] == "small"
+
+
+def test_patch_procedure_requires_payload_fields(client: TestClient):
+    patient_id = _create_patient(client)
+    procedure_id = _create_procedure(client, patient_id)
+
+    response = client.patch(f"/procedures/{procedure_id}", json={})
+    assert response.status_code == 400
+    assert "Provide at least one field" in response.json()["detail"]
+
+
 def test_procedure_creation_ignores_empty_notes(client: TestClient):
     patient_id = _create_patient(client)
     payload = {

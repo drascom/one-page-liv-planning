@@ -6,7 +6,7 @@ import re
 import time
 from collections import deque
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import (
     APIRouter,
@@ -988,6 +988,56 @@ async def update_procedure_route(
             request_payload,
             result.model_dump(),
         )
+    return result
+
+
+@procedures_router.patch("/{procedure_id}", response_model=OperationResult)
+async def patch_procedure_route(
+    procedure_id: int,
+    request: Request,
+    payload: Dict[str, Any] = Body(...),
+) -> OperationResult:
+    existing = database.fetch_procedure(procedure_id, include_deleted=True)
+    if not existing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid payload")
+    payload_data = _omit_blank_update_values(payload, allow_empty=_PROCEDURE_ALLOWED_EMPTY_FIELDS)
+    if not payload_data:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Provide at least one field to update")
+    existing_notes = existing.get("notes") or []
+    if "notes" in payload_data:
+        normalized_notes = _normalize_notes_for_request(
+            payload_data.get("notes"),
+            request=request,
+            existing_notes=existing_notes,
+        )
+        merged_notes = _merge_notes_with_existing(existing_notes, normalized_notes, request=request)
+        _ensure_note_delete_permissions(existing_notes, merged_notes, request=request)
+        payload_data["notes"] = merged_notes
+    merged_payload = _merge_procedure_payload(existing, payload_data)
+    try:
+        validated_payload = ProcedureCreatePayload.model_validate(
+            {"patient_id": existing["patient_id"], **merged_payload}
+        )
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=json.loads(exc.json()),
+        ) from exc
+    updated = database.update_procedure(procedure_id, validated_payload.model_dump(exclude={"patient_id"}))
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Procedure not found")
+    refreshed = database.fetch_procedure(procedure_id)
+    if refreshed:
+        await _emit_procedure_event("updated", refreshed, request)
+    result = OperationResult(success=True, id=procedure_id, message="Procedure updated")
+    database.log_api_request(
+        f"/procedures/{procedure_id}",
+        "PATCH",
+        payload_data,
+        result.model_dump(),
+    )
     return result
 
 

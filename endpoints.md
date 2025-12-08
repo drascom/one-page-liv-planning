@@ -19,6 +19,7 @@ The frontend uses the base endpoints below directly and no token is required for
 - `POST /procedures` – Create a procedure with `{ "patient_id": 123, "name": "Consultation", "procedure_type": "sfue", "status": "scheduled", "procedure_date": "2025-01-02", "procedure_time": "08:30", "grafts": 2500, "payment": "deposit", "outstanding_balance": 500.0, "notes": [{"text": "Pre-op call scheduled"}] }`. Include the optional `procedure_time` (24h `HH:MM`, defaults to `08:30`) to track booking slots. Notes are to-do style items tied to the user who created them.
 - `GET /procedures/{id}` – Fetch a single procedure.
 - `PUT /procedures/{id}` – Update procedure details (requires a valid `patient_id`).
+- `PATCH /procedures/{id}` – Update one or more procedure fields without sending the full payload.
 - `DELETE /procedures/{id}` – Remove a procedure; purging a patient also cascades and removes related procedures.
 - `POST /api/v1/procedures/search-by-meta` – Provide `{ "full_name": "", "date": "", "status": "", "grafts_number": "", "package_type": "" }` to locate a procedure by metadata and receive its id and full procedure payload (delete it via `DELETE /procedures/{id}`).
 
