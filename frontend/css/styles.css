@@ -4,6 +4,14 @@
   color: #0f172a;
   background: #f8fafc;
   line-height: 1.4;
+  --color-surface: #ffffff;
+  --color-surface-alt: #f8fafc;
+  --color-border: #e2e8f0;
+  --color-border-strong: #cbd5e1;
+  --card-radius: 1.25rem;
+  --card-padding: 1.5rem;
+  --card-padding-compact: 1rem;
+  --card-shadow: 0 18px 36px rgba(15, 23, 42, 0.08);
 }
 
 * {
@@ -28,6 +36,28 @@ body.app-shell {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+}
+
+/* Card system */
+:where(.card, .patient-card, .settings-workspace-card, .merge-card, .status-card, .login-card, .patient-details-display, .procedure-display) {
+  background: var(--card-surface, var(--color-surface));
+  border: var(--card-border-width, 1px) solid var(--card-border-color, var(--color-border));
+  border-radius: var(--card-radius);
+  padding: var(--card-padding);
+  box-shadow: var(--card-shadow-current, var(--card-shadow));
+}
+
+.card--compact {
+  padding: var(--card-padding-compact);
+}
+
+.card--muted {
+  background: var(--color-surface-alt);
+}
+
+.card--borderless {
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .top-nav {
@@ -2293,11 +2323,6 @@ body.app-shell {
 
 .settings-workspace-card {
   position: relative;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 18px;
-  padding: 1.5rem;
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -2431,11 +2456,7 @@ body.app-shell {
 }
 
 .patient-card {
-  background: #ffffff;
-  /* border-radius: 16px;
-  padding: 1.5rem;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.1);
-  border: 1px solid #e2e8f0; */
+  position: relative;
 }
 
 .patient-content.merge-content {
@@ -2443,7 +2464,7 @@ body.app-shell {
 }
 
 .patient-card.merge-card {
-  padding: 2rem;
+  --card-padding: 2rem;
 }
 
 .customer-content {
@@ -3302,7 +3323,7 @@ body.app-shell {
 }
 
 .patient-page .card {
-  padding: 1rem;
+  --card-padding: var(--card-padding-compact);
 }
 
 .patient-page h2 {
@@ -4392,12 +4413,11 @@ body.app-shell {
 }
 
 .login-card {
-  background: #fff;
-  border: 2px solid #0f172a;
-  border-radius: 18px;
-  padding: 2rem;
   width: min(360px, 90vw);
-  box-shadow: 0 25px 45px rgba(15, 23, 42, 0.15);
+  --card-padding: 2rem;
+  --card-border-width: 2px;
+  --card-border-color: #0f172a;
+  --card-shadow-current: 0 25px 45px rgba(15, 23, 42, 0.15);
 }
 
 .login-card h1 {
