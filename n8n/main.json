@@ -1,0 +1,513 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "options": {
+          "reset": false
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        896,
+        -256
+      ],
+      "id": "11b84be2-2105-463d-9468-a0c102e16f46",
+      "name": "Loop Over Mails1"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "fieldsToMatchString": "full_name",
+        "joinMode": "keepEverything",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1312,
+        -224
+      ],
+      "id": "47ff9528-471c-425b-9706-4ce9e07fe86f",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "values",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        416,
+        -256
+      ],
+      "id": "42969a0e-e42e-4f4f-993e-ae9d32077208",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "path": "start-import",
+        "formTitle": "Select Start Date",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "start_date",
+              "fieldType": "date",
+              "requiredField": true
+            }
+          ]
+        },
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "93be7370-669e-45ee-b455-a898e220fa44",
+      "name": "Manual Fetch With Date",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 1,
+      "position": [
+        16,
+        -320
+      ],
+      "webhookId": "ebae6fec-5a92-4b9b-9d31-e0f2c63a5820"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "tsCw7F9JU1TTD2rN",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/tsCw7F9JU1TTD2rN",
+          "cachedResultName": "Active - Get Mails"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [
+            "day"
+          ],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        240,
+        -128
+      ],
+      "id": "75274321-1bf5-4c06-9b50-68f583510298",
+      "name": "Get Mails"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "Be7fhZJlo5ASUWru",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/Be7fhZJlo5ASUWru",
+          "cachedResultName": "Active - Upload Files (Drive)"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "uid": "={{ $json.uid }}",
+            "full_name": "={{ $json.full_name }}",
+            "first_name": "={{ $json.first_name }}",
+            "Last_name": "={{ $json.last_name }}",
+            "procedure_date": "={{ $json.procedure_date }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "uid",
+              "displayName": "uid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number"
+            },
+            {
+              "id": "full_name",
+              "displayName": "full_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "first_name",
+              "displayName": "first_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "Last_name",
+              "displayName": "Last_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "procedure_date",
+              "displayName": "procedure_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1120,
+        -112
+      ],
+      "id": "ac1e7b25-09e0-4b9c-95df-a494741fd7a7",
+      "name": "Upload Files",
+      "alwaysOutputData": false,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        16,
+        -512
+      ],
+      "id": "ad45d364-2b4a-4aad-a2ec-8f92c5aebea9",
+      "name": "Get All Records From Excel File"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "BnfpRIHxUcM6KkGk",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/BnfpRIHxUcM6KkGk",
+          "cachedResultName": "Active - Excel Get All"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {}
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        240,
+        -512
+      ],
+      "id": "79666639-b0e4-4aa0-b018-d8aadead6b1c",
+      "name": "Call 'Excel - Download And Process'"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "google-sheet-trigger",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        16,
+        -736
+      ],
+      "id": "ca25390e-ccdd-45db-9cb4-fdd51fce91f4",
+      "name": "Webhook",
+      "webhookId": "45f2d970-eb5e-4b06-b4db-8a38725c68a4"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "dOOSf1x22HuTXKhm",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/dOOSf1x22HuTXKhm",
+          "cachedResultName": "Excel - On change Database Automation"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {}
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        240,
+        -736
+      ],
+      "id": "06cd8a89-c7db-4859-9b82-fc74f1b686b3",
+      "name": "Call 'Excel - On change Database Automation'"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "4qPNIOKR3fdSPCkZ",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/4qPNIOKR3fdSPCkZ",
+          "cachedResultName": "Active - Database Operations"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": true,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1520,
+        -112
+      ],
+      "id": "8a1f5369-453b-4e83-901f-92790772e2ed",
+      "name": "Database Operations",
+      "retryOnFail": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "postProcessAction": "nothing",
+        "options": {
+          "forceReconnect": 60
+        }
+      },
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2.1,
+      "position": [
+        16,
+        -128
+      ],
+      "id": "27476528-6dce-48d3-9ec1-1e2806f5cdf7",
+      "name": "On New n8n mail",
+      "credentials": {
+        "imap": {
+          "id": "UaKBHYDufXL3rXgE",
+          "name": "n8n IMAP Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2.1,
+      "position": [
+        16,
+        64
+      ],
+      "id": "5694a557-8bf5-4f90-af65-67b8cd04fa6e",
+      "name": "On New Booking Email",
+      "credentials": {
+        "imap": {
+          "id": "plaHZHtkCoSORbUx",
+          "name": "Booking IMAP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "maxItems": 5
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        624,
+        -256
+      ],
+      "id": "f9e93032-c543-4ac8-ba2d-1d3ca136305e",
+      "name": "Limit",
+      "disabled": true
+    }
+  ],
+  "connections": {
+    "Loop Over Mails1": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Upload Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Database Operations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Fetch With Date": {
+      "main": [
+        [
+          {
+            "node": "Get Mails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Mails": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Files": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Get All Records From Excel File": {
+      "main": [
+        [
+          {
+            "node": "Call 'Excel - Download And Process'",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call 'Excel - Download And Process'": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Call 'Excel - On change Database Automation'",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call 'Excel - On change Database Automation'": {
+      "main": [
+        []
+      ]
+    },
+    "Database Operations": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Mails1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On New n8n mail": {
+      "main": [
+        [
+          {
+            "node": "Get Mails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On New Booking Email": {
+      "main": [
+        [
+          {
+            "node": "Get Mails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Mails1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "cbe7b26bafc130fb44f38a6a9d9ec48887d38175be68c74d23a330e4eeb11ebd"
+  }
+}

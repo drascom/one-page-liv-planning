@@ -1,0 +1,880 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1232,
+        -160
+      ],
+      "id": "5b61ea8c-279c-4b7d-a2a6-574e68c9d558",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {
+          "includeUnpaired": true
+        }
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1616,
+        -160
+      ],
+      "id": "f9cdb56e-1e7f-42a8-b06d-d6418eba2e8d",
+      "name": "Merge2",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2",
+              "name": "message",
+              "value": "Email processed but no attachments found. Upload skipped.",
+              "type": "string"
+            },
+            {
+              "id": "3",
+              "name": "uid",
+              "value": "={{ $json.uid }}",
+              "type": "string"
+            },
+            {
+              "id": "4",
+              "name": "full_name",
+              "value": "={{ $json.full_name }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        272,
+        -304
+      ],
+      "id": "9ab5576c-abf6-4d6b-8922-e767e574eef6",
+      "name": "Return Skipped Result1",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "queryString": "=={{ $json.full_name\n    ? $json.full_name\n        .trim()\n        .replace(/[’']/g, \"\")\n        .replace(/^Automation\\s*[-–]\\s*/i, \"\")\n        .replace(/^\\d+[\\.\\s]+/, \"\")\n        .replace(/[^\\p{L}\\p{M}\\s-]/gu, \"\")\n        .replace(/\\s+/g, \" \")\n        .trim()\n    : \"\"\n}}",
+        "returnAll": true,
+        "filter": {
+          "folderId": {
+            "__rl": true,
+            "value": "1jKuAGET8OySqqiFobRqrGwYFOiL8TBMk",
+            "mode": "list",
+            "cachedResultName": "N8N-test",
+            "cachedResultUrl": "https://drive.google.com/drive/folders/1jKuAGET8OySqqiFobRqrGwYFOiL8TBMk"
+          },
+          "whatToSearch": "folders"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        272,
+        64
+      ],
+      "id": "facdf8dd-8691-4685-a8a0-1edd95828fa0",
+      "name": "Search Drive Folder",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "PQeJP4egMzQAP6Ah",
+          "name": "Liv Hospital Google Auth Client"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "binaryPropertyName": "zip_input"
+      },
+      "type": "n8n-nodes-base.compression",
+      "typeVersion": 1.1,
+      "position": [
+        1392,
+        -160
+      ],
+      "id": "dac5c97c-5c62-4c42-925f-a3bac30c6547",
+      "name": "Decompress ZIPs",
+      "alwaysOutputData": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.has_zip }}",
+                    "rightValue": false,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    },
+                    "id": "fa3bfa88-d7d4-4632-9d50-be5b8073b4bd"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "has zip"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        1168,
+        -160
+      ],
+      "id": "82b0e9b6-6bd8-4bc2-8c4d-8afd2d055f2a",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "1",
+              "leftValue": "={{ $json.has_attachments }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "0569286c-835a-4b42-80ab-35ce1d211fea",
+              "leftValue": "={{ $json.isValid }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "49fe0f88-ac56-4b4e-876c-5d72d5f9da33",
+              "leftValue": "={{ $json.has_zip }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        48,
+        -208
+      ],
+      "id": "80328865-8b71-4197-8631-3b584796e637",
+      "name": "Check if Skipped"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "19f6f228-20f4-4f3f-8794-fde55a6c0009",
+              "leftValue": "={{ $json.isValid }} ",
+              "rightValue": "=\"true\"",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -176,
+        -192
+      ],
+      "id": "934185d6-5743-45bb-81f0-1869295401ff",
+      "name": "isValid",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\n\nfor (const item of $input.all()) {\n\n  const json = item.json || {};\n\n  let fullName = json.full_name || null;\n  let isValid = !!fullName;    \n  // =========================================================\n  // 1. EARLY CHECK: NO FILES / ATTACHMENTS\n  // =========================================================\n  // Check if binary data exists and has keys\n  const hasFiles = item.binary && Object.keys(item.binary).length > 0;\n\n  if (!hasFiles && !isValid) {\n    // STOP HERE: Return your specific \"No Files\" values immediately\n    results.push({\n      json: {\n        message: \"No files or attachments or full name  found to download\",\n        has_files: false,\n        uid: json.uid || null,\n        full_name: json.full_name\n      }\n    });\n    // 'continue' skips the rest of the code for this specific item\n    continue; \n  }\n\n  // =========================================================\n  // EXISTING LOGIC (Only runs if files exist)\n  // =========================================================\n\n  const attachmentsList = json.attachments || [];\n  const has_attachments = Array.isArray(attachmentsList) && attachmentsList.length > 0;\n\n  \n  let procedure_date = json.procedure_date || null;\n\n  \n  let has_zip = false;\n  let zipBinary = null;\n\n  // ZIP DETECTION\n  if (item.binary) {\n    for (const key of Object.keys(item.binary)) {\n      const file = item.binary[key];\n\n      if (!file || !file.fileName) continue;\n\n      if (\n        (file.mimeType && file.mimeType.toLowerCase().includes(\"zip\")) ||\n        (file.fileName && file.fileName.toLowerCase().endsWith(\".zip\"))\n      ) {\n        has_zip = true;\n        zipBinary = file;\n        break;\n      }\n    }\n  }\n\n  // BUILD OUTPUT\n  const out = {\n    json: {\n      full_name: fullName || \"Unknown\",\n      isValid,\n      has_zip,\n      has_attachments,\n      procedure_date,\n      uid: json.uid || null,\n      error: isValid ? null : \"Name not found in Body or Subject\"\n    },\n    binary: item.binary ? { ...item.binary } : {}\n  };\n\n  // Attach ZIP binary for Decompress node if found\n  if (has_zip && zipBinary) {\n    out.binary = out.binary || {};\n    out.binary[\"zip_input\"] = zipBinary;\n  }\n\n  results.push(out);\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        -192
+      ],
+      "id": "430835d5-cc23-459e-93d2-0f8d8118ddf8",
+      "name": "Parse & Validate Data",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -624,
+        -192
+      ],
+      "id": "c822a871-560d-424c-b72e-f378c62304ed",
+      "name": "Merge Data & File",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "authentication": "coreImapAccount",
+        "resource": "email",
+        "operation": "downloadAttachment",
+        "mailboxPath": {
+          "__rl": true,
+          "mode": "list",
+          "value": "INBOX"
+        },
+        "emailUid": "={{ $json.uid }}",
+        "allAttachments": true,
+        "includeInlineAttachments": true
+      },
+      "type": "n8n-nodes-imap-enhanced.imapEnhanced",
+      "typeVersion": 1,
+      "position": [
+        -848,
+        -352
+      ],
+      "id": "aaade8f9-b3a9-44b4-b50b-6520fe2cdbc0",
+      "name": "Download File",
+      "alwaysOutputData": true,
+      "credentials": {
+        "imap": {
+          "id": "plaHZHtkCoSORbUx",
+          "name": "Booking IMAP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {
+          "includeUnpaired": true
+        }
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1840,
+        -48
+      ],
+      "id": "060113dd-c0da-4441-bfe3-07ec6b30795c",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1168,
+        112
+      ],
+      "id": "20f1a253-1744-4fa2-87f8-65137ad9bee1",
+      "name": "Normalize Folder Data"
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "queryString": "*",
+        "returnAll": true,
+        "filter": {
+          "folderId": {
+            "__rl": true,
+            "value": "={{ $json.id }}",
+            "mode": "id"
+          }
+        },
+        "options": {
+          "fields": [
+            "id",
+            "kind",
+            "mimeType",
+            "name",
+            "parents"
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1392,
+        64
+      ],
+      "id": "53b6afb6-7307-408c-8836-f11d6b955a38",
+      "name": "Get Existing Files1",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "PQeJP4egMzQAP6Ah",
+          "name": "Liv Hospital Google Auth Client"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resource": "folder",
+        "name": "=Automation - {{ $('Parse & Validate Data').item.json.full_name }}",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive",
+          "cachedResultUrl": "https://drive.google.com/drive/my-drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1jKuAGET8OySqqiFobRqrGwYFOiL8TBMk",
+          "mode": "list",
+          "cachedResultName": "N8N-test",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1jKuAGET8OySqqiFobRqrGwYFOiL8TBMk"
+        },
+        "options": {
+          "folderColorRgb": "#0C3CFD"
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        720,
+        32
+      ],
+      "id": "aa1cc7a7-c4d6-4e7f-955b-3cf88c6bd911",
+      "name": "Create Folder1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "PQeJP4egMzQAP6Ah",
+          "name": "Liv Hospital Google Auth Client"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "7878",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notExists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        496,
+        64
+      ],
+      "id": "9a3997de-3879-43dd-9f33-06f2e8c3d8bf",
+      "name": "Folder Exists?1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// We get the files from the Input\nconst files = $input.all().map(f => f.json);\n\n// We get the ID from the \"Normalize Folder Data\" node\n// This works even if the folder is empty and 'files' is empty\nconst folderData = $('Normalize Folder Data').first().json;\nconst folderId = folderData.id;\n\nreturn [{\n  json: {\n    existing_files: files,\n    targetFolderId: folderId\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1616,
+        64
+      ],
+      "id": "73df0059-5575-4fe3-99ce-39e1679fb577",
+      "name": "Aggregate Existing Files1"
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        944,
+        32
+      ],
+      "id": "dedfd6f0-5236-4560-9c92-7a51d6327126",
+      "name": "Wait1",
+      "webhookId": "c312ef3d-f0dd-4f73-b559-fe9008b902bf"
+    },
+    {
+      "parameters": {
+        "jsCode": "// =========================================================\n// INPUTS\n// =========================================================\nconst items = $input.all();\nconst sourceItems = $('Parse & Validate Data').all(); // Get original data to recover lost files\n\nconst results = [];\n\nfor (let i = 0; i < items.length; i++) {\n    const item = items[i];\n    // Find matching original item (by position) to get the original binaries back\n    const sourceItem = sourceItems[i] || sourceItems[0]; \n\n    // 1. Get Folder Info & Existing Files List\n    const existingFilesList = item.json.existing_files || [];\n    const targetFolderId = item.json.targetFolderId;\n    const fullName = item.json.full_name;\n\n    // 2. Create Map of what is ALREADY in Google Drive\n    const existingInDrive = new Set();\n    existingFilesList.forEach(file => {\n        if (file && file.name) {\n            existingInDrive.add(file.name.toLowerCase().trim());\n        }\n    });\n\n    // 3. Prepare Binaries\n    // A. Get Extracted Binaries (from current input)\n    const extractedBinaries = item.binary || {};\n    \n    // B. Get Original Binaries (from start of workflow)\n    const originalBinaries = sourceItem ? (sourceItem.binary || {}) : {};\n\n    // C. Combine them (Extracted files overwrite originals if names collide)\n    const allBinaries = { ...originalBinaries, ...extractedBinaries };\n\n    // 4. Filter & Prepare for Upload\n    const processedFileNames = new Set(); // Local set to prevent duplicates within this upload batch\n\n    if (targetFolderId) {\n        for (const key of Object.keys(allBinaries)) {\n            const binaryFile = allBinaries[key];\n            \n            // Validation: Must have filename\n            if (!binaryFile || !binaryFile.fileName) continue;\n            \n            const fileName = binaryFile.fileName;\n            const cleanName = fileName.toLowerCase().trim();\n\n            // -------------------------------------------------------\n            // FILTER: Skip ZIP files to save time\n            // -------------------------------------------------------\n            if (cleanName.endsWith('.zip')) continue; \n\n            // CHECK 1: Have we already processed this filename in this loop?\n            if (processedFileNames.has(cleanName)) continue;\n\n            // CHECK 2: Does it already exist in Google Drive?\n            if (existingInDrive.has(cleanName)) continue;\n\n            // Add to results\n            results.push({\n                json: {\n                    fileName: fileName,\n                    targetFolderId: targetFolderId,\n                    full_name: fullName,\n                    uploadSource: key \n                },\n                binary: {\n                    data: binaryFile\n                }\n            });\n\n            // Mark as processed\n            processedFileNames.add(cleanName);\n        }\n    }\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2096,
+        -64
+      ],
+      "id": "0256072e-2344-49da-b5bd-425ce4f6a948",
+      "name": "Filter Duplicates1",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2544,
+        32
+      ],
+      "id": "7c262374-4799-44be-b0eb-251fda80a376",
+      "name": "Loop Over Files1"
+    },
+    {
+      "parameters": {
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "={{ $json.targetFolderId }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2768,
+        112
+      ],
+      "id": "a8ac0129-7f26-4d85-af96-3819cc6265f0",
+      "name": "Upload file1",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "PQeJP4egMzQAP6Ah",
+          "name": "Liv Hospital Google Auth Client"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b889269e-3c40-47e4-a2f8-96a780bf22b7",
+              "leftValue": "={{ $json.fileName }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notExists",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "c1b9ef7b-d546-484c-87c5-6bb1e29e527b",
+              "leftValue": "filename check",
+              "rightValue": "={{ $json.fileName }}",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2320,
+        -64
+      ],
+      "id": "97acb7f4-37a2-480d-b8a4-a27fef38280d",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Try to get data from current Input (if files were uploaded)\nconst inputItem = $input.first();\nlet fullName = inputItem ? inputItem.json.full_name : null;\nlet folderId = inputItem ? inputItem.json.targetFolderId : null;\n\n// 2. Fallback: If no files were uploaded (path came from IF -> True),\n// we need to look back at the source of truth.\nif (!fullName || !folderId) {\n  // Look back at the \"Aggregate Existing Files\" or \"Normalize Folder Data\" node\n  // Using 'Normalize Folder Data' is safer as it has the ID guaranteed\n  const parentNode = $('Normalize Folder Data').first();\n  const originalData = $('Parse & Validate Data').first();\n  \n  if (parentNode) folderId = parentNode.json.id;\n  if (originalData) fullName = originalData.json.full_name;\n}\n\nreturn [{\n  json: {\n    full_name: fullName,\n    drive_folder_id: folderId\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2992,
+        -64
+      ],
+      "id": "a40d9133-a994-433d-bd22-3270fc73ba4c",
+      "name": "Finish1",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\n\nfor (const item of $input.all()) {\n\n  const json = item.json || {};\n\n  const body = json.body || json.textContent || json.text || '';\n  const subject = json.subject || '';\n\n  // =========================================================\n  // ATTACHMENTS CHECK\n  // =========================================================\n  const attachmentsList = json.attachments || [];\n  const has_attachments = Array.isArray(attachmentsList) && attachmentsList.length > 0;\n\n  // =========================================================\n  // READ FROM CURRENT JSON\n  // =========================================================\n  let fullName = json.full_name || null;\n  let procedure_date = json.procedure_date || null;\n\n  let isValid = !!fullName;    \n  let has_zip = false;\n  let zipBinary = null;\n\n  // =========================================================\n  // ZIP DETECTION\n  // =========================================================\n  if (item.binary) {\n    for (const key of Object.keys(item.binary)) {\n      const file = item.binary[key];\n\n      if (!file || !file.fileName) continue;\n\n      if (\n        (file.mimeType && file.mimeType.toLowerCase().includes(\"zip\")) ||\n        (file.fileName && file.fileName.toLowerCase().endsWith(\".zip\"))\n      ) {\n        has_zip = true;\n        zipBinary = file;\n        break;\n      }\n    }\n  }\n\n  // =========================================================\n  // BUILD OUTPUT\n  // =========================================================\n  const out = {\n    json: {\n      full_name: fullName || \"Unknown\",\n      isValid,\n      has_zip,\n      has_attachments,\n      procedure_date,\n      uid: json.uid || null,\n      error: isValid ? null : \"Name not found in Body or Subject\"\n    },\n    binary: item.binary ? { ...item.binary } : {}\n  };\n\n  // Attach ZIP binary for Decompress node\n  if (has_zip && zipBinary) {\n    out.binary = out.binary || {};\n    out.binary[\"zip_input\"] = zipBinary;\n  }\n\n  results.push(out);\n}\n\nreturn results;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -416,
+        160
+      ],
+      "id": "2f11aac6-a8aa-4f09-bc1f-fe003982a052",
+      "name": "Parse & Validate Data1",
+      "alwaysOutputData": true
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Download File",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge Data & File",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge2": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Drive Folder": {
+      "main": [
+        [
+          {
+            "node": "Folder Exists?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decompress ZIPs": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Decompress ZIPs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if Skipped": {
+      "main": [
+        [
+          {
+            "node": "Return Skipped Result1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Search Drive Folder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "isValid": {
+      "main": [
+        [
+          {
+            "node": "Check if Skipped",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Validate Data": {
+      "main": [
+        [
+          {
+            "node": "isValid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Data & File": {
+      "main": [
+        [
+          {
+            "node": "Parse & Validate Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download File": {
+      "main": [
+        [
+          {
+            "node": "Merge Data & File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Filter Duplicates1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Folder Data": {
+      "main": [
+        [
+          {
+            "node": "Get Existing Files1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Existing Files1": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Existing Files1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Folder1": {
+      "main": [
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Folder Exists?1": {
+      "main": [
+        [
+          {
+            "node": "Create Folder1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Normalize Folder Data",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Aggregate Existing Files1": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "Normalize Folder Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Duplicates1": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Files1": {
+      "main": [
+        [
+          {
+            "node": "Finish1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Upload file1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload file1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Files1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Finish1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Files1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "cbe7b26bafc130fb44f38a6a9d9ec48887d38175be68c74d23a330e4eeb11ebd"
+  }
+}

@@ -1,0 +1,715 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -2960,
+        240
+      ],
+      "id": "ce808001-d572-4d7d-ba72-f060e823c8f0",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const data = item.json || {};\n\n  // -------------------------------------------\n  // 1) NORMALIZE GRAFTS (float)\n  // -------------------------------------------\n  let grafts = 0.0;\n  if (data.grafts) {\n    grafts = parseFloat(String(data.grafts).replace(/[^\\d.]/g, \"\")) || 0.0;\n  }\n\n  // -------------------------------------------\n  // 2) NORMALIZE OUTSTANDING BALANCE (float)\n  // -------------------------------------------\n  // Checks 'outstanding_balance' OR 'balance' (from previous node)\n  let outstanding_raw = data.outstanding_balance || data.balance || \"\";\n  let outstanding = 0.0;\n  \n  if (outstanding_raw) {\n    const clean = String(outstanding_raw).replace(/[^\\d.]/g, \"\");\n    outstanding = parseFloat(clean) || 0.0;\n  }\n\n  // -------------------------------------------\n  // 4) BUILD OUTPUT\n  // -------------------------------------------\n  results.push({\n    json: {\n      ...data,\n      grafts,\n      outstanding_balance: outstanding, // Unified key\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2736,
+        144
+      ],
+      "id": "6c8456c7-d0e7-40c5-a9a5-871c160b4edb",
+      "name": "Clean data"
+    },
+    {
+      "parameters": {
+        "url": "https://liv.drascom.uk/api/v1/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "full_name",
+              "value": "={{ $json.full_name }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -2512,
+        48
+      ],
+      "id": "32f0c395-833c-4d2c-930f-991dfe06ce9e",
+      "name": "Search Patient",
+      "retryOnFail": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "u1wtUle7id8AvNQp",
+          "name": "Liv Automation Bearer Token"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check_exist",
+              "leftValue": "={{ $json.success }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2288,
+        48
+      ],
+      "id": "4a685189-b2fa-403e-bb1a-ec5612a340e2",
+      "name": "Patient Exists?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const newData = $('Clean data').item.json;\nconst dbData = $input.item.json;\n\n// Define fields to compare\n// Ensure these keys exist in the API Search response\nconst fields = ['first_name', 'last_name', 'email', 'phone', 'city'];\n\nlet hasChanges = false;\n\nfor (const key of fields) {\n  if (newData[key] && newData[key] != dbData[key]) {\n    hasChanges = true;\n    break;\n  }\n}\n\nreturn { hasChanges };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2064,
+        -112
+      ],
+      "id": "324a1432-350d-4d2e-a935-7a2316bd1813",
+      "name": "Check Patient Changes"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check_changes",
+              "leftValue": "={{ $json.hasChanges }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1840,
+        -112
+      ],
+      "id": "bb6af8b1-cbdb-44c9-a71a-20ad2923b5ed",
+      "name": "Changes Detected?"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://liv.drascom.uk/api/v1/patients/{{ $('Search Patient').item.json.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"first_name\": \"{{ $('Clean data').item.json.first_name }}\",\n  \"last_name\": \"{{ $('Clean data').item.json.last_name }}\",\n  \"email\": \"{{ $('Clean data').item.json.email }}\",\n  \"phone\": \"{{ $('Clean data').item.json.phone }}\",\n  \"address\": \"{{ $('Clean data').item.json.city }}\",\n  \"drive_folder_id\": \"{{ $('Clean data').item.json.drive_folder_id }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -1616,
+        -176
+      ],
+      "id": "328ad1e8-ce59-4ac1-a2ed-29ee20e4721c",
+      "name": "Update Patient",
+      "retryOnFail": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "u1wtUle7id8AvNQp",
+          "name": "Liv Automation Bearer Token"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://liv.drascom.uk/api/v1/patients",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"first_name\": \"{{ $('Clean data').item.json.first_name }}\",\n  \"last_name\": \"{{ $('Clean data').item.json.last_name }}\",\n  \"email\": \"{{ $('Clean data').item.json.email }}\",\n  \"phone\": \"{{ $('Clean data').item.json.phone }}\",\n  \"address\": \"London\",\n  \"drive_folder_id\": \"{{ $('Clean data').item.json.drive_folder_id }}\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -1968,
+        64
+      ],
+      "id": "b6dedbbc-f728-484b-9eaf-e6b8db82599e",
+      "name": "Create Patient",
+      "retryOnFail": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "u1wtUle7id8AvNQp",
+          "name": "Liv Automation Bearer Token"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bfe3aa0a-ebd8-48a6-bad9-47a5fdc26845",
+              "name": "id",
+              "value": "={{ $json.id || $('Search Patient').item.json.id }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1392,
+        48
+      ],
+      "id": "e342ad50-4f23-4d3e-9896-f9f81db23741",
+      "name": "Patient ID"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://liv.drascom.uk/api/v1/procedures/search-by-meta",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n \"full_name\": \"{{ $('Clean data').item.json.full_name }}\",\n \"date\": \"{{ $('Clean data').item.json.procedure_date }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -1168,
+        48
+      ],
+      "id": "afd621df-983e-4599-9f54-a74046171f98",
+      "name": "Search Procedure",
+      "retryOnFail": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "u1wtUle7id8AvNQp",
+          "name": "Liv Automation Bearer Token"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check_proc",
+              "leftValue": "={{ $json.success }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -944,
+        48
+      ],
+      "id": "354951a1-024f-4a8b-9e4b-5e355df84605",
+      "name": "Procedure Exists?",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "jsCode": "const incoming = $('Clean data').item.json;\nconst existing = $input.item.json;\n\nlet hasChanges = false;\nconst changedFields = [];\n\n// 1. Define keys you NEVER want to compare (Internal IDs, status messages, etc.)\n// 'notes' is excluded because comparing arrays/objects dynamically is complex and prone to errors.\nconst ignoreKeys = [\n  'uid', \n  'id', \n  'procedure_id', \n  'patient_id', \n  'success', \n  'msg', \n  'message', \n  'notes', \n];\n\n// 2. Iterate dynamically over every key in your NEW (Incoming) data\nfor (const key of Object.keys(incoming)) {\n  \n  // Skip if key is in the ignore list\n  if (ignoreKeys.includes(key)) continue;\n\n  // 3. CRITICAL: Only compare if the Database actually sent this key back.\n  // This solves your \"outstanding_balance\" issue. If the DB Search API \n  // doesn't return 'outstanding_balance', we skip comparing it.\n  if (existing.hasOwnProperty(key)) {\n    \n    // Get values\n    const newVal = incoming[key];\n    const oldVal = existing[key];\n    console.log(newVal,oldVal);\n    // 4. Compare (using != allows \"3000\" string to match 3000 number)\n    // We also treat null and undefined as equal\n    if (newVal != oldVal) {\n      hasChanges = true;\n      changedFields.push(`${key}: ${oldVal} -> ${newVal}`);\n    }\n  }\n}\n\nreturn { hasChanges, changedFields };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -496,
+        -112
+      ],
+      "id": "620bc6af-4c0e-4fc4-8903-a87853cd889b",
+      "name": "Check Proc Changes"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check_changes_proc",
+              "leftValue": "={{ $json.hasChanges }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -320,
+        -96
+      ],
+      "id": "55b3df09-fd44-4008-a275-6ebebbcecfdb",
+      "name": "Proc Changed?"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://liv.drascom.uk/api/v1/procedures/{{ $('Search Procedure').item.json.procedure_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  {\n    \"patient_id\": $('Patient ID').item.json.id,\n    \"procedure_date\": $('Clean data').item.json.procedure_date,\n    \"status\": $('Clean data').item.json.status,\n    \"procedure_type\": $('Clean data').item.json.procedure_type,\n    \"package_type\": $('Clean data').item.json.package_type,\n    \"grafts\": $('Clean data').item.json.grafts,\n    \"outstanding_balance\": $('Clean data').item.json.outstanding_balance,\n    \"agency\": $('Clean data').item.json.agency,\n    \"preop_answers\": $('Clean data').item.json.preop_answers  }\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -80,
+        -112
+      ],
+      "id": "a141c8c9-e8dc-4ca1-98b1-8be6efc33f3e",
+      "name": "Update Procedure",
+      "retryOnFail": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "u1wtUle7id8AvNQp",
+          "name": "Liv Automation Bearer Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://liv.drascom.uk/api/v1/procedures",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  {\n    \"patient_id\": $('Patient ID').item.json.id,\n    \"procedure_date\": $('Clean data').item.json.procedure_date,\n    \"status\": $('Clean data').item.json.status,\n    \"procedure_type\": $('Clean data').item.json.procedure_type,\n    \"package_type\": $('Clean data').item.json.package_type,\n    \"grafts\": $('Clean data').item.json.grafts,\n    \"outstanding_balance\": $('Clean data').item.json.outstanding_balance,\n    \"agency\": $('Clean data').item.json.agency,\n    \"preop_answers\": $('Clean data').item.json.preop_answers\n  }\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -288,
+        96
+      ],
+      "id": "573d8913-73a6-49eb-9460-2ee38a837d72",
+      "name": "Create Procedure",
+      "retryOnFail": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "u1wtUle7id8AvNQp",
+          "name": "Liv Automation Bearer Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"uid\": null,\n  \"full_name\": \"DANNY ALCOCK\",\n  \"first_name\": \"DANNY\",\n  \"last_name\": \"ALCOCK\",\n  \"phone\": null,\n  \"email\": null,\n  \"agency\": \"want_hair\",\n  \"procedure_date\": \"2025-03-25\",\n  \"procedure_time\": \"30:00\",\n  \"grafts\": 3000,\n  \"package_type\": \"big\",\n  \"outstanding_balance\": 0,\n  \"status\": \"confirmed\",\n  \"procedure_type\": \"hair_transplant\",\n  \"preop_answers\": {\n    \"prp_session\": null,\n    \"medical_alerts\": null\n  },\n  \"source\": \"excel_calendar_range\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2960,
+        48
+      ],
+      "id": "ec30e43a-a549-42cd-88ab-e0fc59abbb93",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -3184,
+        48
+      ],
+      "id": "db4d062c-fa6a-4526-a986-d3b529f293ad",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nfor (const item of $input.all()) {\n  item.json.finish = true;\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        160,
+        48
+      ],
+      "id": "841cab5f-4ce7-43b0-b7a8-20bd759193de",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "dataToSave": {
+          "values": [
+            {
+              "key": "full_name",
+              "value": "={{ $json.full_name }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executionData",
+      "typeVersion": 1.1,
+      "position": [
+        -2512,
+        240
+      ],
+      "id": "7930fdc7-240c-45d2-a365-5eebd12346bf",
+      "name": "Execution Data"
+    },
+    {
+      "parameters": {
+        "errorType": "errorObject",
+        "errorObject": "={{ $json.node.name }}"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        -1392,
+        -176
+      ],
+      "id": "38e4afca-414a-42be-a2c5-2cdf29781423",
+      "name": "Stop and Error2"
+    },
+    {
+      "parameters": {
+        "errorMessage": "Create patient error"
+      },
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        -1776,
+        192
+      ],
+      "id": "9a0f0fed-6b4e-4135-99ca-639ac59643d3",
+      "name": "Stop and Error3"
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Clean data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean data": {
+      "main": [
+        [
+          {
+            "node": "Search Patient",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Execution Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Patient": {
+      "main": [
+        [
+          {
+            "node": "Patient Exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Patient Exists?": {
+      "main": [
+        [
+          {
+            "node": "Check Patient Changes",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Patient",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Patient Changes": {
+      "main": [
+        [
+          {
+            "node": "Changes Detected?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Changes Detected?": {
+      "main": [
+        [
+          {
+            "node": "Update Patient",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Patient ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Patient": {
+      "main": [
+        [
+          {
+            "node": "Patient ID",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stop and Error2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Patient": {
+      "main": [
+        [
+          {
+            "node": "Patient ID",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stop and Error3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Patient ID": {
+      "main": [
+        [
+          {
+            "node": "Search Procedure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Procedure": {
+      "main": [
+        [
+          {
+            "node": "Procedure Exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procedure Exists?": {
+      "main": [
+        [
+          {
+            "node": "Check Proc Changes",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Procedure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Proc Changes": {
+      "main": [
+        [
+          {
+            "node": "Proc Changed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Proc Changed?": {
+      "main": [
+        [
+          {
+            "node": "Update Procedure",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Procedure": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Create Procedure": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Clean data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "cbe7b26bafc130fb44f38a6a9d9ec48887d38175be68c74d23a330e4eeb11ebd"
+  }
+}
