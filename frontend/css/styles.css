@@ -4073,13 +4073,13 @@ body.app-shell {
   font-weight: 700;
   font-size: 0.8rem;
   margin: 0;
-  color: #082f49;
+  color: #f0f3f4;
 }
 
 .dashboard__title {
   margin: 0.25rem 0;
   font-size: 1.9rem;
-  color: #0b1626;
+  color: #fff;
 }
 
 .dashboard__subtitle {

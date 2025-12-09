@@ -33,6 +33,8 @@ from .version import get_app_version
 def _resolve_allowed_origins() -> list[str]:
     settings = get_settings()
     origins = {value.rstrip("/") for value in (settings.frontend_url, settings.backend_url) if value}
+    origins.add("http://0.0.0.0:8000")
+    origins.add("http://localhost:8000")
     return list(origins)
 
 

@@ -673,6 +673,7 @@ function addNoteFromInput() {
 }
 
 function populatePatientForm(record) {
+  console.log("isAdminUser in populatePatientForm:", isAdminUser);
   if (!record) {
     updatePatientDisplay(null);
     return;
@@ -1998,6 +1999,7 @@ async function initializePatientPage() {
   renderOptionControls();
   const user = await fetchCurrentUser().catch(() => null);
   currentUser = user;
+  console.log("User object from API:", user);
   isAdminUser = Boolean(user?.is_admin);
   setPatientRouteBase(isAdminUser);
   if (isAdminUser) {
