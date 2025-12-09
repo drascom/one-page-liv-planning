@@ -53,6 +53,28 @@ export function initAppVersionDisplay() {
 let cachedCurrentUser = null;
 let currentUserRequest = null;
 
+function normalizeAdminFlag(flag) {
+  if (typeof flag === "boolean") {
+    return flag;
+  }
+  if (typeof flag === "number") {
+    return flag === 1;
+  }
+  if (typeof flag === "string") {
+    const normalized = flag.trim().toLowerCase();
+    if (!normalized) return false;
+    return normalized === "true" || normalized === "1" || normalized === "yes";
+  }
+  return false;
+}
+
+function normalizeUserRecord(user) {
+  if (!user || typeof user !== "object") {
+    return null;
+  }
+  return { ...user, is_admin: normalizeAdminFlag(user.is_admin) };
+}
+
 async function loadCurrentUser() {
   const response = await fetch(buildApiUrl("/auth/me"));
   handleUnauthorized(response);
@@ -69,7 +91,9 @@ export async function fetchCurrentUser({ force = false } = {}) {
   if (!force && currentUserRequest) {
     return currentUserRequest;
   }
-  const request = loadCurrentUser().catch(() => null);
+  const request = loadCurrentUser()
+    .catch(() => null)
+    .then((user) => normalizeUserRecord(user));
   if (!force) {
     currentUserRequest = request;
   }
