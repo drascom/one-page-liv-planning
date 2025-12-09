@@ -2023,6 +2023,10 @@ body.app-shell {
   background: rgba(74, 222, 128, 0.25);
 }
 
+.status-canceled {
+  color: #fdfdfd;
+  background: rgba(255, 0, 0, 0.3);
+}
 .status-insurgery {
   color: #92400e;
   background: rgba(251, 191, 36, 0.3);
