@@ -25,6 +25,14 @@ body {
   padding-bottom: 4rem;
 }
 
+[data-admin-only] {
+  display: none !important;
+}
+
+:root[data-admin-user="true"] [data-admin-only] {
+  display: revert !important;
+}
+
 body.app-shell {
   background: #f3f4f6;
   color: #1f2937;
@@ -4233,6 +4241,171 @@ body.app-shell {
 }
 
 .dashboard-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.week-schedule {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.week-day {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.9rem;
+  padding: 0.9rem;
+  background: #f8fafc;
+}
+
+.week-day__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.week-day__label {
+  margin: 0;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.week-day__count {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.week-day__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.week-day__empty {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.booking-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.85rem;
+  padding: 0.85rem;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.booking-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
+}
+
+.booking-card__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.booking-card__title {
+  margin: 0;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.booking-card__meta {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+.booking-card__details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem 1.5rem;
+}
+
+.booking-card__detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 4.5rem;
+}
+
+.booking-card__detail-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.booking-card__detail-value {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.booking-card--weekend {
+  border-color: #fdba74;
+  background: #fff1e6;
+}
+
+.weekend-card {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 1px solid #fdba74;
+  background: #fff7ed;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.weekend-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.weekend-card__label {
+  margin: 0;
+  font-weight: 700;
+  color: #c2410c;
+}
+
+.weekend-card__count {
+  font-weight: 600;
+  color: #ea580c;
+  font-size: 0.9rem;
+}
+
+.weekend-card__days {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.weekend-card__day {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.weekend-day__label {
+  margin: 0;
+  font-weight: 600;
+  color: #c2410c;
+}
+
+.weekend-day__body {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;

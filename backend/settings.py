@@ -31,6 +31,8 @@ class Settings(BaseModel):
     google_client_secret: Optional[str] = os.getenv("GOOGLE_CLIENT_SECRET")
     google_project_id: Optional[str] = os.getenv("GOOGLE_PROJECT_ID")
     google_token_json: Optional[str] = os.getenv("GOOGLE_TOKEN_JSON")
+    google_auth_uri: str = os.getenv("GOOGLE_AUTH_URI", "https://accounts.google.com/o/oauth2/auth")
+    google_token_uri: str = os.getenv("GOOGLE_TOKEN_URI", "https://oauth2.googleapis.com/token")
 
 
 @lru_cache

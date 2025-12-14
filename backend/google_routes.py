@@ -74,8 +74,8 @@ def _get_flow(redirect_uri: str):
         "web": {
             "client_id": settings.google_client_id,
             "project_id": settings.google_project_id,
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_uri": settings.google_auth_uri,
+            "token_uri": settings.google_token_uri,
             "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
             "client_secret": settings.google_client_secret,
             "redirect_uris": [redirect_uri]

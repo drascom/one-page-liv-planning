@@ -43,6 +43,16 @@ const TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
   minute: "2-digit",
   timeZone: APP_TIMEZONE,
 });
+const DAY_HEADER_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  weekday: "long",
+  day: "numeric",
+  month: "short",
+  timeZone: APP_TIMEZONE,
+});
+const NUMBER_FORMATTER = new Intl.NumberFormat("en-GB");
+const FORM_OPTION_VALUES = ["form_1", "form_2", "form_3", "form_4", "form_5", "form_6"];
+const FORM_OPTION_SET = new Set(FORM_OPTION_VALUES);
+const FORM_TOTAL_COUNT = FORM_OPTION_VALUES.length;
 
 initSessionControls();
 initAppVersionDisplay();
@@ -102,6 +112,168 @@ function formatTime(value) {
   const parsed = parseDate(value);
   if (!parsed) return "";
   return TIME_FORMATTER.format(parsed);
+}
+
+function formatDayKey(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatWeekdayHeading(date) {
+  return DAY_HEADER_FORMATTER.format(date).replace(/,/g, "").trim();
+}
+
+function formatBookingCount(count) {
+  if (!count) return "No bookings";
+  return `${count} booking${count === 1 ? "" : "s"}`;
+}
+
+function formatGraftsValue(value) {
+  if (value === null || value === undefined || value === "") return "–";
+  const numberValue = Number(value);
+  if (Number.isNaN(numberValue)) return String(value);
+  return NUMBER_FORMATTER.format(numberValue);
+}
+
+function formatProcedureTimeLabel(value) {
+  if (!value) return "–";
+  const trimmed = String(value).trim();
+  return trimmed || "–";
+}
+
+function formatFormsProgress(values) {
+  if (!FORM_TOTAL_COUNT) return "0/0";
+  const entries = Array.isArray(values) ? values : [];
+  let selected = 0;
+  entries.forEach((entry) => {
+    if (FORM_OPTION_SET.has(entry)) {
+      selected += 1;
+    }
+  });
+  return `${selected}/${FORM_TOTAL_COUNT}`;
+}
+
+function getTimeValueInMinutes(value) {
+  if (typeof value !== "string") return Number.MAX_SAFE_INTEGER;
+  const match = value.trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return Number.MAX_SAFE_INTEGER;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return Number.MAX_SAFE_INTEGER;
+  return hour * 60 + minute;
+}
+
+function compareProceduresByDateAndTime(a, b) {
+  const dateDiff = (a.parsedDate?.getTime() || 0) - (b.parsedDate?.getTime() || 0);
+  if (dateDiff !== 0) return dateDiff;
+  const timeDiff = getTimeValueInMinutes(a.procedure_time) - getTimeValueInMinutes(b.procedure_time);
+  if (timeDiff !== 0) return timeDiff;
+  return a.patientName.localeCompare(b.patientName);
+}
+
+function buildWeekDaySchedule(procedures) {
+  const weekStart = startOfWeek(new Date());
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(weekStart);
+    date.setDate(weekStart.getDate() + index);
+    return {
+      date,
+      index,
+      key: formatDayKey(date),
+      label: formatWeekdayHeading(date),
+      items: [],
+    };
+  });
+  const lookup = new Map(days.map((day) => [day.key, day]));
+  procedures.forEach((proc) => {
+    if (!proc.parsedDate) return;
+    const day = lookup.get(formatDayKey(proc.parsedDate));
+    if (day) {
+      day.items.push(proc);
+    }
+  });
+  days.forEach((day) => {
+    day.items.sort(compareProceduresByDateAndTime);
+  });
+  return {
+    weekdays: days.filter((day) => day.index < 5),
+    weekend: days.filter((day) => day.index >= 5 && day.items.length > 0),
+  };
+}
+
+function createBookingDetailMarkup(label, value) {
+  return `
+    <span class="booking-card__detail">
+      <span class="booking-card__detail-label">${label}</span>
+      <span class="booking-card__detail-value">${value}</span>
+    </span>
+  `;
+}
+
+function createBookingCard(proc, variant = "weekday") {
+  const card = document.createElement("div");
+  card.className = `booking-card${variant === "weekend" ? " booking-card--weekend" : ""}`;
+  card.innerHTML = `
+    <div class="booking-card__header">
+      <p class="booking-card__title">${proc.patientName}</p>
+      <p class="booking-card__meta">${proc.procedure_type || "Type not set"} • ${proc.status || "Status not set"}</p>
+    </div>
+    <div class="booking-card__details">
+      ${createBookingDetailMarkup("Grafts", formatGraftsValue(proc.grafts))}
+      ${createBookingDetailMarkup("Time", formatProcedureTimeLabel(proc.procedure_time))}
+      ${createBookingDetailMarkup("Forms", formatFormsProgress(proc.forms))}
+    </div>
+  `;
+  card.addEventListener("click", () => navigateToPatient(proc.patient?.id, proc.id, proc.procedure_date));
+  return card;
+}
+
+function createWeekDaySection(day) {
+  const section = document.createElement("section");
+  section.className = "week-day";
+  section.innerHTML = `
+    <header class="week-day__header">
+      <p class="week-day__label">${day.label}</p>
+      <span class="week-day__count">${formatBookingCount(day.items.length)}</span>
+    </header>
+  `;
+  const body = document.createElement("div");
+  body.className = "week-day__body";
+  if (!day.items.length) {
+    body.innerHTML = `<p class="week-day__empty">No bookings</p>`;
+  } else {
+    day.items.forEach((proc) => body.appendChild(createBookingCard(proc)));
+  }
+  section.appendChild(body);
+  return section;
+}
+
+function createWeekendCard(days) {
+  const card = document.createElement("section");
+  card.className = "weekend-card";
+  const total = days.reduce((sum, day) => sum + day.items.length, 0);
+  card.innerHTML = `
+    <header class="weekend-card__header">
+      <p class="weekend-card__label">Weekend bookings</p>
+      <span class="weekend-card__count">${formatBookingCount(total)}</span>
+    </header>
+  `;
+  const daysContainer = document.createElement("div");
+  daysContainer.className = "weekend-card__days";
+  days.forEach((day) => {
+    const dayGroup = document.createElement("div");
+    dayGroup.className = "weekend-card__day";
+    dayGroup.innerHTML = `<p class="weekend-day__label">${day.label}</p>`;
+    const body = document.createElement("div");
+    body.className = "weekend-day__body";
+    day.items.forEach((proc) => body.appendChild(createBookingCard(proc, "weekend")));
+    dayGroup.appendChild(body);
+    daysContainer.appendChild(dayGroup);
+  });
+  card.appendChild(daysContainer);
+  return card;
 }
 
 function normalizeProcedures(patients, procedures) {
@@ -192,9 +364,9 @@ function renderWeekBookings(procedures) {
   if (!weekBookingsEl) return;
   weekBookingsEl.innerHTML = "";
   const weekProcedures = procedures.filter((proc) => proc.parsedDate && isWithinWeek(proc.parsedDate));
-  weekProcedures.sort((a, b) => (a.parsedDate?.getTime() || 0) - (b.parsedDate?.getTime() || 0));
+  const schedule = buildWeekDaySchedule(weekProcedures);
+
   if (weekProcedures.length === 0) {
-    weekBookingsEl.innerHTML = `<p class="empty-state">No bookings scheduled this week.</p>`;
     setHint(weekCardHintEl, "No bookings scheduled this week.");
   } else {
     setHint(weekCardHintEl, `${weekProcedures.length} booking${weekProcedures.length === 1 ? "" : "s"} this week.`);
@@ -207,22 +379,16 @@ function renderWeekBookings(procedures) {
     const end = endOfWeek(new Date());
     weekRangeEl.textContent = `${DATE_FORMATTER.format(start)} – ${DATE_FORMATTER.format(end)}`;
   }
-  weekProcedures.forEach((proc) => {
-    const row = document.createElement("div");
-    row.className = "booking-row";
-    row.innerHTML = `
-      <div class="booking-row__main">
-        <p class="booking-row__title">${proc.patientName}</p>
-        <p class="booking-row__meta">${proc.procedure_type || "Type not set"} • ${proc.status || "Status not set"}</p>
-      </div>
-      <div class="booking-row__time">
-        <span class="booking-row__date">${formatDate(proc.procedure_date)}</span>
-        <span class="booking-row__time-value">${formatTime(proc.procedure_date)}</span>
-      </div>
-    `;
-    row.addEventListener("click", () => navigateToPatient(proc.patient?.id, proc.id, proc.procedure_date));
-    weekBookingsEl.appendChild(row);
+  const weekdayList = document.createElement("div");
+  weekdayList.className = "week-schedule";
+  schedule.weekdays.forEach((day) => {
+    weekdayList.appendChild(createWeekDaySection(day));
   });
+  weekBookingsEl.appendChild(weekdayList);
+
+  if (schedule.weekend.length) {
+    weekBookingsEl.appendChild(createWeekendCard(schedule.weekend));
+  }
 }
 
 function hasMissingPaperwork(proc) {

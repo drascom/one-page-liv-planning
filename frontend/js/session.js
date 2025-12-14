@@ -75,6 +75,17 @@ function normalizeUserRecord(user) {
   return { ...user, is_admin: normalizeAdminFlag(user.is_admin) };
 }
 
+function updateDocumentAdminFlag(isAdmin) {
+  if (typeof document === "undefined" || !document.documentElement) {
+    return;
+  }
+  if (isAdmin) {
+    document.documentElement.setAttribute("data-admin-user", "true");
+  } else {
+    document.documentElement.removeAttribute("data-admin-user");
+  }
+}
+
 async function loadCurrentUser() {
   const response = await fetch(buildApiUrl("/auth/me"));
   handleUnauthorized(response);
@@ -98,6 +109,7 @@ export async function fetchCurrentUser({ force = false } = {}) {
     currentUserRequest = request;
   }
   const user = await request;
+  updateDocumentAdminFlag(Boolean(user?.is_admin));
   cachedCurrentUser = user;
   if (!force) {
     currentUserRequest = null;
