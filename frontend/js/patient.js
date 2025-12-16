@@ -1003,6 +1003,14 @@ function buildInlineDriveFileUrl(fileObj) {
   return url.includes("?") ? `${url}&disposition=inline` : `${url}?disposition=inline`;
 }
 
+function getDriveImagePreviewUrl(fileObj) {
+  if (!fileObj) return "";
+  if (isHeicFile(fileObj)) {
+    return fileObj.thumbnailLink || buildDriveFileUrl(fileObj);
+  }
+  return buildDriveFileUrl(fileObj);
+}
+
 function isPdfFile(file) {
   const mime = (file?.mimeType || "").toLowerCase();
   const name = (file?.name || "").toLowerCase();
@@ -1019,10 +1027,17 @@ function isZipFile(file) {
   );
 }
 
+function isHeicFile(file) {
+  const mime = (file?.mimeType || "").toLowerCase();
+  const name = (file?.name || "").toLowerCase();
+  return mime === "image/heic" || mime === "image/heif" || name.endsWith(".heic") || name.endsWith(".heif");
+}
+
 function isImageFile(file) {
   const mime = (file?.mimeType || "").toLowerCase();
   const name = (file?.name || "").toLowerCase();
   if (mime.startsWith("image/")) return true;
+  if (isHeicFile(file)) return true;
   return /\.(jpe?g|png|gif|webp|bmp|svg)$/i.test(name);
 }
 
@@ -1517,7 +1532,7 @@ function renderDriveGallery(images = getDriveImageFiles()) {
   driveImages.forEach((fileObj, index) => {
     const card = document.createElement("div");
     card.className = "photo-thumb";
-    const thumbUrl = fileObj.thumbnailLink || buildDriveFileUrl(fileObj);
+    const thumbUrl = fileObj.thumbnailLink || getDriveImagePreviewUrl(fileObj);
     card.style.backgroundImage = `url(${thumbUrl})`;
     const badge = document.createElement("span");
     badge.className = "drive-badge";
@@ -1615,9 +1630,11 @@ function openDrivePhotoViewer(index) {
   if (!driveImages.length) return;
   activeDrivePhotoIndex = (index + driveImages.length) % driveImages.length;
   const file = driveImages[activeDrivePhotoIndex];
-  viewerImage.src = buildDriveFileUrl(file);
+  const previewUrl = getDriveImagePreviewUrl(file);
+  viewerImage.src = previewUrl;
   if (viewerCaption) {
-    viewerCaption.textContent = file.name || `Photo ${activeDrivePhotoIndex + 1}`;
+    const label = file.name || `Photo ${activeDrivePhotoIndex + 1}`;
+    viewerCaption.textContent = isHeicFile(file) ? `${label} (HEIC preview)` : label;
   }
   viewerEl.hidden = false;
 }
