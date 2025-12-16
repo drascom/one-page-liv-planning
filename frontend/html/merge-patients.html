@@ -17,6 +17,7 @@
               <span class="top-nav__brand-name">Liv Planner</span>
               <span class="top-nav__version" data-app-version>Version dev</span>
             </span>
+            <span class="connection-indicator" id="connection-indicator" aria-hidden="true"></span>
           </a>
           <span class="top-nav__divider" aria-hidden="true">•</span>
           <span class="top-nav__section">Merge Patients</span>
@@ -95,21 +96,22 @@
                 <header class="merge-panel__header">
                   <div>
                     <p class="settings-section__eyebrow">Add patients</p>
-                    <h2>Bring in more records</h2>
+                    <h2>Pick records to combine</h2>
                   </div>
+                  <p class="merge-panel__hint merge-panel__hint--inline">Select patients to highlight them below.</p>
                 </header>
-                <label class="visually-hidden" for="merge-add-search">Find patient to add</label>
+                <label class="visually-hidden" for="merge-add-search">Search patients to add</label>
                 <div class="merge-search">
                   <span class="search-icon" aria-hidden="true">🔍</span>
                   <input
                     id="merge-add-search"
                     type="search"
-                    placeholder="Find another patient by name, email, or address"
+                    placeholder="Find a patient by name, email, or address"
                     class="search-input"
                     enterkeyhint="search"
                   />
                 </div>
-                <ul id="merge-available-list" class="merge-available-list"></ul>
+                <ul id="merge-directory-list" class="customer-list merge-directory-list" aria-live="polite"></ul>
               </section>
             </div>
 
@@ -175,6 +177,7 @@
     </div>
 
     <script src="/app-config.js"></script>
+    <script src="/static/js/nav-connection.js" type="module"></script>
     <script src="/static/js/merge-patients.js" type="module"></script>
   </body>
 </html>

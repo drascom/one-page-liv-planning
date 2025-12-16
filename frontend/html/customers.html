@@ -17,6 +17,7 @@
             <span class="top-nav__brand-name">Liv Planner</span>
             <span class="top-nav__version" data-app-version>Version dev</span>
           </span>
+          <span class="connection-indicator" id="connection-indicator" aria-hidden="true"></span>
         </a>
         <span class="top-nav__divider" aria-hidden="true">•</span>
         <span class="top-nav__section">Customers</span>
@@ -91,25 +92,13 @@
 
           <p id="customer-status" class="form-status" role="status"></p>
 
-          <div id="customer-merge-controls" class="customer-merge-controls" hidden>
-            <div class="customer-merge-controls__info">
-              <p class="customer-merge-controls__title">
-                <span id="customer-merge-count">0</span> selected for merge
-              </p>
-              <p class="customer-merge-controls__hint">Keep procedures, payments, and files together.</p>
-            </div>
-            <div class="customer-merge-controls__actions">
-              <button type="button" class="primary-btn" id="customer-merge-selected-btn" disabled>Combine selected</button>
-              <button type="button" class="ghost-btn" id="customer-merge-clear-btn">Clear</button>
-            </div>
-          </div>
-
           <ul id="customer-list" class="customer-list" aria-live="polite"></ul>
         </section>
       </main>
     </div>
 
     <script src="/app-config.js"></script>
+    <script src="/static/js/nav-connection.js" type="module"></script>
     <script src="/static/js/customers.js" type="module"></script>
   </body>
 </html>

@@ -21,6 +21,7 @@ const weekCountEl = document.getElementById("stat-week-count");
 const pendingCountEl = document.getElementById("stat-pending-count");
 const weekRangeEl = document.getElementById("stat-week-range");
 const connectionIndicator = document.getElementById("dashboard-connection-indicator");
+const navConnectionIndicator = document.getElementById("connection-indicator");
 const openChatbotBtn = document.getElementById("open-chatbot-btn");
 const closeChatbotBtn = document.getElementById("close-chatbot-btn");
 const chatbotPopup = document.getElementById("chatbot-popup");
@@ -560,8 +561,13 @@ function handleRealtimeEvent(payload) {
 }
 
 function updateConnectionIndicator(state) {
-  if (!connectionIndicator) return;
-  connectionIndicator.classList.toggle("connection-indicator--live", state === "live");
+  const isLive = state === "live";
+  if (connectionIndicator) {
+    connectionIndicator.classList.toggle("connection-indicator--live", isLive);
+  }
+  if (navConnectionIndicator) {
+    navConnectionIndicator.classList.toggle("connection-indicator--live", isLive);
+  }
 }
 
 function navigateToPatient(patientId, procedureId, procedureDate) {

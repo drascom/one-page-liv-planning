@@ -464,96 +464,151 @@ const FIELD_METADATA = {
     description: "Controls the badges shown on the schedule.",
     min: 1,
     placeholder: "e.g. Confirmed",
+    defaultColor: "#dbeafe",
   },
   procedure_type: {
     title: "Procedure Types",
     description: "Used to categorize procedures on the schedule.",
     min: 1,
     placeholder: "e.g. Minor Procedure",
+    defaultColor: "#bae6fd",
   },
   package_type: {
     title: "Package Types",
     description: "Controls the package dropdown on the patient form.",
     min: 1,
     placeholder: "e.g. Small",
+    defaultColor: "#fce7f3",
   },
   agency: {
     title: "Agencies",
     description: "Track referral agencies for each procedure.",
     min: 1,
     placeholder: "e.g. Liv Hair",
+    defaultColor: "#fef3c7",
   },
   forms: {
     title: "Forms",
     description: "Checklist requirements for each patient.",
     min: 0,
     placeholder: "e.g. Intake Packet",
+    defaultColor: "#e0f2fe",
   },
   consents: {
     title: "Consents",
     description: "Consent documents patients must complete.",
     min: 0,
     placeholder: "e.g. Surgical Consent",
+    defaultColor: "#ede9fe",
   },
   consultation: {
     title: "Consultations",
     description: "Consultation touchpoints tracked per patient.",
     min: 0,
     placeholder: "e.g. Pre-op Call",
+    defaultColor: "#bae6fd",
   },
   payment: {
     title: "Payment Status",
     description: "Displayed as the payment dropdown on the patient form.",
     min: 1,
     placeholder: "e.g. Deposit Paid",
+    defaultColor: "#fef3c7",
   },
 };
 
 const FIELD_DEFAULTS = {
   status: [
-    { value: "reserved", label: "Reserved" },
-    { value: "confirmed", label: "Confirmed" },
-    { value: "insurgery", label: "In Surgery" },
-    { value: "done", label: "Done" },
+    { value: "reserved", label: "Reserved", color: "#dbeafe" },
+    { value: "confirmed", label: "Confirmed", color: "#bbf7d0" },
+    { value: "insurgery", label: "In Surgery", color: "#fef9c3" },
+    { value: "done", label: "Done", color: "#dcfce7" },
   ],
   procedure_type: [
-    { value: "consultation", label: "Consultation" },
-    { value: "sfue", label: "sFUE" },
-    { value: "beard", label: "Beard" },
-    { value: "woman", label: "Woman" },
-    { value: "eyebrow", label: "Eyebrow" },
+    { value: "consultation", label: "Consultation", color: "#d1fae5" },
+    { value: "sfue", label: "sFUE", color: "#e0f2fe" },
+    { value: "beard", label: "Beard", color: "#fee2e2" },
+    { value: "woman", label: "Woman", color: "#fce7f3" },
+    { value: "eyebrow", label: "Eyebrow", color: "#fef9c3" },
   ],
   package_type: [
-    { value: "consultation", label: "Consultation" },
-    { value: "small", label: "Small" },
-    { value: "big", label: "Big" },
+    { value: "consultation", label: "Consultation", color: "#bae6fd" },
+    { value: "small", label: "Small", color: "#fce7f3" },
+    { value: "big", label: "Big", color: "#ddd6fe" },
   ],
   agency: [
-    { value: "want_hair", label: "Want Hair" },
-    { value: "liv_hair", label: "Liv Hair" },
+    { value: "want_hair", label: "Want Hair", color: "#fef3c7" },
+    { value: "liv_hair", label: "Liv Hair", color: "#dbeafe" },
   ],
   payment: [
-    { value: "waiting", label: "Waiting" },
-    { value: "paid", label: "Paid" },
-    { value: "partially_paid", label: "Partially Paid" },
+    { value: "waiting", label: "Waiting", color: "#fef3c7" },
+    { value: "paid", label: "Paid", color: "#bbf7d0" },
+    { value: "partially_paid", label: "Partially Paid", color: "#fde68a" },
   ],
   forms: [
-    { value: "form_1", label: "Registration" },
-    { value: "form_2", label: "PPAQ" },
-    { value: "form_3", label: "PPAQ Output (Dr)" },
-    { value: "form_4", label: "Booking (Dr)" },
-    { value: "form_5", label: "HT Forms (Pre Surgery)" },
-    { value: "form_6", label: "HT Forms (After Surgery)" },
+    { value: "form_1", label: "Registration", color: "#e0f2fe" },
+    { value: "form_2", label: "PPAQ", color: "#c7d2fe" },
+    { value: "form_3", label: "PPAQ Output (Dr)", color: "#ddd6fe" },
+    { value: "form_4", label: "Booking (Dr)", color: "#fde68a" },
+    { value: "form_5", label: "HT Forms (Pre Surgery)", color: "#fecdd3" },
+    { value: "form_6", label: "HT Forms (After Surgery)", color: "#dcfce7" },
   ],
   consents: [
-    { value: "consent_1", label: "HT-1 Admission" },
-    { value: "consent_2", label: "HT-2 Consent (Surgery)" },
+    { value: "consent_1", label: "HT-1 Admission", color: "#ffe4e6" },
+    { value: "consent_2", label: "HT-2 Consent (Surgery)", color: "#ede9fe" },
   ],
   consultation: [
-    { value: "consultation_1", label: "Consultation 1" },
-    { value: "consultation_2", label: "Consultation 2" },
+    { value: "consultation_1", label: "Consultation 1", color: "#bae6fd" },
+    { value: "consultation_2", label: "Consultation 2", color: "#fcd34d" },
   ],
 };
+
+function normalizeColorValue(value) {
+  const text = (value ?? "").toString().trim().toLowerCase();
+  if (!text) return null;
+  const match = text.match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (!match) return null;
+  const hex = match[1].length === 3 ? match[1].split("").map((char) => char + char).join("") : match[1];
+  return `#${hex.toLowerCase()}`;
+}
+
+function getDefaultOptionColor(field, value) {
+  const defaults = FIELD_DEFAULTS[field] ?? [];
+  const match = defaults.find((option) => option.value === value);
+  if (match?.color) {
+    return normalizeColorValue(match.color);
+  }
+  return normalizeColorValue(FIELD_METADATA[field]?.defaultColor);
+}
+
+function sanitizeOptions(field, options) {
+  if (!Array.isArray(options)) {
+    return [];
+  }
+  return options
+    .map((option) => {
+      const value = String(option?.value ?? "").trim();
+      if (!value) {
+        return null;
+      }
+      const label = String(option?.label ?? "").trim() || value;
+      const color = normalizeColorValue(option?.color) ?? getDefaultOptionColor(field, value);
+      return { value, label, color };
+    })
+    .filter(Boolean);
+}
+
+function buildFieldOptionsState(payload = null) {
+  return Object.fromEntries(
+    Object.keys(FIELD_METADATA).map((field) => {
+      const incoming = payload && Array.isArray(payload[field]) ? payload[field] : undefined;
+      if (Array.isArray(incoming)) {
+        return [field, sanitizeOptions(field, incoming)];
+      }
+      return [field, sanitizeOptions(field, FIELD_DEFAULTS[field])];
+    })
+  );
+}
 
 const SEQUENTIAL_OPTION_PREFIXES = {
   forms: "form",
@@ -563,7 +618,7 @@ const SEQUENTIAL_OPTION_PREFIXES = {
 const fieldOptionsContainer = document.getElementById("field-options-container");
 const resetFieldOptionsBtn = document.getElementById("reset-field-options-btn");
 const fieldOptionsStatus = document.getElementById("field-options-status");
-let currentFieldOptions = JSON.parse(JSON.stringify(FIELD_DEFAULTS));
+let currentFieldOptions = buildFieldOptionsState();
 const optionEditorRefs = new Map();
 
 function escapeHtml(value) {
@@ -594,15 +649,10 @@ async function fetchFieldOptionsData() {
       throw new Error("Unable to load option lists");
     }
     const payload = await response.json();
-    currentFieldOptions = Object.fromEntries(
-      Object.keys(FIELD_METADATA).map((field) => {
-        const incoming = Array.isArray(payload?.[field]) ? payload[field] : null;
-        return [field, incoming && incoming.length ? incoming : FIELD_DEFAULTS[field]];
-      })
-    );
+    currentFieldOptions = buildFieldOptionsState(payload);
   } catch (error) {
     console.error(error);
-    currentFieldOptions = JSON.parse(JSON.stringify(FIELD_DEFAULTS));
+    currentFieldOptions = buildFieldOptionsState();
   }
 }
 
@@ -658,18 +708,24 @@ function renderOptionList(field) {
     return;
   }
   list.innerHTML = options
-    .map(
-      (option) => `
+    .map((option) => {
+      const colorValue = normalizeColorValue(option.color) ?? getDefaultOptionColor(field, option.value) ?? "#0f172a";
+      return `
         <li class="option-card__item" data-value="${option.value}">
           <span class="option-card__bullet">•</span>
           <div class="option-card__text">
             <span class="option-card__label">${escapeHtml(option.label)}</span>
             <span class="option-card__value">${escapeHtml(option.value)}</span>
           </div>
+          <input type="color"
+            class="option-card__color"
+            value="${colorValue}"
+            aria-label="Choose color for ${escapeHtml(option.label)}"
+            title="Pick pill color" />
           <button type="button" class="option-card__remove" aria-label="Remove option">×</button>
         </li>
-      `
-    )
+      `;
+    })
     .join("");
 }
 
@@ -695,7 +751,8 @@ function addOptionFromInput(field) {
     return;
   }
   const value = generateUniqueValue(field, label);
-  currentFieldOptions[field] = [...(currentFieldOptions[field] ?? []), { label, value }];
+  const defaultColor = normalizeColorValue(FIELD_METADATA[field]?.defaultColor) ?? "#0f172a";
+  currentFieldOptions[field] = [...(currentFieldOptions[field] ?? []), { label, value, color: defaultColor }];
   refs.input.value = "";
   renderOptionList(field);
   setStatus(field, "Added locally. Click Save to persist.");
@@ -705,6 +762,14 @@ function removeOption(field, value) {
   currentFieldOptions[field] = (currentFieldOptions[field] ?? []).filter((option) => option.value !== value);
   renderOptionList(field);
   setStatus(field, "Removed locally. Click Save to persist.");
+}
+
+function updateOptionColor(field, value, color) {
+  const normalized = normalizeColorValue(color);
+  currentFieldOptions[field] = (currentFieldOptions[field] ?? []).map((option) =>
+    option.value === value ? { ...option, color: normalized } : option
+  );
+  saveFieldOptions(field);
 }
 
 async function saveFieldOptions(field) {
@@ -729,7 +794,7 @@ async function saveFieldOptions(field) {
       throw new Error("Failed to save options");
     }
     const updated = await response.json();
-    currentFieldOptions[field] = updated;
+    currentFieldOptions[field] = sanitizeOptions(field, updated);
     renderOptionList(field);
     setStatus(field, "Saved.");
   } catch (error) {
@@ -754,7 +819,7 @@ async function resetAllFieldOptions() {
   setFieldOptionsStatus("Resetting dropdown options...", 0);
   try {
     for (const field of Object.keys(FIELD_METADATA)) {
-      const defaults = (FIELD_DEFAULTS[field] ?? []).map((option) => ({ ...option }));
+      const defaults = sanitizeOptions(field, FIELD_DEFAULTS[field]);
       const response = await fetch(buildApiUrl(`/field-options/${field}`), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -765,7 +830,7 @@ async function resetAllFieldOptions() {
         throw new Error(`Failed to reset ${field} options`);
       }
       const updated = await response.json();
-      currentFieldOptions[field] = updated;
+      currentFieldOptions[field] = sanitizeOptions(field, updated);
     }
     renderFieldOptionForms();
     setFieldOptionsStatus("Dropdown options restored to defaults.");
@@ -824,7 +889,15 @@ function renderFieldOptionForms() {
       const value = item?.dataset.value;
       if (!value) return;
       removeOption(field, value);
-      saveFieldOptions(field)
+      saveFieldOptions(field);
+    });
+    list.addEventListener("input", (event) => {
+      const colorInput = event.target.closest(".option-card__color");
+      if (!colorInput) return;
+      const item = colorInput.closest(".option-card__item");
+      const value = item?.dataset.value;
+      if (!value) return;
+      updateOptionColor(field, value, colorInput.value);
     });
     saveButton.addEventListener("click", () => saveFieldOptions(field));
     renderOptionList(field);

@@ -456,50 +456,50 @@ def delete_user(user_id: int) -> bool:
         conn.commit()
         return cursor.rowcount > 0
 
-DEFAULT_FIELD_OPTIONS: Dict[str, List[Dict[str, str]]] = {
+DEFAULT_FIELD_OPTIONS: Dict[str, List[Dict[str, Any]]] = {
     "status": [
-        {"value": "confirmed", "label": "Confirmed"},
-        {"value": "reserved", "label": "Reserved"},
-        {"value": "cancelled", "label": "Cancelled"},
-        {"value": "done", "label": "Done"},
+        {"value": "confirmed", "label": "Confirmed", "color": "#bbf7d0"},
+        {"value": "reserved", "label": "Reserved", "color": "#dbeafe"},
+        {"value": "cancelled", "label": "Cancelled", "color": "#fecaca"},
+        {"value": "done", "label": "Done", "color": "#dcfce7"},
     ],
     "procedure_type": [
-        {"value": "hair_transplant", "label": "Hair Transplant"},
-        {"value": "beard", "label": "Beard Transplant"},
-        {"value": "woman", "label": "Woman Transplant"},
-        {"value": "eyebrow", "label": "Eyebrow Transplant"},
-        {"value": "face_to_face_consultation", "label": "Face to Face Consultation"},
-        {"value": "video_consultation", "label": "Video Consultation"},
+        {"value": "hair_transplant", "label": "Hair Transplant", "color": "#e0f2fe"},
+        {"value": "beard", "label": "Beard Transplant", "color": "#fee2e2"},
+        {"value": "woman", "label": "Woman Transplant", "color": "#fce7f3"},
+        {"value": "eyebrow", "label": "Eyebrow Transplant", "color": "#fef9c3"},
+        {"value": "face_to_face_consultation", "label": "Face to Face Consultation", "color": "#d1fae5"},
+        {"value": "video_consultation", "label": "Video Consultation", "color": "#bae6fd"},
     ],
     "package_type": [
-        {"value": "na", "label": "N/A"},
-        {"value": "small", "label": "Small"},
-        {"value": "big", "label": "Big"},
+        {"value": "na", "label": "N/A", "color": "#e2e8f0"},
+        {"value": "small", "label": "Small", "color": "#fce7f3"},
+        {"value": "big", "label": "Big", "color": "#ddd6fe"},
     ],
     "agency": [
-        {"value": "want_hair", "label": "Want Hair"},
-        {"value": "liv_hair", "label": "Liv Hair"},
+        {"value": "want_hair", "label": "Want Hair", "color": "#fef3c7"},
+        {"value": "liv_hair", "label": "Liv Hair", "color": "#dbeafe"},
     ],
     "forms": [
-        {"value": "form_1", "label": "Registration"},
-        {"value": "form_2", "label": "PPAQ"},
-        {"value": "form_3", "label": "PPAQ Output (Dr)"},
-        {"value": "form_4", "label": "Booking (Dr)"},
-        {"value": "form_5", "label": "HT Forms (Pre Surgery)"},
-        {"value": "form_6", "label": "HT Forms (After Surgery)"},
+        {"value": "form_1", "label": "Registration", "color": "#e0f2fe"},
+        {"value": "form_2", "label": "PPAQ", "color": "#c7d2fe"},
+        {"value": "form_3", "label": "PPAQ Output (Dr)", "color": "#ddd6fe"},
+        {"value": "form_4", "label": "Booking (Dr)", "color": "#fde68a"},
+        {"value": "form_5", "label": "HT Forms (Pre Surgery)", "color": "#fecdd3"},
+        {"value": "form_6", "label": "HT Forms (After Surgery)", "color": "#dcfce7"},
     ],
     "consents": [
-        {"value": "consent_1", "label": "HT-1 Admission"},
-        {"value": "consent_2", "label": "HT-2 Consent (Surgery)"},
+        {"value": "consent_1", "label": "HT-1 Admission", "color": "#ffe4e6"},
+        {"value": "consent_2", "label": "HT-2 Consent (Surgery)", "color": "#ede9fe"},
     ],
     "consultation": [
-        {"value": "consultation_1", "label": "Consultation 1"},
-        {"value": "consultation_2", "label": "Consultation 2"},
+        {"value": "consultation_1", "label": "Consultation 1", "color": "#bae6fd"},
+        {"value": "consultation_2", "label": "Consultation 2", "color": "#fcd34d"},
     ],
     "payment": [
-        {"value": "waiting", "label": "Waiting"},
-        {"value": "paid", "label": "Paid"},
-        {"value": "partially_paid", "label": "Partially Paid"},
+        {"value": "waiting", "label": "Waiting", "color": "#fef3c7"},
+        {"value": "paid", "label": "Paid", "color": "#bbf7d0"},
+        {"value": "partially_paid", "label": "Partially Paid", "color": "#fde68a"},
     ],
 }
 
@@ -626,7 +626,23 @@ def _normalize_consultation_column(conn: sqlite3.Connection) -> None:
         conn.commit()
 
 
-def _deserialize_field_option_payload(payload: Optional[str]) -> Optional[List[Dict[str, str]]]:
+def _normalize_hex_color(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    if not text.startswith("#"):
+        text = f"#{text}"
+    if not re.fullmatch(r"#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})", text):
+        return None
+    if len(text) == 4:
+        expanded = "#" + "".join(ch * 2 for ch in text[1:])
+        return expanded.lower()
+    return text.lower()
+
+
+def _deserialize_field_option_payload(payload: Optional[str]) -> Optional[List[Dict[str, Any]]]:
     if not payload:
         return None
     try:
@@ -635,7 +651,7 @@ def _deserialize_field_option_payload(payload: Optional[str]) -> Optional[List[D
         return None
     if not isinstance(data, list):
         return None
-    normalized: List[Dict[str, str]] = []
+    normalized: List[Dict[str, Any]] = []
     for entry in data:
         if not isinstance(entry, dict):
             continue
@@ -643,8 +659,27 @@ def _deserialize_field_option_payload(payload: Optional[str]) -> Optional[List[D
         label = str(entry.get("label", "")).strip() or value
         if not value:
             continue
-        normalized.append({"value": value, "label": label})
+        color = _normalize_hex_color(entry.get("color"))
+        normalized.append({"value": value, "label": label, "color": color})
     return normalized
+
+
+def _default_option_color(field: str, value: str) -> Optional[str]:
+    defaults = DEFAULT_FIELD_OPTIONS.get(field) or []
+    for option in defaults:
+        if option.get("value") == value:
+            return option.get("color")
+    return None
+
+
+def _apply_option_colors(field: str, options: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    colored: List[Dict[str, Any]] = []
+    for option in options:
+        entry = dict(option)
+        if not entry.get("color"):
+            entry["color"] = _default_option_color(field, entry["value"])
+        colored.append(entry)
+    return colored
 
 
 def _extract_sequential_suffix(base: str, value: str) -> Optional[int]:
@@ -704,7 +739,7 @@ def _canonical_option_value(field: str, value: str) -> str:
     return f"{base}_{suffix}" if suffix is not None else value.strip()
 
 
-def _options_match_legacy(field: str, options: List[Dict[str, str]]) -> bool:
+def _options_match_legacy(field: str, options: List[Dict[str, Any]]) -> bool:
     legacy = LEGACY_FIELD_OPTION_DEFAULTS.get(field)
     if not legacy or len(options) != len(legacy):
         return False
@@ -739,18 +774,21 @@ def _replace_legacy_field_options(conn: sqlite3.Connection, field: str) -> bool:
     return True
 
 
-def list_field_options() -> Dict[str, List[Dict[str, str]]]:
+def list_field_options() -> Dict[str, List[Dict[str, Any]]]:
     with closing(get_connection()) as conn:
         cursor = conn.execute("SELECT field, options FROM field_options")
         data = {row[0]: _deserialize_field_option_payload(row[1]) for row in cursor.fetchall()}
-    result: Dict[str, List[Dict[str, str]]] = {}
+    result: Dict[str, List[Dict[str, Any]]] = {}
     for field in FIELD_OPTION_FIELDS:
         options = data.get(field)
-        result[field] = options if options is not None else DEFAULT_FIELD_OPTIONS[field]
+        if options is None:
+            result[field] = DEFAULT_FIELD_OPTIONS[field]
+        else:
+            result[field] = _apply_option_colors(field, options)
     return result
 
 
-def get_field_options(field: str) -> List[Dict[str, str]]:
+def get_field_options(field: str) -> List[Dict[str, Any]]:
     if field not in FIELD_OPTION_FIELDS:
         raise ValueError("Unknown field option")
     with closing(get_connection()) as conn:
@@ -759,10 +797,12 @@ def get_field_options(field: str) -> List[Dict[str, str]]:
     if not row:
         return DEFAULT_FIELD_OPTIONS[field]
     options = _deserialize_field_option_payload(row["options"])
-    return options if options is not None else DEFAULT_FIELD_OPTIONS[field]
+    if options is None:
+        return DEFAULT_FIELD_OPTIONS[field]
+    return _apply_option_colors(field, options)
 
 
-def update_field_options(field: str, options: List[Dict[str, str]]) -> List[Dict[str, str]]:
+def update_field_options(field: str, options: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     if field not in FIELD_OPTION_FIELDS:
         raise ValueError("Unknown field option")
     sequential_base = SEQUENTIAL_OPTION_PREFIXES.get(field)
@@ -773,11 +813,12 @@ def update_field_options(field: str, options: List[Dict[str, str]]) -> List[Dict
             suffix = _extract_sequential_suffix(sequential_base, candidate) if candidate else None
             if suffix is not None:
                 next_suffix = max(next_suffix, suffix + 1)
-    normalized: List[Dict[str, str]] = []
+    normalized: List[Dict[str, Any]] = []
     seen: set[str] = set()
     for option in options:
         value = str(option.get("value", "")).strip()
         label = str(option.get("label", "")).strip() or value
+        color = _normalize_hex_color(option.get("color"))
         if sequential_base:
             if not label and not value:
                 continue
@@ -796,7 +837,8 @@ def update_field_options(field: str, options: List[Dict[str, str]]) -> List[Dict
             if value in seen:
                 continue
         seen.add(value)
-        normalized.append({"value": value, "label": label})
+        normalized.append({"value": value, "label": label, "color": color})
+    normalized = _apply_option_colors(field, normalized)
     with closing(get_connection()) as conn:
         conn.execute(
             "INSERT INTO field_options (field, options) VALUES (?, ?) ON CONFLICT(field) DO UPDATE SET options = excluded.options",

@@ -9,49 +9,49 @@ import { APP_TIMEZONE, toLondonTimeString } from "./timezone.js";
 
 const DEFAULT_FIELD_OPTIONS = {
   status: [
-    { value: "confirmed", label: "Confirmed" },
-    { value: "reserved", label: "Reserved" },
-    { value: "cancelled", label: "Cancelled" },
-    { value: "done", label: "Done" },
+    { value: "confirmed", label: "Confirmed", color: "#bbf7d0" },
+    { value: "reserved", label: "Reserved", color: "#dbeafe" },
+    { value: "cancelled", label: "Cancelled", color: "#fecaca" },
+    { value: "done", label: "Done", color: "#dcfce7" },
   ],
   procedure_type: [
-    { value: "sfue", label: "sFUE" },
-    { value: "hair_transplant", label: "Hair Transplant" },
-    { value: "beard", label: "Beard" },
-    { value: "woman", label: "Woman" },
-    { value: "eyebrow", label: "Eyebrow" },
-    { value: "face_to_face", label: "Face to Face Consultation" },
-    { value: "video_consultation", label: "Video Consultation" },
+    { value: "sfue", label: "sFUE", color: "#e0f2fe" },
+    { value: "hair_transplant", label: "Hair Transplant", color: "#bae6fd" },
+    { value: "beard", label: "Beard", color: "#fee2e2" },
+    { value: "woman", label: "Woman", color: "#fce7f3" },
+    { value: "eyebrow", label: "Eyebrow", color: "#fef9c3" },
+    { value: "face_to_face", label: "Face to Face Consultation", color: "#d1fae5" },
+    { value: "video_consultation", label: "Video Consultation", color: "#ede9fe" },
   ],
   package_type: [
-    { value: "consultation", label: "Consultation" },
-    { value: "small", label: "Small" },
-    { value: "big", label: "Big" },
+    { value: "consultation", label: "Consultation", color: "#bae6fd" },
+    { value: "small", label: "Small", color: "#fce7f3" },
+    { value: "big", label: "Big", color: "#ddd6fe" },
   ],
   agency: [
-    { value: "want_hair", label: "Want Hair" },
-    { value: "liv_hair", label: "Liv Hair" },
+    { value: "want_hair", label: "Want Hair", color: "#fef3c7" },
+    { value: "liv_hair", label: "Liv Hair", color: "#dbeafe" },
   ],
   payment: [
-    { value: "waiting", label: "Waiting" },
-    { value: "paid", label: "Paid" },
-    { value: "partially_paid", label: "Partially Paid" },
+    { value: "waiting", label: "Waiting", color: "#fef3c7" },
+    { value: "paid", label: "Paid", color: "#bbf7d0" },
+    { value: "partially_paid", label: "Partially Paid", color: "#fde68a" },
   ],
   forms: [
-    { value: "form_1", label: "Registration" },
-    { value: "form_2", label: "PPAQ" },
-    { value: "form_3", label: "PPAQ Output (Dr)" },
-    { value: "form_4", label: "Booking (Dr)" },
-    { value: "form_5", label: "HT Forms (Pre Surgery)" },
-    { value: "form_6", label: "HT Forms (After Surgery)" },
+    { value: "form_1", label: "Registration", color: "#e0f2fe" },
+    { value: "form_2", label: "PPAQ", color: "#c7d2fe" },
+    { value: "form_3", label: "PPAQ Output (Dr)", color: "#ddd6fe" },
+    { value: "form_4", label: "Booking (Dr)", color: "#fde68a" },
+    { value: "form_5", label: "HT Forms (Pre Surgery)", color: "#fecdd3" },
+    { value: "form_6", label: "HT Forms (After Surgery)", color: "#dcfce7" },
   ],
   consents: [
-    { value: "consent_1", label: "HT-1 Admission" },
-    { value: "consent_2", label: "HT-2 Consent (Surgery)" },
+    { value: "consent_1", label: "HT-1 Admission", color: "#ffe4e6" },
+    { value: "consent_2", label: "HT-2 Consent (Surgery)", color: "#ede9fe" },
   ],
   consultation: [
-    { value: "consultation_1", label: "Consultation 1" },
-    { value: "consultation_2", label: "Consultation 2" },
+    { value: "consultation_1", label: "Consultation 1", color: "#bae6fd" },
+    { value: "consultation_2", label: "Consultation 2", color: "#fcd34d" },
   ],
 };
 
@@ -417,6 +417,8 @@ const fileInput = document.getElementById("photo-input");
 const browseButton = document.getElementById("browse-button");
 const galleryContainer = document.getElementById("photo-gallery");
 const galleryEmptyState = document.getElementById("photo-empty");
+const videoGalleryContainer = document.getElementById("video-gallery");
+const videoEmptyState = document.getElementById("video-empty");
 const viewerEl = document.getElementById("photo-viewer");
 const viewerImage = document.getElementById("photo-viewer-image");
 const viewerCaption = document.getElementById("photo-viewer-caption");
@@ -990,6 +992,17 @@ function buildDriveFileUrl(fileObj) {
   return fileObj.driveLink || "";
 }
 
+function buildInlineDriveFileUrl(fileObj) {
+  const url = buildDriveFileUrl(fileObj);
+  if (!url) {
+    return "";
+  }
+  if (!url.includes("/drive-image/")) {
+    return url;
+  }
+  return url.includes("?") ? `${url}&disposition=inline` : `${url}?disposition=inline`;
+}
+
 function isPdfFile(file) {
   const mime = (file?.mimeType || "").toLowerCase();
   const name = (file?.name || "").toLowerCase();
@@ -1013,11 +1026,20 @@ function isImageFile(file) {
   return /\.(jpe?g|png|gif|webp|bmp|svg)$/i.test(name);
 }
 
+function isVideoFile(file) {
+  const mime = (file?.mimeType || "").toLowerCase();
+  const name = (file?.name || "").toLowerCase();
+  if (mime.startsWith("video/")) return true;
+  return /\.(mp4|mov|m4v|webm|ogg)$/i.test(name);
+}
+
 function classifyDriveFiles(files = []) {
-  const buckets = { images: [], pdfs: [], archives: [], others: [] };
+  const buckets = { images: [], videos: [], pdfs: [], archives: [], others: [] };
   files.forEach((file) => {
     if (isImageFile(file)) {
       buckets.images.push(file);
+    } else if (isVideoFile(file)) {
+      buckets.videos.push(file);
     } else if (isPdfFile(file)) {
       buckets.pdfs.push(file);
     } else if (isZipFile(file)) {
@@ -1433,11 +1455,6 @@ function renderDriveDocuments(pdfFiles = [], archiveFiles = [], otherFiles = [])
       return link;
     };
 
-    const withInlineDisposition = (href) => {
-      if (!href || !href.includes("/drive-image/")) return href;
-      return href.includes("?") ? `${href}&disposition=inline` : `${href}?disposition=inline`;
-    };
-
     const card = document.createElement("div");
     card.className = "document-card";
 
@@ -1458,12 +1475,13 @@ function renderDriveDocuments(pdfFiles = [], archiveFiles = [], otherFiles = [])
     const actions = document.createElement("div");
     actions.className = "document-card__actions";
     const url = buildDriveFileUrl(file);
+    const inlineUrl = buildInlineDriveFileUrl(file);
     if (url) {
       if (kind === "pdf") {
         const viewLink = createIconLink(
           "Open file",
           ["M5 9v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V11", "M14 5h5m0 0v5m0-5L10 14"],
-          { href: withInlineDisposition(url), target: "_blank", rel: "noreferrer noopener" }
+          { href: inlineUrl || url, target: "_blank", rel: "noreferrer noopener" }
         );
         actions.appendChild(viewLink);
       }
@@ -1507,6 +1525,49 @@ function renderDriveGallery(images = getDriveImageFiles()) {
     card.appendChild(badge);
     card.addEventListener("click", () => openDrivePhotoViewer(index));
     galleryContainer.appendChild(card);
+  });
+}
+
+function renderDriveVideos(videos = []) {
+  if (!videoGalleryContainer || !videoEmptyState) return;
+  const driveVideos = Array.isArray(videos) ? videos : [];
+  videoGalleryContainer.innerHTML = "";
+  if (!driveVideos.length) {
+    videoEmptyState.textContent = "No videos uploaded yet.";
+    return;
+  }
+  videoEmptyState.textContent = `${driveVideos.length} video${
+    driveVideos.length === 1 ? "" : "s"
+  } available`;
+  driveVideos.forEach((file) => {
+    const card = document.createElement("div");
+    card.className = "photo-thumb photo-thumb--video";
+    const videoEl = document.createElement("video");
+    videoEl.className = "patient-video";
+    videoEl.controls = true;
+    videoEl.preload = "metadata";
+    videoEl.setAttribute("playsinline", "");
+    const inlineUrl = buildInlineDriveFileUrl(file);
+    const sourceUrl = inlineUrl || file.driveLink || "";
+    if (file?.thumbnailLink) {
+      videoEl.poster = file.thumbnailLink;
+    }
+    if (sourceUrl) {
+      const sourceEl = document.createElement("source");
+      sourceEl.src = sourceUrl;
+      if (file.mimeType) {
+        sourceEl.type = file.mimeType;
+      }
+      videoEl.appendChild(sourceEl);
+    } else {
+      videoEl.textContent = "Unable to preview this video.";
+    }
+    const badge = document.createElement("span");
+    badge.className = "drive-badge";
+    badge.textContent = "Drive";
+    card.appendChild(videoEl);
+    card.appendChild(badge);
+    videoGalleryContainer.appendChild(card);
   });
 }
 
@@ -1574,9 +1635,10 @@ function showRelativeDrivePhoto(step) {
 }
 
 function renderDriveAssets() {
-  const { images, pdfs, archives, others } = classifyDriveFiles(getDriveFiles());
+  const { images, videos, pdfs, archives, others } = classifyDriveFiles(getDriveFiles());
   renderDriveDocuments(pdfs, archives, others);
   renderDriveGallery(images);
+  renderDriveVideos(videos);
 }
 
 function buildPatientPayloadFromForm() {

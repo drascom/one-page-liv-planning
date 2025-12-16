@@ -17,48 +17,48 @@ const searchResultsEl = document.getElementById("patient-search-results");
 
 const DEFAULT_FIELD_OPTIONS = {
   status: [
-    { value: "confirmed", label: "Confirmed" },
-    { value: "reserved", label: "Reserved" },
-    { value: "cancelled", label: "Cancelled" },
-    { value: "done", label: "Done" },
+    { value: "confirmed", label: "Confirmed", color: "#bbf7d0" },
+    { value: "reserved", label: "Reserved", color: "#dbeafe" },
+    { value: "cancelled", label: "Cancelled", color: "#fecaca" },
+    { value: "done", label: "Done", color: "#dcfce7" },
   ],
   procedure_type: [
-    { value: "sfue", label: "sFUE" },
-    { value: "hair_transplant", label: "Hair Transplant" },
-    { value: "beard", label: "Beard" },
-    { value: "woman", label: "Woman" },
-    { value: "eyebrow", label: "Eyebrow" },
-    { value: "face_to_face", label: "Face to Face Consultation" },
-    { value: "video_consultation", label: "Video Consultation" },
+    { value: "sfue", label: "sFUE", color: "#e0f2fe" },
+    { value: "hair_transplant", label: "Hair Transplant", color: "#bae6fd" },
+    { value: "beard", label: "Beard", color: "#fee2e2" },
+    { value: "woman", label: "Woman", color: "#fce7f3" },
+    { value: "eyebrow", label: "Eyebrow", color: "#fef9c3" },
+    { value: "face_to_face", label: "Face to Face Consultation", color: "#d1fae5" },
+    { value: "video_consultation", label: "Video Consultation", color: "#ede9fe" },
   ],
   package_type: [
-    { value: "small", label: "Small" },
-    { value: "big", label: "Big" },
+    { value: "small", label: "Small", color: "#fce7f3" },
+    { value: "big", label: "Big", color: "#ddd6fe" },
   ],
   agency: [
-    { value: "want_hair", label: "Want Hair" },
-    { value: "liv_hair", label: "Liv Hair" },
+    { value: "want_hair", label: "Want Hair", color: "#fef3c7" },
+    { value: "liv_hair", label: "Liv Hair", color: "#dbeafe" },
   ],
   payment: [
-    { value: "waiting", label: "Waiting" },
-    { value: "paid", label: "Paid" },
-    { value: "partially_paid", label: "Partially Paid" },
+    { value: "waiting", label: "Waiting", color: "#fef3c7" },
+    { value: "paid", label: "Paid", color: "#bbf7d0" },
+    { value: "partially_paid", label: "Partially Paid", color: "#fde68a" },
   ],
   forms: [
-    { value: "form_1", label: "Registration" },
-    { value: "form_2", label: "PPAQ" },
-    { value: "form_3", label: "PPAQ Output (Dr)" },
-    { value: "form_4", label: "Booking (Dr)" },
-    { value: "form_5", label: "HT Forms (Pre Surgery)" },
-    { value: "form_6", label: "HT Forms (After Surgery)" },
+    { value: "form_1", label: "Registration", color: "#e0f2fe" },
+    { value: "form_2", label: "PPAQ", color: "#c7d2fe" },
+    { value: "form_3", label: "PPAQ Output (Dr)", color: "#ddd6fe" },
+    { value: "form_4", label: "Booking (Dr)", color: "#fde68a" },
+    { value: "form_5", label: "HT Forms (Pre Surgery)", color: "#fecdd3" },
+    { value: "form_6", label: "HT Forms (After Surgery)", color: "#dcfce7" },
   ],
   consents: [
-    { value: "consent_1", label: "HT-1 Admission" },
-    { value: "consent_2", label: "HT-2 Consent (Surgery)" },
+    { value: "consent_1", label: "HT-1 Admission", color: "#ffe4e6" },
+    { value: "consent_2", label: "HT-2 Consent (Surgery)", color: "#ede9fe" },
   ],
   consultation: [
-    { value: "consultation_1", label: "Consultation 1" },
-    { value: "consultation_2", label: "Consultation 2" },
+    { value: "consultation_1", label: "Consultation 1", color: "#bae6fd" },
+    { value: "consultation_2", label: "Consultation 2", color: "#fcd34d" },
   ],
 };
 
@@ -85,6 +85,51 @@ function getOptionLabel(field, value) {
   return match?.label ?? value;
 }
 
+function normalizeHexColor(value) {
+  const text = (value ?? "").toString().trim().toLowerCase();
+  if (!text) {
+    return null;
+  }
+  const match = text.match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (!match) {
+    return null;
+  }
+  const hex = match[1].length === 3 ? match[1].split("").map((char) => char + char).join("") : match[1];
+  return `#${hex.toLowerCase()}`;
+}
+
+function getOptionColor(field, value) {
+  if (!field || !value) return null;
+  const match = getFieldOptions(field).find((option) => option.value === value);
+  return normalizeHexColor(match?.color);
+}
+
+function getReadableTextColor(hexColor) {
+  const normalized = normalizeHexColor(hexColor);
+  if (!normalized) return null;
+  const r = parseInt(normalized.slice(1, 3), 16);
+  const g = parseInt(normalized.slice(3, 5), 16);
+  const b = parseInt(normalized.slice(5, 7), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.65 ? "#0f172a" : "#ffffff";
+}
+
+function applyFieldOptionColor(element, field, value) {
+  if (!element) return false;
+  const color = getOptionColor(field, value);
+  if (!color) {
+    element.style.backgroundColor = "";
+    element.style.color = "";
+    return false;
+  }
+  element.style.backgroundColor = color;
+  const textColor = getReadableTextColor(color);
+  if (textColor) {
+    element.style.color = textColor;
+  }
+  return true;
+}
+
 function getDefaultFieldValue(field, fallback = "") {
   const options = getFieldOptions(field);
   return options[0]?.value ?? fallback;
@@ -108,6 +153,17 @@ function getStatusClass(value) {
   };
   const mappedClass = defaults[normalized];
   return mappedClass ?? `status-generic status-${normalized}`;
+}
+
+function buildStatusBadge(value) {
+  const statusText = getOptionLabel("status", value) || value || "—";
+  const badge = document.createElement("span");
+  badge.className = "status-badge";
+  if (!applyFieldOptionColor(badge, "status", value)) {
+    badge.classList.add(getStatusClass(value));
+  }
+  badge.textContent = statusText;
+  return badge;
 }
 
 function hasCompletedChecklist(field, values) {
@@ -1234,29 +1290,39 @@ function formatPhotos(value) {
   return value > 0 ? String(value) : "None";
 }
 
-function resolvePackageLabel(packageValue, procedureType) {
-  return (
-    getOptionLabel("package_type", packageValue) ||
-    packageValue ||
-    getOptionLabel("procedure_type", procedureType) ||
-    procedureType ||
-    ""
-  );
+function resolvePackageDisplayOption(packageValue, procedureType) {
+  const packageLabel = getOptionLabel("package_type", packageValue);
+  if (packageLabel || packageValue) {
+    return { field: "package_type", value: packageValue, label: packageLabel || packageValue || "" };
+  }
+  const procedureLabel = getOptionLabel("procedure_type", procedureType);
+  if (procedureLabel || procedureType) {
+    return { field: "procedure_type", value: procedureType, label: procedureLabel || procedureType || "" };
+  }
+  return null;
 }
 
-function createPackagePill(label) {
-  if (!label) {
+function resolvePackageLabel(packageValue, procedureType) {
+  const option = resolvePackageDisplayOption(packageValue, procedureType);
+  return option?.label || "";
+}
+
+function createPackagePill(option) {
+  if (!option?.label) {
     return null;
   }
   const pill = document.createElement("span");
   pill.className = "package-pill";
-  const normalized = label.trim().toLowerCase();
-  if (normalized.includes("small")) {
-    pill.classList.add("package-pill--small");
-  } else if (normalized.includes("big")) {
-    pill.classList.add("package-pill--big");
+  const colored = option.field ? applyFieldOptionColor(pill, option.field, option.value) : false;
+  if (!colored) {
+    const normalized = option.label.trim().toLowerCase();
+    if (normalized.includes("small")) {
+      pill.classList.add("package-pill--small");
+    } else if (normalized.includes("big")) {
+      pill.classList.add("package-pill--big");
+    }
   }
-  pill.textContent = label;
+  pill.textContent = option.label;
   return pill;
 }
 
@@ -1283,16 +1349,17 @@ function buildMobilePatientCard(day, week, { expandInitially = false } = {}) {
   name.textContent = day.patientName || "Patient";
   const badges = document.createElement("div");
   badges.className = "patient-card-mobile__badges";
-  const procedureLabel = getOptionLabel("procedure_type", day.procedureType) || day.procedureType || "—";
-  const procedurePill = createPackagePill(procedureLabel);
+  const procedureOption = {
+    field: "procedure_type",
+    value: day.procedureType,
+    label: getOptionLabel("procedure_type", day.procedureType) || day.procedureType || "",
+  };
+  const procedurePill = createPackagePill(procedureOption);
   if (procedurePill) {
     procedurePill.classList.add("pill--neutral");
     badges.appendChild(procedurePill);
   }
-  const statusText = getOptionLabel("status", day.status) || day.status || "—";
-  const statusBadge = document.createElement("span");
-  statusBadge.className = `status-badge ${getStatusClass(day.status)}`;
-  statusBadge.textContent = statusText;
+  const statusBadge = buildStatusBadge(day.status);
   badges.appendChild(statusBadge);
   info.append(name, badges);
 
@@ -2020,19 +2087,18 @@ function renderWeek(week) {
       patientName.className = "patient-name";
       const patientMeta = document.createElement("div");
       patientMeta.className = "patient-meta";
-      const statusText = getOptionLabel("status", day.status) || day.status || "—";
-      const statusBadge = document.createElement("span");
-      statusBadge.textContent = statusText;
-      statusBadge.className = `status-badge ${getStatusClass(day.status)}`;
+      const statusBadge = buildStatusBadge(day.status);
       const inlineStatusBadge = statusBadge.cloneNode(true);
       inlineStatusBadge.classList.add("patient-meta__pill");
       patientMeta.appendChild(inlineStatusBadge);
-      const packageLabel = resolvePackageLabel(day.packageType, day.procedureType);
-      const desktopPackageBadge = packageLabel ? createPackagePill(packageLabel) : null;
-      if (packageLabel) {
-        const inlinePackageBadge = createPackagePill(packageLabel);
-        inlinePackageBadge.classList.add("patient-meta__pill");
-        patientMeta.appendChild(inlinePackageBadge);
+      const packageOption = resolvePackageDisplayOption(day.packageType, day.procedureType);
+      const desktopPackageBadge = createPackagePill(packageOption);
+      if (packageOption) {
+        const inlinePackageBadge = createPackagePill(packageOption);
+        if (inlinePackageBadge) {
+          inlinePackageBadge.classList.add("patient-meta__pill");
+          patientMeta.appendChild(inlinePackageBadge);
+        }
       }
       const expandBtn = document.createElement("button");
       expandBtn.type = "button";

@@ -424,6 +424,11 @@ class DeletedProcedureRecord(BaseModel):
 class FieldOption(BaseModel):
     value: str = Field(..., description="Stored value for the option", min_length=1)
     label: str = Field(..., description="Human-friendly label", min_length=1)
+    color: Optional[str] = Field(
+        None,
+        description="Hex color (#RRGGBB) used as the pill background",
+        pattern=r"^#(?:[0-9a-fA-F]{3}){1,2}$",
+    )
 
 
 class FieldOptionUpdate(BaseModel):

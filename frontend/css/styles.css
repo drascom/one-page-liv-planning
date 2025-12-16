@@ -2611,6 +2611,19 @@ body.app-shell {
   color: #475569;
 }
 
+.customer-card__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.35rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #b45309;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
 .customer-card__stats {
   display: flex;
   gap: 1.5rem;
@@ -3204,6 +3217,21 @@ body.app-shell {
 
 .photo-thumb:hover::after {
   opacity: 1;
+}
+
+.photo-thumb--video {
+  background-color: #0f172a;
+}
+
+.photo-thumb--video video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: 0;
+  border-radius: inherit;
+  background: #000;
 }
 
 .photo-thumb__delete {
@@ -4955,6 +4983,28 @@ body.app-shell {
   color: #94a3b8;
 }
 
+.option-card__color {
+  width: 2.35rem;
+  height: 2.35rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  margin-right: 0.35rem;
+  padding: 0;
+}
+
+.option-card__color::-webkit-color-swatch,
+.option-card__color::-webkit-color-swatch-wrapper {
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+}
+
+.option-card__color::-moz-color-swatch {
+  border: none;
+  border-radius: 50%;
+}
+
 .option-card__remove {
   border: none;
   background: transparent;
@@ -5539,43 +5589,6 @@ body.app-shell {
   flex-wrap: wrap;
 }
 
-.customer-merge-controls {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem 1.25rem;
-  margin: 1rem 0;
-  border-radius: 14px;
-  background: #0f172a;
-  color: #e2e8f0;
-  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.25);
-}
-
-.customer-merge-controls__info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.customer-merge-controls__title {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: #f8fafc;
-}
-
-.customer-merge-controls__hint {
-  margin: 0;
-  color: #cbd5f5;
-}
-
-.customer-merge-controls__actions {
-  display: flex;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-}
-
 .customer-card__select {
   display: inline-flex;
   align-items: center;
@@ -5731,7 +5744,7 @@ body.app-shell {
 }
 
 .merge-selected-list,
-.merge-available-list {
+.merge-directory-list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -5823,58 +5836,6 @@ body.app-shell {
   text-decoration: underline;
 }
 
-.merge-available-card {
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 0.75rem 0.9rem;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.merge-available-card__name {
-  margin: 0;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.merge-available-card__meta {
-  margin: 0.15rem 0 0;
-  color: #475569;
-}
-
-.merge-available-card__actions {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.merge-available-card__stat {
-  color: #0f172a;
-  font-weight: 700;
-}
-
-.merge-available-card__badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  margin-top: 0.35rem;
-  padding: 0.15rem 0.55rem;
-  border-radius: 999px;
-  background: #fef3c7;
-  color: #b45309;
-  font-weight: 700;
-  font-size: 0.85rem;
-}
-
-.merge-available-card--empty {
-  text-align: center;
-  color: #475569;
-  font-weight: 600;
-}
-
 .merge-summary {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -5911,11 +5872,6 @@ body.app-shell {
 
   .merge-grid {
     grid-template-columns: 1fr;
-  }
-
-  .customer-merge-controls {
-    flex-direction: column;
-    align-items: flex-start;
   }
 }
 .week-card__mobile {

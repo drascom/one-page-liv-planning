@@ -19,6 +19,7 @@
             <span class="top-nav__brand-name">Liv Planner</span>
             <span class="top-nav__version" data-app-version>Version dev</span>
           </span>
+          <span class="connection-indicator" id="connection-indicator" aria-hidden="true"></span>
         </a>
         <span class="top-nav__divider" aria-hidden="true">•</span>
         <span class="top-nav__section">Patient Record</span>
@@ -160,6 +161,11 @@
               <h3>Patient Photos</h3>
               <p class="photo-empty" id="photo-empty">No photos uploaded yet.</p>
               <div class="photo-gallery" id="photo-gallery"></div>
+            </div>
+            <div class="photo-gallery-section">
+              <h3>Patient Videos</h3>
+              <p class="photo-empty" id="video-empty">No videos uploaded yet.</p>
+              <div class="photo-gallery" id="video-gallery"></div>
             </div>
           </section>
         </div>
@@ -364,6 +370,7 @@
   </div>
 
   <script src="/app-config.js"></script>
+  <script src="/static/js/nav-connection.js" type="module"></script>
   <script src="/static/js/nav-search.js" type="module"></script>
   <script src="/static/js/patient.js" type="module"></script>
 </body>

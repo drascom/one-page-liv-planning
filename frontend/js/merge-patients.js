@@ -4,14 +4,14 @@ import {
   initAppVersionDisplay,
   initSessionControls,
 } from "./session.js";
-import { navigateToPatientRecord, setPatientRouteBase } from "./patient-route.js";
+import { buildPatientRecordUrlSync, navigateToPatientRecord, setPatientRouteBase } from "./patient-route.js";
 
 const API_BASE_URL =
   window.APP_CONFIG?.backendUrl ??
   `${window.location.protocol}//${window.location.host}`;
 
 const selectedListEl = document.getElementById("merge-selected-list");
-const availableListEl = document.getElementById("merge-available-list");
+const directoryListEl = document.getElementById("merge-directory-list");
 const addSearchInput = document.getElementById("merge-add-search");
 const clearSelectionBtn = document.getElementById("merge-clear-btn");
 const openDirectoryBtn = document.getElementById("merge-open-directory");
@@ -250,42 +250,66 @@ function matchesPatient(patient, term) {
   );
 }
 
-function renderAvailableList() {
-  if (!availableListEl) return;
+function renderDirectoryList() {
+  if (!directoryListEl) return;
   const searchTerm = addSearchInput?.value ?? "";
-  const available = patients.filter(
-    (patient) => !selectedPatientIds.has(Number(patient.id)) && matchesPatient(patient, searchTerm)
-  );
-  const sortedAvailable = [...available].sort((a, b) => {
-    const aDuplicate = duplicatePatientIds.has(a.id);
-    const bDuplicate = duplicatePatientIds.has(b.id);
-    if (aDuplicate !== bDuplicate) {
-      return aDuplicate ? -1 : 1;
+  const visiblePatients = patients.filter((patient) => matchesPatient(patient, searchTerm));
+  if (!visiblePatients.length) {
+    directoryListEl.innerHTML =
+      '<li class="customer-empty">No patients match that search. Try another name or email.</li>';
+    return;
+  }
+  const sortedPatients = [...visiblePatients].sort((a, b) => {
+    const leftDuplicate = duplicatePatientIds.has(a.id);
+    const rightDuplicate = duplicatePatientIds.has(b.id);
+    if (leftDuplicate !== rightDuplicate) {
+      return leftDuplicate ? -1 : 1;
     }
     return formatPatientName(a).localeCompare(formatPatientName(b));
   });
-  if (!available.length) {
-    availableListEl.innerHTML =
-      '<li class="merge-available-card merge-available-card--empty">No other patients match that search.</li>';
-    return;
-  }
-  availableListEl.innerHTML = sortedAvailable
-    .slice(0, 12)
+  directoryListEl.innerHTML = sortedPatients
     .map((patient) => {
-      const procedureCount = getProcedureCount(patient.id);
-      const isDuplicate = duplicatePatientIds.has(patient.id);
+      const patientId = Number(patient.id);
+      const isSelected = selectedPatientIds.has(patientId);
+      const patientName = formatPatientName(patient);
+      const patientUrl = buildPatientRecordUrlSync(patientId, { patientName });
+      const procedureCount = getProcedureCount(patientId);
+      const photoCount = patient.photo_count ?? 0;
+      const duplicateBadge = duplicatePatientIds.has(patientId)
+        ? '<span class="customer-card__badge">Possible duplicate</span>'
+        : "";
       return `
-        <li class="merge-available-card">
-          <div>
-            <p class="merge-available-card__name">${formatPatientName(patient)}</p>
-            <p class="merge-available-card__meta">${patient.address || patient.city || "Address unknown"} • ${
-              patient.email || "No email"
-            }</p>
-            ${isDuplicate ? '<span class="merge-available-card__badge">Possible duplicate</span>' : ""}
+        <li class="customer-card ${isSelected ? "customer-card--selected" : ""}" data-patient-id="${patientId}">
+          <div class="customer-card__primary">
+            <a class="customer-card__name" href="${patientUrl}">
+              ${patientName}
+            </a>
+            <p class="customer-card__meta">
+              ${patient.address || patient.city || "Address unknown"} • ${patient.email || "No email"}
+            </p>
+            ${duplicateBadge}
           </div>
-          <div class="merge-available-card__actions">
-            <span class="merge-available-card__stat">${procedureCount} procedure${procedureCount === 1 ? "" : "s"}</span>
-            <button type="button" class="secondary-btn" data-add-patient="${patient.id}">Add</button>
+          <div class="customer-card__stats">
+            <div class="customer-card__stat">
+              <span class="customer-card__stat-value">${procedureCount}</span>
+              <span class="customer-card__stat-label">Procedures</span>
+            </div>
+            <div class="customer-card__stat">
+              <span class="customer-card__stat-value">${photoCount}</span>
+              <span class="customer-card__stat-label">Photos</span>
+            </div>
+          </div>
+          <div class="customer-card__actions">
+            <label class="customer-card__select">
+              <input
+                type="checkbox"
+                class="customer-card__select-input"
+                data-select-patient="${patientId}"
+                ${isSelected ? "checked" : ""}
+                aria-label="Select ${patientName} for merge"
+              />
+              <span>${isSelected ? "Selected" : "Select"}</span>
+            </label>
           </div>
         </li>
       `;
@@ -302,7 +326,7 @@ function addPatientToSelection(patientId) {
   selectedPatientIds.add(Number(patientId));
   ensurePrimarySelection();
   renderSelectedList();
-  renderAvailableList();
+  renderDirectoryList();
 }
 
 function removePatientFromSelection(patientId) {
@@ -312,7 +336,7 @@ function removePatientFromSelection(patientId) {
   }
   ensurePrimarySelection();
   renderSelectedList();
-  renderAvailableList();
+  renderDirectoryList();
 }
 
 function openPatientRecord(patientId) {
@@ -355,7 +379,7 @@ async function loadPatientsAndProcedures() {
     hydrateSelectionFromQuery();
     ensurePrimarySelection();
     renderSelectedList();
-    renderAvailableList();
+    renderDirectoryList();
     setStatus("");
   } catch (error) {
     console.error(error);
@@ -429,7 +453,7 @@ async function submitMerge(event) {
     selectedPatientIds = new Set([primaryPatientId]);
     ensurePrimarySelection();
     renderSelectedList();
-    renderAvailableList();
+    renderDirectoryList();
     if (viewPatientBtn) {
       viewPatientBtn.hidden = false;
     }
@@ -503,25 +527,28 @@ selectedListEl?.addEventListener("change", (event) => {
   }
 });
 
-availableListEl?.addEventListener("click", (event) => {
+directoryListEl?.addEventListener("change", (event) => {
   const target = event.target;
-  if (!(target instanceof HTMLElement)) return;
-  const addButton = target.closest("[data-add-patient]");
-  if (addButton) {
-    const patientId = Number(addButton.getAttribute("data-add-patient"));
+  if (!(target instanceof HTMLInputElement)) return;
+  if (!target.matches("[data-select-patient]")) return;
+  const patientId = Number(target.dataset.selectPatient);
+  if (!Number.isFinite(patientId)) return;
+  if (target.checked) {
     addPatientToSelection(patientId);
+  } else {
+    removePatientFromSelection(patientId);
   }
 });
 
 addSearchInput?.addEventListener("input", () => {
-  renderAvailableList();
+  renderDirectoryList();
 });
 
 clearSelectionBtn?.addEventListener("click", () => {
   selectedPatientIds = new Set();
   primaryPatientId = null;
   renderSelectedList();
-  renderAvailableList();
+  renderDirectoryList();
   setStatus("");
 });
 
