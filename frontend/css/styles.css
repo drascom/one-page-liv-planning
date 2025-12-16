@@ -1878,6 +1878,11 @@ body.app-shell {
   pointer-events: none;
 }
 
+.week__table tbody tr.patient-row:hover td.col-date--spacer,
+.week__table tbody tr.patient-row:hover td.col-day--spacer {
+  background: transparent;
+}
+
 .col-date {
   width: 9rem;
   pointer-events: none;
