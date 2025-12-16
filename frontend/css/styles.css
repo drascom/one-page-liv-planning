@@ -1862,6 +1862,7 @@ body.app-shell {
 .col-day {
   width: 6rem;
   pointer-events: none;
+  background-color: #fff;
 }
 
 .col-day--hidden {
@@ -1880,6 +1881,12 @@ body.app-shell {
 .col-date {
   width: 9rem;
   pointer-events: none;
+}
+
+.week__table tbody tr.patient-row:hover .col-day,
+.week__table tbody tr.patient-row.patient-row--active .col-day,
+.week__table tbody tr.patient-row.patient-row--pulse .col-day {
+  background-color: #fff;
 }
 
 .col-patient {
