@@ -5844,6 +5844,40 @@ body.app-shell {
   gap: 0.75rem;
 }
 
+.merge-panel--combined {
+  padding: 1.5rem;
+}
+
+.merge-panel__columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.25rem;
+}
+
+.merge-panel__col {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  position: relative;
+}
+
+.merge-panel__col--selection {
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+}
+
+.merge-panel__col--form {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  border-color: #dbeafe;
+}
+
+.merge-panel__col .merge-panel__header {
+  align-items: flex-start;
+}
+
 .merge-panel__header {
   display: flex;
   align-items: center;
