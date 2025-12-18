@@ -320,6 +320,10 @@ function updatePatientSummary(record) {
 function showPatientSummaryView() {
   if (!patientSummaryContainer || !formEl) return;
   patientSummaryContainer.hidden = false;
+  patientSummaryContainer.removeAttribute("aria-hidden");
+  if (patientFormSection) {
+    patientFormSection.classList.remove("is-editing");
+  }
   if (formEl) {
     formEl.hidden = true;
     formEl.setAttribute("aria-hidden", "true");
@@ -336,8 +340,12 @@ function showPatientSummaryView() {
 function showPatientFormView() {
   if (!patientSummaryContainer || !formEl) return;
   patientSummaryContainer.hidden = true;
+  patientSummaryContainer.setAttribute("aria-hidden", "true");
   formEl.hidden = false;
   formEl.removeAttribute("aria-hidden");
+  if (patientFormSection) {
+    patientFormSection.classList.add("is-editing");
+  }
   if (editPatientBtn) {
     editPatientBtn.hidden = true;
   }
@@ -438,6 +446,7 @@ const patientNameEl = document.getElementById("patient-name");
 const patientWeekEl = document.getElementById("patient-week");
 const patientAddressEl = document.getElementById("patient-address");
 const patientSummaryContainer = document.getElementById("patient-summary");
+const patientFormSection = document.querySelector(".patient-form-section");
 const editPatientBtn = document.getElementById("patient-edit-btn");
 const cancelEditPatientBtn = document.getElementById("patient-cancel-edit-btn");
 const bookingListEl = document.getElementById("patient-bookings-list");
@@ -1986,6 +1995,7 @@ async function savePatient(event) {
     refreshDeleteButtonState();
     procedureFormStatusEl.textContent = "Procedure saved.";
     persistReturnToScheduleContext(currentPatient, savedProcedure);
+    showPatientSummaryView();
     formStatusEl.textContent = "Record saved. Returning to previous page...";
     redirectToPreviousPage();
   } catch (error) {

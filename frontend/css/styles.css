@@ -2897,6 +2897,18 @@ body.app-shell {
   gap: 1.5rem;
 }
 
+.patient-form-section:not(.is-editing) .patient-form {
+  display: none;
+}
+
+.patient-form-section.is-editing .patient-form {
+  display: flex;
+}
+
+.patient-form-section.is-editing .patient-summary {
+  display: none;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
