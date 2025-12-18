@@ -4238,6 +4238,16 @@ body.app-shell {
   border-color: #dbeafe;
 }
 
+.dashboard-card--bookings .dashboard-card__eyebrow,
+.dashboard-card--bookings .dashboard-card__hint,
+.dashboard-card--bookings .link,
+.dashboard-card--bookings .week-day__count,
+.dashboard-card--bookings .booking-card__title,
+.dashboard-card--bookings .booking-card__detail-label,
+.dashboard-card--bookings .booking-card__detail-value {
+  font-weight: 400;
+}
+
 .dashboard-card--activity {
   background: linear-gradient(180deg, #fffdf8 0%, #fff7ec 100%);
   border-color: #f5d0a6;
