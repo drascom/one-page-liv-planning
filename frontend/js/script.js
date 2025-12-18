@@ -64,11 +64,6 @@ const DEFAULT_FIELD_OPTIONS = {
 
 let fieldOptions = JSON.parse(JSON.stringify(DEFAULT_FIELD_OPTIONS));
 
-const CHECKED_ICON = {
-  true: "✓",
-  false: "✕",
-};
-
 function getFieldOptions(field) {
   return fieldOptions[field] ?? [];
 }
@@ -1267,15 +1262,15 @@ function createCheckCell(value, label, countText = "") {
   const content = document.createElement("span");
   content.className = "check-cell";
 
-  const icon = document.createElement("span");
-  icon.className = `check-icon ${value ? "check-icon--checked" : "check-icon--error"}`;
-  icon.textContent = CHECKED_ICON[value];
-  icon.setAttribute(
+  const status = document.createElement("span");
+  status.className = `check-status ${value ? "check-status--complete" : "check-status--missing"}`;
+  status.textContent = value ? "Complete" : "Missing";
+  status.setAttribute(
     "aria-label",
     `${label} ${value ? "complete" : "missing"}${countText ? ` (${countText})` : ""}`
   );
 
-  content.appendChild(icon);
+  content.appendChild(status);
   if (countText) {
     const count = document.createElement("span");
     count.className = "check-count";

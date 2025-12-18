@@ -1954,6 +1954,21 @@ body.app-shell {
   white-space: nowrap;
 }
 
+.check-status {
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.check-status--complete {
+  color: #16a34a;
+}
+
+.check-status--missing {
+  color: #dc2626;
+}
+
 .col-consult {
   width: 10%;
   text-align: center;
@@ -1969,39 +1984,11 @@ body.app-shell {
   color: #0f172a;
 }
 
-.check-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.6rem;
-  height: 1.6rem;
-  font-size: 1rem;
-  font-weight: 700;
-  line-height: 1;
-  border-radius: 0.5rem;
-  border: 1.5px solid transparent;
-  background: #f8fafc;
-  color: #94a3b8;
-}
-
-.check-icon--checked {
-  color: #166534;
-  background: #ecfdf3;
-  border-color: #22c55e;
-  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.1);
-}
-
-.check-icon--error {
-  color: #b91c1c;
-  background: #fef2f2;
-  border-color: #ef4444;
-  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.12);
-}
-
 .check-count {
-  margin-left: 8px;
+  margin-left: 0;
   font-size: 0.9rem;
-  color: #0f172a;
+  color: #475569;
+  font-weight: 500;
 }
 
 .week__table td[data-label]::before {
