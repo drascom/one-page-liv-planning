@@ -273,11 +273,80 @@ function setAdminOnlyVisibility(isVisible) {
 }
 
 function setDisplayValue(map, key, value) {
-  if (!isReadOnlyPatientPage) return;
   const target = map.get(key);
   if (!target) return;
   const formatted = value != null && String(value).trim() ? String(value).trim() : "—";
   target.textContent = formatted;
+}
+
+function formatPhoneHref(value) {
+  if (!value) return "";
+  const normalized = String(value).replace(/[^\d+]/g, "");
+  return normalized ? `tel:${normalized}` : "";
+}
+
+function updatePatientSummary(record) {
+  if (!patientSummaryFields.size) return;
+  const data = record || {};
+  const nameText = `${data.first_name || ""} ${data.last_name || ""}`.trim() || "—";
+  const emailText = data.email || DEFAULT_CONTACT.email || "—";
+  const addressText = data.address || data.city || DEFAULT_CONTACT.address || "—";
+  const phoneText = data.phone || DEFAULT_CONTACT.phone || "—";
+
+  const nameEl = patientSummaryFields.get("name");
+  if (nameEl) {
+    nameEl.textContent = nameText;
+  }
+  const emailEl = patientSummaryFields.get("email");
+  if (emailEl) {
+    emailEl.textContent = emailText;
+  }
+  const addressEl = patientSummaryFields.get("address");
+  if (addressEl) {
+    addressEl.textContent = addressText;
+  }
+  const phoneLinkEl = patientSummaryFields.get("phone_link");
+  if (phoneLinkEl) {
+    phoneLinkEl.textContent = phoneText;
+    const href = formatPhoneHref(phoneText);
+    if (href) {
+      phoneLinkEl.setAttribute("href", href);
+    } else {
+      phoneLinkEl.removeAttribute("href");
+    }
+  }
+}
+
+function showPatientSummaryView() {
+  if (!patientSummaryContainer || !formEl) return;
+  patientSummaryContainer.hidden = false;
+  if (formEl) {
+    formEl.hidden = true;
+    formEl.setAttribute("aria-hidden", "true");
+  }
+  if (editPatientBtn) {
+    editPatientBtn.hidden = false;
+    editPatientBtn.disabled = false;
+  }
+  if (cancelEditPatientBtn) {
+    cancelEditPatientBtn.hidden = true;
+  }
+}
+
+function showPatientFormView() {
+  if (!patientSummaryContainer || !formEl) return;
+  patientSummaryContainer.hidden = true;
+  formEl.hidden = false;
+  formEl.removeAttribute("aria-hidden");
+  if (editPatientBtn) {
+    editPatientBtn.hidden = true;
+  }
+  if (cancelEditPatientBtn) {
+    cancelEditPatientBtn.hidden = false;
+  }
+  if (firstNameInput) {
+    firstNameInput.focus();
+  }
 }
 
 function updatePatientDisplay(record) {
@@ -368,6 +437,9 @@ const isReadOnlyPatientPage =
 const patientNameEl = document.getElementById("patient-name");
 const patientWeekEl = document.getElementById("patient-week");
 const patientAddressEl = document.getElementById("patient-address");
+const patientSummaryContainer = document.getElementById("patient-summary");
+const editPatientBtn = document.getElementById("patient-edit-btn");
+const cancelEditPatientBtn = document.getElementById("patient-cancel-edit-btn");
 const bookingListEl = document.getElementById("patient-bookings-list");
 const proceduresStatusEl = document.getElementById("procedures-status");
 const formEl = document.getElementById("patient-form");
@@ -446,6 +518,10 @@ const adminOnlyElements = document.querySelectorAll("[data-admin-only]");
 const patientDisplayFields = new Map();
 document.querySelectorAll("[data-patient-display]").forEach((el) => {
   patientDisplayFields.set(el.dataset.patientDisplay, el);
+});
+const patientSummaryFields = new Map();
+document.querySelectorAll("[data-patient-summary]").forEach((el) => {
+  patientSummaryFields.set(el.dataset.patientSummary, el);
 });
 const procedureDisplayFields = new Map();
 document.querySelectorAll("[data-procedure-display]").forEach((el) => {
@@ -684,6 +760,7 @@ function populatePatientForm(record) {
   console.log("isAdminUser in populatePatientForm:", isAdminUser);
   if (!record) {
     updatePatientDisplay(null);
+    updatePatientSummary(null);
     return;
   }
   if (firstNameInput) firstNameInput.value = record.first_name || "";
@@ -703,6 +780,7 @@ function populatePatientForm(record) {
   refreshDeleteButtonState();
   syncHeader(record, activeProcedure);
   updatePatientDisplay(record);
+  updatePatientSummary(record);
 }
 
 function clearProcedureForm() {
@@ -1915,6 +1993,23 @@ async function savePatient(event) {
     procedureFormStatusEl.textContent = error.message;
     formStatusEl.textContent = error.message;
   }
+}
+
+if (!isReadOnlyPatientPage && patientSummaryContainer && formEl) {
+  showPatientSummaryView();
+}
+
+if (!isReadOnlyPatientPage && editPatientBtn && patientSummaryContainer && formEl) {
+  editPatientBtn.addEventListener("click", () => {
+    showPatientFormView();
+  });
+}
+
+if (!isReadOnlyPatientPage && cancelEditPatientBtn && patientSummaryContainer && formEl) {
+  cancelEditPatientBtn.addEventListener("click", () => {
+    populatePatientForm(currentPatient || {});
+    showPatientSummaryView();
+  });
 }
 
 if (formEl) {

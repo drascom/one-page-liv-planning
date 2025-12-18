@@ -73,10 +73,37 @@
                 <p class="settings-section__eyebrow">Patient Details</p>
                 <h2 id="patient-name">Patient Record</h2>
                 <p id="patient-week" class="patient-week" aria-live="polite"></p>
-              <p id="patient-address" class="patient-address" aria-live="polite"></p>
+                <p id="patient-address" class="patient-address" aria-live="polite"></p>
               </div>
             </header>
-            <form id="patient-form" class="patient-form form-layout">
+            <div class="patient-summary" id="patient-summary">
+              <dl class="detail-list patient-summary__list">
+                <div class="detail-row">
+                  <dt>Name</dt>
+                  <dd data-patient-summary="name">—</dd>
+                </div>
+                <div class="detail-row">
+                  <dt>Email</dt>
+                  <dd data-patient-summary="email">—</dd>
+                </div>
+                <div class="detail-row">
+                  <dt>Phone</dt>
+                  <dd>
+                    <a data-patient-summary="phone_link" class="patient-summary__phone-link" href="tel:" rel="nofollow">—</a>
+                  </dd>
+                </div>
+                <div class="detail-row">
+                  <dt>Address</dt>
+                  <dd data-patient-summary="address">—</dd>
+                </div>
+              </dl>
+              <div class="patient-summary__actions">
+                <button type="button" class="btn btn-secondary secondary-btn" id="patient-edit-btn">
+                  Edit details
+                </button>
+              </div>
+            </div>
+            <form id="patient-form" class="patient-form form-layout" hidden aria-hidden="true">
               <div class="form-group">
                 <label for="first-name">First Name</label>
                 <input id="first-name" name="firstName" type="text" required value="New"
@@ -107,6 +134,9 @@
               </div>
               <p id="patient-status" class="form-status" role="status"></p>
               <div class="card-actions">
+                <button type="button" class="btn btn-secondary secondary-btn" id="patient-cancel-edit-btn">
+                  Cancel
+                </button>
                 <button type="submit" class="btn btn-primary primary-btn" form="patient-form">Save Changes</button>
                 <button type="button" class="btn btn-danger danger-btn" id="delete-patient-btn" hidden>Delete
                   Patient</button>
