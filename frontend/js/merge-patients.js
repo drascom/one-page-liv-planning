@@ -234,6 +234,22 @@ function renderSelectedList() {
   updateSummary();
 }
 
+function resetMergeInterface() {
+  selectedPatientIds = new Set();
+  primaryPatientId = null;
+  if (mergeForm) {
+    mergeForm.reset();
+  }
+  if (addSearchInput) {
+    addSearchInput.value = "";
+  }
+  if (viewPatientBtn) {
+    viewPatientBtn.hidden = true;
+  }
+  renderSelectedList();
+  renderDirectoryList();
+}
+
 function matchesPatient(patient, term) {
   if (!term) return true;
   const normalizedTerm = normalize(term);
@@ -357,8 +373,11 @@ function hydrateSelectionFromQuery() {
   ensurePrimarySelection();
 }
 
-async function loadPatientsAndProcedures() {
-  setStatus("Loading patients and procedures...");
+async function loadPatientsAndProcedures(options = {}) {
+  const { showStatus = true } = options;
+  if (showStatus) {
+    setStatus("Loading patients and procedures...");
+  }
   try {
     const [patientPayload, procedurePayload] = await Promise.all([fetchJson("/patients"), fetchJson("/procedures")]);
     const normalizedPatients = patientPayload.map((patient) => ({
@@ -380,7 +399,9 @@ async function loadPatientsAndProcedures() {
     ensurePrimarySelection();
     renderSelectedList();
     renderDirectoryList();
-    setStatus("");
+    if (showStatus) {
+      setStatus("");
+    }
   } catch (error) {
     console.error(error);
     setStatus(error.message || "Unable to load patients.", { isError: true });
@@ -431,8 +452,10 @@ async function submitMerge(event) {
       const detail = result?.detail || "Unable to merge patients.";
       throw new Error(detail);
     }
-    const sourcePhotoTotal = sourceIds.reduce((total, id) => total + (getPatientRecord(id)?.photo_count ?? 0), 0);
     const primaryRecord = getPatientRecord(primaryPatientId);
+    const mergedCount = selectedPatientIds.size;
+    const mergeTargetLabel = formatPatientName(primaryRecord) || "the surviving record";
+    const sourcePhotoTotal = sourceIds.reduce((total, id) => total + (getPatientRecord(id)?.photo_count ?? 0), 0);
     if (primaryRecord) {
       primaryRecord.photo_count = (primaryRecord.photo_count ?? 0) + sourcePhotoTotal;
     }
@@ -447,19 +470,11 @@ async function submitMerge(event) {
       proceduresByPatient.delete(id);
     });
     patients = patients.filter((patient) => patient.id === primaryPatientId || !sourceIds.includes(patient.id));
-    setStatus(
-      `Merged ${selectedPatientIds.size} patients into ${formatPatientName(primaryRecord) || "the surviving record"}.`
-    );
-    selectedPatientIds = new Set([primaryPatientId]);
-    ensurePrimarySelection();
-    renderSelectedList();
-    renderDirectoryList();
-    if (viewPatientBtn) {
-      viewPatientBtn.hidden = false;
-    }
-    if (result?.moved_procedures) {
-      if (summaryProceduresEl) summaryProceduresEl.textContent = String(result.moved_procedures || 0);
-    }
+    const successMessage = `Merged ${mergedCount} patients into ${mergeTargetLabel}.`;
+    setStatus(`${successMessage} Refreshing list...`);
+    await loadPatientsAndProcedures({ showStatus: false });
+    resetMergeInterface();
+    setStatus(successMessage);
   } catch (error) {
     console.error(error);
     setStatus(error.message || "Unable to merge patients.", { isError: true });
