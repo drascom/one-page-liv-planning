@@ -1216,6 +1216,7 @@ def _row_to_procedure(row: sqlite3.Row) -> Dict[str, Any]:
     status_value = (row["status"] if "status" in row.keys() else "") or ""
     procedure_type_value = (row["procedure_type"] if "procedure_type" in row.keys() else "") or ""
     payment_value = (row["payment"] if "payment" in row.keys() else "") or ""
+    package_type_value = (row["package_type"] if "package_type" in row.keys() else "") or "na"
     return {
         "id": row["id"],
         "patient_id": row["patient_id"],
@@ -1227,7 +1228,7 @@ def _row_to_procedure(row: sqlite3.Row) -> Dict[str, Any]:
         ),
         "status": status_value,
         "procedure_type": procedure_type_value,
-        "package_type": (row["package_type"] if "package_type" in row.keys() else "") or "",
+        "package_type": package_type_value,
         "agency": (row["agency"] if "agency" in row.keys() else "") or "",
         "source": (row["source"] if "source" in row.keys() else "email") or "email",
         "grafts": grafts_value,
@@ -1876,12 +1877,19 @@ def _serialize_procedure_payload(data: Dict[str, Any]) -> Dict[str, Any]:
     elif source_value is not None:
         normalized_source = str(source_value).strip() or "email"
 
+    package_type_value = data.get("package_type")
+    if isinstance(package_type_value, str):
+        normalized_package = package_type_value.strip() or "na"
+    elif package_type_value:
+        normalized_package = str(package_type_value).strip() or "na"
+    else:
+        normalized_package = "na"
     return {
         "procedure_date": normalized_date,
         "procedure_time": normalized_time,
         "status": data.get("status", ""),
         "procedure_type": data.get("procedure_type", ""),
-        "package_type": data.get("package_type") or "",
+        "package_type": normalized_package,
         "agency": data.get("agency") or "",
         "source": normalized_source,
         "grafts": grafts_number,
