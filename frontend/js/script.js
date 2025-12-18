@@ -2077,9 +2077,13 @@ function renderWeek(week) {
       if (isGroupedDay) {
         patientCell.colSpan = 1;
       }
+      const isCancelled = String(day.status || "").toLowerCase() === "cancelled";
       const patientName = document.createElement("span");
       patientName.textContent = day.patientName;
       patientName.className = "patient-name";
+      if (isCancelled) {
+        patientName.classList.add("patient-name--cancelled");
+      }
       const patientMeta = document.createElement("div");
       patientMeta.className = "patient-meta";
       const statusBadge = buildStatusBadge(day.status);

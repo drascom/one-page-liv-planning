@@ -1904,6 +1904,11 @@ body.app-shell {
   font-weight: 700;
 }
 
+.patient-name--cancelled {
+  color: #94a3b8;
+  text-decoration: line-through;
+}
+
 .patient-meta {
   display: none;
   align-items: center;
