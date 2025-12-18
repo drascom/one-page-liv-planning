@@ -305,10 +305,14 @@ function formatProcedureDateForDisplay(value) {
 }
 
 function formatNumberValue(value) {
-  if (!Number.isFinite(value)) {
+  if (value === null || value === undefined || value === "") {
     return "";
   }
-  return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numeric)) {
+    return "";
+  }
+  return numeric.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
 function updateProcedureDisplay(procedure) {
@@ -323,12 +327,12 @@ function updateProcedureDisplay(procedure) {
   setDisplayValue(procedureDisplayFields, "status", getOptionLabel("status", data.status));
   setDisplayValue(procedureDisplayFields, "procedure_type", getOptionLabel("procedure_type", data.procedure_type));
   setDisplayValue(procedureDisplayFields, "package_type", getOptionLabel("package_type", data.package_type));
-  setDisplayValue(procedureDisplayFields, "grafts", formatNumberValue(Number(data.grafts)));
+  setDisplayValue(procedureDisplayFields, "grafts", formatNumberValue(data.grafts));
   setDisplayValue(procedureDisplayFields, "payment", getOptionLabel("payment", data.payment));
   setDisplayValue(
     procedureDisplayFields,
     "outstanding_balance",
-    formatNumberValue(Number(data.outstanding_balance))
+    formatNumberValue(data.outstanding_balance)
   );
   setDisplayValue(procedureDisplayFields, "agency", getOptionLabel("agency", data.agency));
   setDisplayValue(procedureDisplayFields, "source", data.source || "email");
@@ -426,6 +430,7 @@ const viewerCloseBtn = document.getElementById("photo-viewer-close");
 const viewerPrevBtn = document.getElementById("photo-viewer-prev");
 const viewerNextBtn = document.getElementById("photo-viewer-next");
 const viewerDeleteBtn = document.getElementById("photo-viewer-delete");
+const viewerDownloadLink = document.getElementById("photo-viewer-download");
 const documentsListEl = document.getElementById("documents-list");
 const documentsEmptyStateEl = document.getElementById("documents-empty");
 
@@ -464,6 +469,7 @@ let activeProcedure = null;
 let procedureNotes = [];
 let driveFolderFilesCache = [];
 let activeDrivePhotoIndex = 0;
+let viewerActiveDriveFile = null;
 let lastDriveApiError = "";
 let missingPatientRedirectTimeout = null;
 
@@ -755,9 +761,13 @@ function populateProcedureForm(procedure) {
   if (packageTypeSelect) {
     packageTypeSelect.value = procedure.package_type || getFieldOptions("package_type")[0]?.value || "";
   }
-  const graftsNumber = Number(procedure.grafts);
   if (graftsInput) {
-    graftsInput.value = Number.isFinite(graftsNumber) && graftsNumber >= 0 ? String(graftsNumber) : "";
+    if (procedure.grafts === null || procedure.grafts === undefined || procedure.grafts === "") {
+      graftsInput.value = "";
+    } else {
+      const graftsNumber = Number(procedure.grafts);
+      graftsInput.value = Number.isFinite(graftsNumber) && graftsNumber >= 0 ? String(graftsNumber) : "";
+    }
   }
   if (paymentSelect) {
     paymentSelect.value = procedure.payment || getFieldOptions("payment")[0]?.value || "";
@@ -1009,6 +1019,12 @@ function getDriveImagePreviewUrl(fileObj) {
     return fileObj.thumbnailLink || buildDriveFileUrl(fileObj);
   }
   return buildDriveFileUrl(fileObj);
+}
+
+function buildDriveDownloadUrl(fileObj) {
+  const url = buildDriveFileUrl(fileObj);
+  if (!url) return "";
+  return url.includes("?") ? `${url}&disposition=attachment` : `${url}?disposition=attachment`;
 }
 
 function isPdfFile(file) {
@@ -1636,6 +1652,7 @@ function openDrivePhotoViewer(index) {
     const label = file.name || `Photo ${activeDrivePhotoIndex + 1}`;
     viewerCaption.textContent = isHeicFile(file) ? `${label} (HEIC preview)` : label;
   }
+  updatePhotoViewerActions(file);
   viewerEl.hidden = false;
 }
 
@@ -1643,6 +1660,7 @@ function closeDrivePhotoViewer() {
   if (viewerEl) {
     viewerEl.hidden = true;
   }
+  updatePhotoViewerActions(null);
 }
 
 function showRelativeDrivePhoto(step) {
@@ -1656,6 +1674,77 @@ function renderDriveAssets() {
   renderDriveDocuments(pdfs, archives, others);
   renderDriveGallery(images);
   renderDriveVideos(videos);
+}
+
+function updatePhotoViewerActions(file) {
+  viewerActiveDriveFile = file || null;
+  if (viewerDownloadLink) {
+    if (file) {
+      const downloadUrl = buildDriveDownloadUrl(file);
+      if (downloadUrl) {
+        viewerDownloadLink.href = downloadUrl;
+        viewerDownloadLink.download = file.name || "patient-photo";
+        viewerDownloadLink.hidden = false;
+      } else {
+        viewerDownloadLink.hidden = true;
+        viewerDownloadLink.removeAttribute("href");
+      }
+    } else {
+      viewerDownloadLink.hidden = true;
+      viewerDownloadLink.removeAttribute("href");
+    }
+  }
+  if (viewerDeleteBtn) {
+    const canDelete = Boolean(isAdminUser && file?.id);
+    if (!canDelete) {
+      viewerDeleteBtn.hidden = true;
+      viewerDeleteBtn.disabled = false;
+      viewerDeleteBtn.textContent = "Delete photo";
+    } else {
+      viewerDeleteBtn.hidden = false;
+      viewerDeleteBtn.disabled = false;
+      viewerDeleteBtn.textContent = "Delete photo";
+    }
+  }
+}
+
+async function deleteActiveDrivePhoto() {
+  if (!isAdminUser || !viewerActiveDriveFile?.id || !viewerDeleteBtn) {
+    return;
+  }
+  const label = viewerActiveDriveFile.name || "this photo";
+  const confirmed = window.confirm(`Delete ${label}? This will remove it from Google Drive.`);
+  if (!confirmed) {
+    return;
+  }
+  const originalText = viewerDeleteBtn.textContent;
+  viewerDeleteBtn.disabled = true;
+  viewerDeleteBtn.textContent = "Deleting...";
+  try {
+    const response = await fetch(buildApiUrl(`/drive-image/${viewerActiveDriveFile.id}`), {
+      method: "DELETE",
+    });
+    handleUnauthorized(response);
+    if (!response.ok) {
+      const detail = await response.text();
+      throw new Error(detail || "Unable to delete photo.");
+    }
+    driveFolderFilesCache = driveFolderFilesCache.filter((file) => file.id !== viewerActiveDriveFile.id);
+    renderDriveAssets();
+    const remaining = getDriveImageFiles();
+    if (!remaining.length) {
+      closeDrivePhotoViewer();
+    } else {
+      const nextIndex = Math.min(activeDrivePhotoIndex, remaining.length - 1);
+      openDrivePhotoViewer(nextIndex);
+    }
+  } catch (error) {
+    console.error(error);
+    window.alert(error?.message || "Unable to delete photo.");
+    viewerDeleteBtn.disabled = false;
+  } finally {
+    viewerDeleteBtn.textContent = originalText;
+  }
 }
 
 function buildPatientPayloadFromForm() {
@@ -1695,7 +1784,7 @@ function buildProcedurePayloadFromForm() {
     parsedBalance = nextValue;
   }
   const graftsValue = graftsInput.value.trim();
-  let graftsNumber = 0;
+  let graftsNumber = null;
   if (graftsValue) {
     graftsNumber = Number(graftsValue);
     if (Number.isNaN(graftsNumber) || graftsNumber < 0) {
@@ -2160,7 +2249,15 @@ if (viewerNextBtn) {
   viewerNextBtn.addEventListener("click", () => showRelativeDrivePhoto(1));
 }
 if (viewerDeleteBtn) {
-  viewerDeleteBtn.hidden = true;
+  viewerDeleteBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    deleteActiveDrivePhoto();
+  });
+}
+if (viewerDownloadLink) {
+  viewerDownloadLink.addEventListener("click", (event) => {
+    event.stopPropagation();
+  });
 }
 if (viewerEl) {
   viewerEl.addEventListener("click", (event) => {
@@ -2179,6 +2276,7 @@ window.addEventListener("keydown", (event) => {
     showRelativeDrivePhoto(-1);
   }
 });
+updatePhotoViewerActions(null);
 if (!isReadOnlyPatientPage && dropZone && fileInput) {
   dropZone.addEventListener("click", (event) => {
     if (event.target.closest("button")) return;

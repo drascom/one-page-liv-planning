@@ -315,12 +315,17 @@
         ←
       </button>
       <img id="photo-viewer-image" alt="Patient photo" />
-      <p id="photo-viewer-caption"></p>
+      <p id="photo-viewer-caption" class="photo-viewer__caption"></p>
       <button type="button" class="photo-viewer__nav photo-viewer__nav--next" id="photo-viewer-next"
         aria-label="Next photo">
         →
       </button>
-      <button type="button" class="photo-viewer__delete" id="photo-viewer-delete">Delete photo</button>
+      <div class="photo-viewer__actions">
+        <a id="photo-viewer-download" class="photo-viewer__action photo-viewer__action--download" href="#"
+          hidden download rel="noreferrer noopener">Download</a>
+        <button type="button" class="photo-viewer__action photo-viewer__action--delete" id="photo-viewer-delete"
+          hidden>Delete photo</button>
+      </div>
     </div>
   </div>
 

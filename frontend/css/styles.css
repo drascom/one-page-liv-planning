@@ -3274,9 +3274,9 @@ body.app-shell {
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  padding: 2rem;
+  padding: min(3vw, 2.5rem);
   z-index: 1000;
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
 .photo-viewer[hidden] {
@@ -3737,10 +3737,11 @@ body.app-shell {
 }
 
 .patient-page .photo-viewer img {
-  max-width: 90vw;
-  max-height: 70vh;
-  border-radius: 16px;
-  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45);
+  width: min(95vw, 1400px);
+  max-height: 88vh;
+  border-radius: 18px;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+  object-fit: contain;
 }
 
 .patient-page .photo-viewer__close {
@@ -3775,14 +3776,48 @@ body.app-shell {
   right: 1rem;
 }
 
-.patient-page .photo-viewer__delete {
+.patient-page .photo-viewer__caption {
+  margin: 0;
+  color: #e2e8f0;
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+.patient-page .photo-viewer__actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+}
+
+.patient-page .photo-viewer__action {
   border: none;
+  border-radius: 999px;
+  padding: 0.55rem 1.65rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.patient-page .photo-viewer__action[hidden] {
+  display: none;
+}
+
+.patient-page .photo-viewer__action--download {
+  background: rgba(147, 197, 253, 0.2);
+  color: #bfdbfe;
+  border: 1px solid rgba(191, 219, 254, 0.4);
+}
+
+.patient-page .photo-viewer__action--delete {
   background: #dc2626;
   color: #fff;
-  font-weight: 600;
-  padding: 0.5rem 1.5rem;
-  border-radius: 999px;
-  cursor: pointer;
 }
 
 @media (max-width: 960px) {
@@ -4681,10 +4716,11 @@ body.app-shell {
 }
 
 .photo-viewer img {
-  max-width: 90vw;
-  max-height: 70vh;
-  border-radius: 16px;
-  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45);
+  width: min(95vw, 1400px);
+  max-height: 88vh;
+  border-radius: 18px;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+  object-fit: contain;
 }
 
 .photo-viewer__close {
@@ -4719,14 +4755,48 @@ body.app-shell {
   right: 1rem;
 }
 
-.photo-viewer__delete {
+.photo-viewer__caption {
+  margin: 0;
+  color: #e2e8f0;
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+.photo-viewer__actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+}
+
+.photo-viewer__action {
   border: none;
+  border-radius: 999px;
+  padding: 0.55rem 1.65rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.photo-viewer__action[hidden] {
+  display: none;
+}
+
+.photo-viewer__action--download {
+  background: rgba(147, 197, 253, 0.2);
+  color: #bfdbfe;
+  border: 1px solid rgba(191, 219, 254, 0.4);
+}
+
+.photo-viewer__action--delete {
   background: #dc2626;
   color: #fff;
-  font-weight: 600;
-  padding: 0.5rem 1.5rem;
-  border-radius: 999px;
-  cursor: pointer;
 }
 
 .token-list {

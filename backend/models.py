@@ -96,7 +96,11 @@ class ProcedureBase(BaseModel):
     status: str = Field(..., description="Procedure workflow status")
     procedure_type: str = Field(..., description="Buckets used to filter procedures")
     package_type: str = Field(..., description="Package/bundle selection for the procedure")
-    grafts: float = Field(..., description="Number of grafts or imported numeric detail", ge=0)
+    grafts: Optional[float] = Field(
+        None,
+        description="Number of grafts or imported numeric detail",
+        ge=0,
+    )
     agency: Optional[str] = Field(None, description="Agency or referral source for the procedure")
     source: str = Field("email", description="Text note describing where the lead came from")
     payment: Optional[str] = Field(None, description="Payment collection status")
@@ -141,6 +145,26 @@ class ProcedureBase(BaseModel):
             filtered = [notes]
 
         value["notes"] = filtered
+        return value
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_grafts(cls, value: Dict[str, Any]) -> Dict[str, Any]:
+        if not isinstance(value, dict):
+            return value
+        grafts_value = value.get("grafts")
+        if grafts_value in (None, "", "null"):
+            value["grafts"] = None
+            return value
+        if isinstance(grafts_value, str):
+            stripped = grafts_value.strip()
+            if not stripped:
+                value["grafts"] = None
+                return value
+            try:
+                value["grafts"] = float(stripped)
+            except ValueError:
+                pass
         return value
 
 

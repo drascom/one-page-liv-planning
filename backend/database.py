@@ -171,6 +171,11 @@ def _reset_procedures_table(conn: sqlite3.Connection) -> None:
     column_rows = cursor.fetchall()
     columns = {row[1] for row in column_rows}
     column_types = {row[1]: (row[2] or "").upper() for row in column_rows}
+    grafts_nullable = True
+    for row in column_rows:
+        if row[1] == "grafts":
+            grafts_nullable = not bool(row[3])
+            break
     desired = {
         "id",
         "patient_id",
@@ -206,9 +211,9 @@ def _reset_procedures_table(conn: sqlite3.Connection) -> None:
         }
         grafts_type = column_types.get("grafts", "")
         grafts_numeric = grafts_type in {"REAL", "INTEGER", "NUMERIC", "FLOAT", "DOUBLE"}
-        if not missing and grafts_numeric:
+        if not missing and grafts_numeric and grafts_nullable:
             return
-        if missing.issubset(alterable) and grafts_numeric:
+        if missing.issubset(alterable) and grafts_numeric and grafts_nullable:
             if "package_type" in missing:
                 conn.execute("ALTER TABLE procedures ADD COLUMN package_type TEXT NOT NULL DEFAULT ''")
             if "agency" in missing:
@@ -245,7 +250,7 @@ def _create_procedures_table(conn: sqlite3.Connection) -> None:
             package_type TEXT NOT NULL DEFAULT '',
             agency TEXT NOT NULL DEFAULT '',
             source TEXT NOT NULL DEFAULT 'email',
-            grafts REAL NOT NULL DEFAULT 0,
+            grafts REAL,
             outstanding_balance REAL,
             payment TEXT NOT NULL,
             consultation TEXT NOT NULL DEFAULT '[]',
@@ -1200,10 +1205,17 @@ def _row_to_procedure(row: sqlite3.Row) -> Dict[str, Any]:
         balance = float(balance_raw) if balance_raw is not None else None
     except (TypeError, ValueError):
         balance = None
-    try:
-        grafts_value = float(row["grafts"])
-    except (TypeError, ValueError):
-        grafts_value = 0
+    grafts_raw = row["grafts"] if "grafts" in row.keys() else None
+    if grafts_raw is None or grafts_raw == "":
+        grafts_value: Optional[float] = None
+    else:
+        try:
+            grafts_value = float(grafts_raw)
+        except (TypeError, ValueError):
+            grafts_value = None
+    status_value = (row["status"] if "status" in row.keys() else "") or ""
+    procedure_type_value = (row["procedure_type"] if "procedure_type" in row.keys() else "") or ""
+    payment_value = (row["payment"] if "payment" in row.keys() else "") or ""
     return {
         "id": row["id"],
         "patient_id": row["patient_id"],
@@ -1213,13 +1225,13 @@ def _row_to_procedure(row: sqlite3.Row) -> Dict[str, Any]:
             if "procedure_time" in row.keys() and row["procedure_time"]
             else DEFAULT_PROCEDURE_TIME
         ),
-        "status": row["status"],
-        "procedure_type": row["procedure_type"],
+        "status": status_value,
+        "procedure_type": procedure_type_value,
         "package_type": (row["package_type"] if "package_type" in row.keys() else "") or "",
         "agency": (row["agency"] if "agency" in row.keys() else "") or "",
         "source": (row["source"] if "source" in row.keys() else "email") or "email",
         "grafts": grafts_value,
-        "payment": row["payment"],
+        "payment": payment_value,
         "consultation": _deserialize_consultation(row["consultation"]),
         "forms": forms,
         "consents": consents,
@@ -1667,8 +1679,6 @@ def run_data_integrity_check(limit: int = 50) -> Dict[str, Any]:
             for field in ("procedure_date", "status", "procedure_type", "payment")
             if _blank(procedure[field])
         ]
-        if procedure["grafts"] is None:
-            missing_fields.append("grafts")
         if missing_fields:
             issue_entries.append(
                 {
@@ -1836,9 +1846,9 @@ def _serialize_procedure_payload(data: Dict[str, Any]) -> Dict[str, Any]:
     else:
         consultation_list = list(consultation_value)
 
-    grafts_value = data.get("grafts", 0)
-    if grafts_value in ("", None):
-        grafts_number: float = 0
+    grafts_value = data.get("grafts")
+    if grafts_value in ("", None, "null"):
+        grafts_number: Optional[float] = None
     else:
         try:
             grafts_number = float(grafts_value)

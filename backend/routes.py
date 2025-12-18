@@ -150,7 +150,7 @@ def _merge_procedure_payload(existing: dict, incoming: dict) -> dict:
 
 
 _PATIENT_ALLOWED_EMPTY_FIELDS = frozenset({"first_name", "last_name"})
-_PROCEDURE_ALLOWED_EMPTY_FIELDS = frozenset({"procedure_date", "procedure_type"})
+_PROCEDURE_ALLOWED_EMPTY_FIELDS = frozenset({"procedure_date", "procedure_type", "grafts"})
 
 
 def _omit_blank_update_values(data: Optional[dict], *, allow_empty: frozenset[str]) -> dict:
@@ -1646,6 +1646,32 @@ async def upload_drive_files(folder_id: str, files: List[UploadFile] = File(...)
             raise HTTPException(status_code=502, detail=f"Drive upload failed: {exc}")
 
     return {"files": uploaded}
+
+
+@drive_router.delete("/{file_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_drive_file(file_id: str):
+    """Delete a file from Google Drive using the server's credentials."""
+    token = get_access_token()
+    if not token:
+        raise HTTPException(
+            status_code=503,
+            detail="Google Drive authentication failed. Please reconnect Google Drive in Settings.",
+        )
+
+    headers = {"Authorization": f"Bearer {token}"}
+    params = {"supportsAllDrives": "true"}
+    url = f"https://www.googleapis.com/drive/v3/files/{file_id}"
+    try:
+        response = requests.delete(url, headers=headers, params=params)
+        if response.status_code not in (200, 204):
+            detail = response.text or "Google Drive delete failed"
+            raise HTTPException(status_code=response.status_code, detail=detail)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Google Drive delete failed: {exc}")
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @n8n_router.post("/import", status_code=status.HTTP_200_OK)

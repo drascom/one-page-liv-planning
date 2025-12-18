@@ -160,6 +160,50 @@ def test_procedure_time_can_be_specified(client: TestClient):
     assert refreshed.json()["procedure_time"] == "15:00"
 
 
+def test_procedure_accepts_missing_grafts(client: TestClient):
+    patient_id = _create_patient(client)
+    create_payload = {
+        "patient_id": patient_id,
+        "procedure_date": "2025-04-10",
+        "status": "reserved",
+        "procedure_type": "sfue",
+        "package_type": "small",
+        "payment": "waiting",
+        "consultation": [],
+        "forms": [],
+        "consents": [],
+    }
+    created = client.post("/procedures", json=create_payload)
+    assert created.status_code == 201
+    procedure_id = created.json()["id"]
+
+    fetched = client.get(f"/procedures/{procedure_id}")
+    assert fetched.status_code == 200
+    body = fetched.json()
+    assert body["grafts"] is None
+
+    update_payload = {
+        **create_payload,
+        "grafts": 1500,
+    }
+    updated = client.put(f"/procedures/{procedure_id}", json=update_payload)
+    assert updated.status_code == 200
+
+    refreshed = client.get(f"/procedures/{procedure_id}")
+    assert refreshed.status_code == 200
+    assert refreshed.json()["grafts"] == 1500
+
+    cleared_payload = {
+        **update_payload,
+        "grafts": None,
+    }
+    cleared = client.put(f"/procedures/{procedure_id}", json=cleared_payload)
+    assert cleared.status_code == 200
+    cleared_fetch = client.get(f"/procedures/{procedure_id}")
+    assert cleared_fetch.status_code == 200
+    assert cleared_fetch.json()["grafts"] is None
+
+
 def test_procedures_removed_with_patient(client: TestClient):
     patient_id = _create_patient(client)
 
