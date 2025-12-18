@@ -125,6 +125,21 @@ def _current_user(request: Request) -> Optional[dict]:
 
 def _merge_procedure_payload(existing: dict, incoming: dict) -> dict:
     """Merge incoming procedure fields onto existing record, keeping unspecified values."""
+    def _value_is_zeroish(value: Any) -> bool:
+        if value is None:
+            return True
+        if isinstance(value, (int, float)):
+            return float(value) == 0.0
+        if isinstance(value, str):
+            text = value.strip()
+            if not text:
+                return True
+            try:
+                return float(text) == 0.0
+            except ValueError:
+                return False
+        return False
+
     allowed_keys = {
         "procedure_date",
         "procedure_time",
@@ -146,6 +161,11 @@ def _merge_procedure_payload(existing: dict, incoming: dict) -> dict:
     for key, value in incoming.items():
         if key in merged:
             merged[key] = value
+    if "grafts" in incoming:
+        incoming_grafts = incoming.get("grafts")
+        existing_grafts = existing.get("grafts")
+        if _value_is_zeroish(incoming_grafts) and not _value_is_zeroish(existing_grafts):
+            merged["grafts"] = existing_grafts
     return merged
 
 

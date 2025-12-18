@@ -204,6 +204,55 @@ def test_procedure_accepts_missing_grafts(client: TestClient):
     assert cleared_fetch.json()["grafts"] is None
 
 
+def test_grafts_zero_update_is_ignored_when_existing_value_present(client: TestClient):
+    patient_id = _create_patient(client)
+    create_payload = {
+        "patient_id": patient_id,
+        "procedure_date": "2025-04-20",
+        "status": "reserved",
+        "procedure_type": "sfue",
+        "package_type": "small",
+        "grafts": 2000,
+        "payment": "waiting",
+        "consultation": [],
+        "forms": [],
+        "consents": [],
+    }
+    created = client.post("/procedures", json=create_payload)
+    assert created.status_code == 201
+    procedure_id = created.json()["id"]
+
+    zero_payload = {
+        **create_payload,
+        "grafts": 0,
+    }
+    zero_update = client.put(f"/procedures/{procedure_id}", json=zero_payload)
+    assert zero_update.status_code == 200
+    check_zero = client.get(f"/procedures/{procedure_id}")
+    assert check_zero.status_code == 200
+    assert check_zero.json()["grafts"] == 2000
+
+    null_payload = {
+        **create_payload,
+        "grafts": None,
+    }
+    null_update = client.put(f"/procedures/{procedure_id}", json=null_payload)
+    assert null_update.status_code == 200
+    check_null = client.get(f"/procedures/{procedure_id}")
+    assert check_null.status_code == 200
+    assert check_null.json()["grafts"] == 2000
+
+    new_payload = {
+        **create_payload,
+        "grafts": 1500,
+    }
+    new_update = client.put(f"/procedures/{procedure_id}", json=new_payload)
+    assert new_update.status_code == 200
+    check_new = client.get(f"/procedures/{procedure_id}")
+    assert check_new.status_code == 200
+    assert check_new.json()["grafts"] == 1500
+
+
 def test_procedures_removed_with_patient(client: TestClient):
     patient_id = _create_patient(client)
 
