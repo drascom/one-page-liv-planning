@@ -95,7 +95,10 @@ class ProcedureBase(BaseModel):
     )
     status: str = Field(..., description="Procedure workflow status")
     procedure_type: str = Field(..., description="Buckets used to filter procedures")
-    package_type: str = Field(..., description="Package/bundle selection for the procedure")
+    package_type: Optional[str] = Field(
+        "",
+        description="Package/bundle selection for the procedure",
+    )
     grafts: Optional[float] = Field(
         None,
         description="Number of grafts or imported numeric detail",

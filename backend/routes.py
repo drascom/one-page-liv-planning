@@ -150,7 +150,7 @@ def _merge_procedure_payload(existing: dict, incoming: dict) -> dict:
 
 
 _PATIENT_ALLOWED_EMPTY_FIELDS = frozenset({"first_name", "last_name"})
-_PROCEDURE_ALLOWED_EMPTY_FIELDS = frozenset({"procedure_date", "procedure_type", "grafts"})
+_PROCEDURE_ALLOWED_EMPTY_FIELDS = frozenset({"procedure_date", "procedure_type", "package_type", "grafts"})
 
 
 def _omit_blank_update_values(data: Optional[dict], *, allow_empty: frozenset[str]) -> dict:
