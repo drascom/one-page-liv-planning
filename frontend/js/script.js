@@ -1261,22 +1261,12 @@ function createCheckCell(value, label, countText = "") {
 
   const content = document.createElement("span");
   content.className = "check-cell";
-
-  const status = document.createElement("span");
-  status.className = `check-status ${value ? "check-status--complete" : "check-status--missing"}`;
-  status.textContent = value ? "Complete" : "Missing";
-  status.setAttribute(
-    "aria-label",
-    `${label} ${value ? "complete" : "missing"}${countText ? ` (${countText})` : ""}`
-  );
-
-  content.appendChild(status);
-  if (countText) {
-    const count = document.createElement("span");
-    count.className = "check-count";
-    count.textContent = countText;
-    content.appendChild(count);
-  }
+  const displayText = countText || (value ? "Complete" : "0/0");
+  const count = document.createElement("span");
+  count.className = `check-count ${value ? "check-count--complete" : "check-count--missing"}`;
+  count.textContent = displayText;
+  count.setAttribute("aria-label", `${label} ${displayText}`);
+  content.appendChild(count);
   cell.appendChild(content);
   return cell;
 }

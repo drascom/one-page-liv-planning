@@ -1959,21 +1959,6 @@ body.app-shell {
   white-space: nowrap;
 }
 
-.check-status {
-  font-size: 0.9rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.check-status--complete {
-  color: #16a34a;
-}
-
-.check-status--missing {
-  color: #dc2626;
-}
-
 .col-consult {
   width: 10%;
   text-align: center;
@@ -1990,10 +1975,16 @@ body.app-shell {
 }
 
 .check-count {
-  margin-left: 0;
-  font-size: 0.9rem;
-  color: #475569;
-  font-weight: 500;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.check-count--complete {
+  color: #16a34a;
+}
+
+.check-count--missing {
+  color: #dc2626;
 }
 
 .week__table td[data-label]::before {
