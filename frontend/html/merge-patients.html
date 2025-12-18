@@ -79,8 +79,6 @@
 
         <div class="merge-grid">
           <div class="merge-stack">
-
-
             <section class="merge-panel">
               <header class="merge-panel__header">
                 <div>
@@ -98,77 +96,80 @@
               <ul id="merge-directory-list" class="customer-list merge-directory-list" aria-live="polite"></ul>
             </section>
           </div>
-          <section class="merge-panel">
-            <header class="merge-panel__header">
-              <div>
-                <p class="settings-section__eyebrow">Selections</p>
-                <h2>Selected patients</h2>
-              </div>
-              <button type="button" class="ghost-btn ghost-btn--small" id="merge-clear-btn">Clear</button>
-            </header>
-            <p class="merge-panel__hint">Choose at least two patients. Pick which record to keep.</p>
-            <ul id="merge-selected-list" class="merge-selected-list"></ul>
-            <div class="merge-panel__footer">
-              <button type="button" class="secondary-btn" id="merge-open-directory">Back to directory</button>
-              <button type="button" class="ghost-btn" id="merge-open-customers">View schedule</button>
-            </div>
-          </section>
-          <section class="merge-panel merge-panel--form">
-            <header class="merge-panel__header">
-              <div>
-                <p class="settings-section__eyebrow">Surviving record</p>
-                <h2>Keep this patient</h2>
-              </div>
-              <p class="merge-panel__hint merge-panel__hint--inline">We’ll move everything into this patient record.</p>
-            </header>
-
-            <form id="merge-form" class="form-layout merge-form">
-              <div class="form-group">
-                <label for="merge-first-name">First Name</label>
-                <input id="merge-first-name" name="firstName" type="text" autocomplete="given-name" required />
-              </div>
-              <div class="form-group">
-                <label for="merge-last-name">Last Name</label>
-                <input id="merge-last-name" name="lastName" type="text" autocomplete="family-name" required />
-              </div>
-              <div class="form-group">
-                <label for="merge-email">Email</label>
-                <input id="merge-email" name="email" type="email" autocomplete="email" required />
-              </div>
-              <div class="form-group">
-                <label for="merge-phone">Phone</label>
-                <input id="merge-phone" name="phone" type="tel" autocomplete="tel" required />
-              </div>
-              <div class="form-group">
-                <label for="merge-address">Address</label>
-                <input id="merge-address" name="address" type="text" autocomplete="street-address" required />
-              </div>
-              <div class="form-group">
-                <label for="merge-drive">Drive Folder ID (optional)</label>
-                <input id="merge-drive" name="driveFolderId" type="text" autocomplete="off" />
-              </div>
-
-              <div class="merge-summary">
+          <div class="merge-stack">
+            <section class="merge-panel">
+              <header class="merge-panel__header">
                 <div>
-                  <p class="merge-summary__label">Patients merging</p>
-                  <p class="merge-summary__value" id="merge-summary-count">0</p>
+                  <p class="settings-section__eyebrow">Selections</p>
+                  <h2>Selected patients</h2>
                 </div>
-                <div>
-                  <p class="merge-summary__label">Procedures moving</p>
-                  <p class="merge-summary__value" id="merge-summary-procedures">0</p>
-                </div>
-                <div>
-                  <p class="merge-summary__label">Photos moving</p>
-                  <p class="merge-summary__value" id="merge-summary-photos">0</p>
-                </div>
+                <button type="button" class="ghost-btn ghost-btn--small" id="merge-clear-btn">Clear</button>
+              </header>
+              <p class="merge-panel__hint">Choose at least two patients. Pick which record to keep.</p>
+              <ul id="merge-selected-list" class="merge-selected-list"></ul>
+              <div class="merge-panel__footer">
+                <button type="button" class="secondary-btn" id="merge-open-directory">Back to directory</button>
+                <button type="button" class="ghost-btn" id="merge-open-customers">View schedule</button>
               </div>
+            </section>
+            <section class="merge-panel merge-panel--form">
+              <header class="merge-panel__header">
+                <div>
+                  <p class="settings-section__eyebrow">Surviving record</p>
+                  <h2>Keep this patient</h2>
+                </div>
+                <p class="merge-panel__hint merge-panel__hint--inline">We’ll move everything into this patient record.
+                </p>
+              </header>
 
-              <div class="merge-actions">
-                <button type="submit" class="primary-btn" id="merge-submit-btn">Merge patients</button>
-                <button type="button" class="secondary-btn" id="merge-view-patient" hidden>Open merged record</button>
-              </div>
-            </form>
-          </section>
+              <form id="merge-form" class="form-layout merge-form">
+                <div class="form-group">
+                  <label for="merge-first-name">First Name</label>
+                  <input id="merge-first-name" name="firstName" type="text" autocomplete="given-name" required />
+                </div>
+                <div class="form-group">
+                  <label for="merge-last-name">Last Name</label>
+                  <input id="merge-last-name" name="lastName" type="text" autocomplete="family-name" required />
+                </div>
+                <div class="form-group">
+                  <label for="merge-email">Email</label>
+                  <input id="merge-email" name="email" type="email" autocomplete="email" required />
+                </div>
+                <div class="form-group">
+                  <label for="merge-phone">Phone</label>
+                  <input id="merge-phone" name="phone" type="tel" autocomplete="tel" required />
+                </div>
+                <div class="form-group">
+                  <label for="merge-address">Address</label>
+                  <input id="merge-address" name="address" type="text" autocomplete="street-address" required />
+                </div>
+                <div class="form-group">
+                  <label for="merge-drive">Drive Folder ID (optional)</label>
+                  <input id="merge-drive" name="driveFolderId" type="text" autocomplete="off" />
+                </div>
+
+                <div class="merge-summary">
+                  <div>
+                    <p class="merge-summary__label">Patients merging</p>
+                    <p class="merge-summary__value" id="merge-summary-count">0</p>
+                  </div>
+                  <div>
+                    <p class="merge-summary__label">Procedures moving</p>
+                    <p class="merge-summary__value" id="merge-summary-procedures">0</p>
+                  </div>
+                  <div>
+                    <p class="merge-summary__label">Photos moving</p>
+                    <p class="merge-summary__value" id="merge-summary-photos">0</p>
+                  </div>
+                </div>
+
+                <div class="merge-actions">
+                  <button type="submit" class="primary-btn" id="merge-submit-btn">Merge patients</button>
+                  <button type="button" class="secondary-btn" id="merge-view-patient" hidden>Open merged record</button>
+                </div>
+              </form>
+            </section>
+          </div>
         </div>
       </section>
     </main>
