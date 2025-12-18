@@ -452,6 +452,7 @@ const cancelEditPatientBtn = document.getElementById("patient-cancel-edit-btn");
 const bookingListEl = document.getElementById("patient-bookings-list");
 const proceduresStatusEl = document.getElementById("procedures-status");
 const formEl = document.getElementById("patient-form");
+const procedureFormEl = document.getElementById("procedure-form");
 const formStatusEl = document.getElementById("form-status");
 const patientStatusEl = document.getElementById("patient-status");
 const procedureFormStatusEl = document.getElementById("procedure-form-status");
@@ -1911,26 +1912,17 @@ function buildProcedurePayloadFromForm() {
   return payload;
 }
 
-async function savePatient(event) {
+async function savePatientDetails(event) {
   event.preventDefault();
   if (!currentPatient || isReadOnlyPatientPage) {
     return;
   }
   const patientPayload = buildPatientPayloadFromForm();
-  const procedurePayload = buildProcedurePayloadFromForm();
-  if (!patientPayload || !procedurePayload) {
+  if (!patientPayload) {
     return;
   }
-  const shouldProceed = await confirmDuplicateIfNeeded({
-    ...procedurePayload,
-    id: activeProcedure?.id,
-  });
-  if (!shouldProceed) {
-    return;
-  }
-  formStatusEl.textContent = "Saving...";
+  formStatusEl.textContent = "Saving patient details...";
   patientStatusEl.textContent = "Updating patient...";
-  procedureFormStatusEl.textContent = activeProcedure ? "Saving procedure..." : "Creating procedure...";
   try {
     const response = await fetch(buildApiUrl(`/patients/${currentPatient.id}`), {
       method: "PUT",
@@ -1956,13 +1948,33 @@ async function savePatient(event) {
     populatePatientForm(refreshedPatient);
     if (isAdminUser) updateDebugInfo();
     patientStatusEl.textContent = "Patient details saved.";
+    formStatusEl.textContent = "Patient details saved.";
+    showPatientSummaryView();
   } catch (error) {
     console.error(error);
     formStatusEl.textContent = error.message;
     patientStatusEl.textContent = error.message;
+  }
+}
+
+async function saveProcedure(event) {
+  event.preventDefault();
+  if (!currentPatient || isReadOnlyPatientPage) {
     return;
   }
-
+  const procedurePayload = buildProcedurePayloadFromForm();
+  if (!procedurePayload) {
+    return;
+  }
+  const shouldProceed = await confirmDuplicateIfNeeded({
+    ...procedurePayload,
+    id: activeProcedure?.id,
+  });
+  if (!shouldProceed) {
+    return;
+  }
+  formStatusEl.textContent = "Saving procedure...";
+  procedureFormStatusEl.textContent = activeProcedure ? "Saving procedure..." : "Creating procedure...";
   try {
     const endpoint = activeProcedure
       ? buildApiUrl(`/procedures/${activeProcedure.id}`)
@@ -1995,8 +2007,7 @@ async function savePatient(event) {
     refreshDeleteButtonState();
     procedureFormStatusEl.textContent = "Procedure saved.";
     persistReturnToScheduleContext(currentPatient, savedProcedure);
-    showPatientSummaryView();
-    formStatusEl.textContent = "Record saved. Returning to previous page...";
+    formStatusEl.textContent = "Procedure saved. Returning to previous page...";
     redirectToPreviousPage();
   } catch (error) {
     console.error(error);
@@ -2026,7 +2037,15 @@ if (formEl) {
   if (isReadOnlyPatientPage) {
     formEl.addEventListener("submit", (event) => event.preventDefault());
   } else {
-    formEl.addEventListener("submit", savePatient);
+    formEl.addEventListener("submit", savePatientDetails);
+  }
+}
+
+if (procedureFormEl) {
+  if (isReadOnlyPatientPage) {
+    procedureFormEl.addEventListener("submit", (event) => event.preventDefault());
+  } else {
+    procedureFormEl.addEventListener("submit", saveProcedure);
   }
 }
 

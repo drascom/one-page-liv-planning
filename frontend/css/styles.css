@@ -3073,6 +3073,17 @@ body.app-shell {
   color: #ffffff;
 }
 
+.btn-success {
+  background: #16a34a;
+  color: #ffffff;
+  box-shadow: 0 10px 20px rgba(22, 163, 74, 0.2);
+}
+
+.btn-success:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(22, 163, 74, 0.3);
+}
+
 #run-integrity-check-btn,
 #download-database-btn {
   background: #2563eb;
@@ -3088,6 +3099,11 @@ body.app-shell {
   margin-top: 1.5rem;
   display: flex;
   justify-content: flex-end;
+}
+
+.procedures-card__actions--top {
+  margin-top: 0;
+  margin-bottom: 1.25rem;
 }
 
 .secondary-btn {
