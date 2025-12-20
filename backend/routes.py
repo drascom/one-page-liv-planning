@@ -838,6 +838,39 @@ async def update_patient(patient_id: int, payload: PatientUpdate, request: Reque
     return result
 
 
+@patients_router.patch("/{patient_id}", response_model=OperationResult)
+async def patch_patient(patient_id: int, payload: PatientUpdate, request: Request) -> OperationResult:
+    """Partially update patient information."""
+    existing = database.fetch_patient(patient_id)
+    if not existing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    incoming = _omit_blank_update_values(
+        payload.model_dump(exclude_unset=True),
+        allow_empty=_PATIENT_ALLOWED_EMPTY_FIELDS,
+    )
+    if not incoming:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Provide at least one field to update",
+        )
+    merged = {**existing, **incoming}
+    patient_payload = _coerce_patient_payload(merged)
+    updated = database.update_patient(patient_id, patient_payload.model_dump())
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    result = OperationResult(success=True, id=patient_id, message="Patient updated")
+    database.log_api_request(
+        f"/patients/{patient_id}",
+        "PATCH",
+        incoming,
+        result.model_dump(),
+    )
+    refreshed = database.fetch_patient(patient_id)
+    if refreshed:
+        await _emit_patient_event("updated", refreshed, request)
+    return result
+
+
 @patients_router.post("/merge", response_model=MergePatientsResult)
 async def merge_patients_route(payload: PatientMergeRequest, request: Request) -> MergePatientsResult:
     """Combine duplicate patients and reassign their related records."""

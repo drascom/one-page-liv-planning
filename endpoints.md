@@ -46,6 +46,11 @@ curl -X PUT -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json
   -d '{ "phone": "+441111111111", "address": "Manchester" }' \
   "$BASE_URL/api/v1/patients/123"
 
+# Partially update a patient
+curl -X PATCH -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{ "phone": "+449876543210" }' \
+  "$BASE_URL/api/v1/patients/123"
+
 # Create a procedure linked to a patient
 curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{
