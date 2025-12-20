@@ -38,6 +38,7 @@ class PatientBase(BaseModel):
     email: str = Field(..., description="Preferred contact email")
     phone: str = Field(..., description="Preferred phone number")
     address: str = Field(..., description="Patient address")
+    dob: Optional[str] = Field(None, description="Patient date of birth (YYYY-MM-DD)")
     drive_folder_id: Optional[str] = Field(None, description="The ID of the patient's folder")
     photo_count: int = Field(0, ge=0, description="Number of Google Drive photos linked to the patient")
 
@@ -53,6 +54,7 @@ class PatientUpdate(BaseModel):
     email: Optional[str] = Field(None, description="Preferred contact email")
     phone: Optional[str] = Field(None, description="Preferred phone number")
     address: Optional[str] = Field(None, description="Patient address")
+    dob: Optional[str] = Field(None, description="Patient date of birth (YYYY-MM-DD)")
     drive_folder_id: Optional[str] = Field(None, description="The ID of the patient's folder")
     photo_count: Optional[int] = Field(None, ge=0, description="Number of linked Drive photos")
 
@@ -74,6 +76,7 @@ class PatientMergeUpdate(BaseModel):
     email: Optional[str] = Field(None, description="Updated email for the surviving patient")
     phone: Optional[str] = Field(None, description="Updated phone for the surviving patient")
     address: Optional[str] = Field(None, description="Updated address for the surviving patient")
+    dob: Optional[str] = Field(None, description="Updated date of birth for the surviving patient")
     drive_folder_id: Optional[str] = Field(None, description="Drive folder to keep on the surviving patient")
     photo_count: Optional[int] = Field(None, ge=0, description="Updated total photo count for the patient")
 
@@ -314,6 +317,7 @@ class PatientSearchResult(BaseModel):
     email: Optional[str] = Field(None, description="Preferred contact email when found")
     phone: Optional[str] = Field(None, description="Preferred phone number when found")
     address: Optional[str] = Field(None, description="Patient address when found")
+    dob: Optional[str] = Field(None, description="Patient date of birth when found")
     drive_folder_id: Optional[str] = Field(None, description="The ID of the patient's folder")
     deleted: Optional[bool] = Field(None, description="Whether the record is soft deleted")
     created_at: Optional[str] = Field(None, description="Timestamp when the patient was created")
@@ -330,6 +334,7 @@ class PatientSearchMatch(BaseModel):
     email: str
     phone: str
     address: str
+    dob: Optional[str] = None
     drive_folder_id: Optional[str] = None
     deleted: bool = False
     created_at: str

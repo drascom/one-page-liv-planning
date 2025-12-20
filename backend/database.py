@@ -104,6 +104,7 @@ def _reset_patients_table(conn: sqlite3.Connection) -> None:
         "email",
         "phone",
         "address",
+        "dob",
         "drive_folder_id",
         "photo_count",
         "deleted",
@@ -117,7 +118,7 @@ def _reset_patients_table(conn: sqlite3.Connection) -> None:
             conn.execute("UPDATE patients SET address = city WHERE address IS NULL OR address = ''")
             columns.add("address")
         missing = desired - columns
-        alterable = {"drive_folder_id", "photo_count"}
+        alterable = {"drive_folder_id", "photo_count", "dob"}
         extra = columns - desired
         allowed_extras = {"city"}
         if not missing and not (extra - allowed_extras):
@@ -128,6 +129,8 @@ def _reset_patients_table(conn: sqlite3.Connection) -> None:
                 conn.execute("ALTER TABLE patients ADD COLUMN drive_folder_id TEXT")
             if "photo_count" in missing:
                 conn.execute("ALTER TABLE patients ADD COLUMN photo_count INTEGER NOT NULL DEFAULT 0")
+            if "dob" in missing:
+                conn.execute("ALTER TABLE patients ADD COLUMN dob TEXT")
             conn.commit()
             return
         # If there are unexpected columns (e.g., legacy file_details), recreate the table
@@ -144,6 +147,7 @@ def _reset_patients_table(conn: sqlite3.Connection) -> None:
             email TEXT NOT NULL,
             phone TEXT NOT NULL,
             address TEXT NOT NULL,
+            dob TEXT,
             drive_folder_id TEXT,
             photo_count INTEGER NOT NULL DEFAULT 0,
             deleted INTEGER NOT NULL DEFAULT 0,
@@ -1160,6 +1164,7 @@ def _row_to_patient(row: sqlite3.Row) -> Dict[str, Any]:
         address_value = row["address"]
     elif "city" in row.keys():
         address_value = row["city"]
+    dob_value = row["dob"] if "dob" in row.keys() else None
     return {
         "id": row["id"],
         "first_name": (row["first_name"] or "").strip(),
@@ -1167,6 +1172,7 @@ def _row_to_patient(row: sqlite3.Row) -> Dict[str, Any]:
         "email": row["email"],
         "phone": row["phone"],
         "address": address_value or "",
+        "dob": _date_only(dob_value),
         "drive_folder_id": row["drive_folder_id"] if "drive_folder_id" in row.keys() else None,
         "photo_count": row["photo_count"] if "photo_count" in row.keys() else 0,
         "deleted": bool(row["deleted"]),
@@ -1805,6 +1811,10 @@ def _serialize_patient_payload(data: Dict[str, Any]) -> Dict[str, Any]:
     normalized_first = (data.get("first_name") or "").strip()
     normalized_last = (data.get("last_name") or "").strip()
     normalized_address = (data.get("address") or data.get("city") or "").strip()
+    dob_value = data.get("dob")
+    if dob_value is None and "date_of_birth" in data:
+        dob_value = data.get("date_of_birth")
+    normalized_dob = _date_only(dob_value)
     photo_count_value = data.get("photo_count")
     try:
         normalized_photo_count = max(0, int(photo_count_value))
@@ -1817,6 +1827,7 @@ def _serialize_patient_payload(data: Dict[str, Any]) -> Dict[str, Any]:
         "email": data.get("email", ""),
         "phone": data.get("phone", ""),
         "address": normalized_address,
+        "dob": normalized_dob,
         "drive_folder_id": data.get("drive_folder_id"),
         "photo_count": normalized_photo_count,
     }
@@ -1911,10 +1922,10 @@ def create_patient(data: Dict[str, Any]) -> Dict[str, Any]:
         cursor = conn.execute(
             """
             INSERT INTO patients (
-                first_name, last_name, email, phone, address,
+                first_name, last_name, email, phone, address, dob,
                 drive_folder_id, photo_count
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 payload["first_name"],
@@ -1922,6 +1933,7 @@ def create_patient(data: Dict[str, Any]) -> Dict[str, Any]:
                 payload["email"],
                 payload["phone"],
                 payload["address"],
+                payload["dob"],
                 payload["drive_folder_id"],
                 payload["photo_count"],
             ),
@@ -1948,6 +1960,7 @@ def update_patient(patient_id: int, data: Dict[str, Any]) -> Optional[Dict[str, 
                 email = ?,
                 phone = ?,
                 address = ?,
+                dob = ?,
                 drive_folder_id = ?,
                 photo_count = ?,
                 updated_at = CURRENT_TIMESTAMP
@@ -1959,6 +1972,7 @@ def update_patient(patient_id: int, data: Dict[str, Any]) -> Optional[Dict[str, 
                 payload["email"],
                 payload["phone"],
                 payload["address"],
+                payload["dob"],
                 payload["drive_folder_id"],
                 payload["photo_count"],
                 patient_id,
@@ -2014,11 +2028,12 @@ def merge_patients(
         "email": target["email"],
         "phone": target["phone"],
         "address": target.get("address", ""),
+        "dob": target.get("dob"),
         "drive_folder_id": target.get("drive_folder_id"),
         "photo_count": target.get("photo_count", 0),
     }
     if updates:
-        for field in ("first_name", "last_name", "email", "phone", "address", "drive_folder_id"):
+        for field in ("first_name", "last_name", "email", "phone", "address", "dob", "drive_folder_id"):
             if updates.get(field) is not None:
                 merged_values[field] = updates[field]
 
@@ -2056,6 +2071,7 @@ def merge_patients(
                 email = ?,
                 phone = ?,
                 address = ?,
+                dob = ?,
                 drive_folder_id = ?,
                 deleted = 0,
                 updated_at = CURRENT_TIMESTAMP
@@ -2067,6 +2083,7 @@ def merge_patients(
                 payload["email"],
                 payload["phone"],
                 payload["address"],
+                payload["dob"],
                 payload["drive_folder_id"],
                 target_patient_id,
             ),
@@ -2460,8 +2477,8 @@ def _seed_patients_if_empty(conn: sqlite3.Connection) -> bool:
     for record in DEMO_PATIENTS:
         cursor = conn.execute(
             """
-            INSERT INTO patients (first_name, last_name, email, phone, address)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO patients (first_name, last_name, email, phone, address, dob)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
             (
                 record["first_name"],
@@ -2469,6 +2486,7 @@ def _seed_patients_if_empty(conn: sqlite3.Connection) -> bool:
                 record["email"],
                 record["phone"],
                 record["address"],
+                record.get("dob"),
             ),
         )
         patient_ids.append(cursor.lastrowid)
@@ -2511,5 +2529,6 @@ DEMO_PATIENTS: List[Dict[str, Any]] = [
         "email": "ava.wallace@example.com",
         "phone": "+44 7700 900001",
         "address": "London",
+        "dob": "1991-03-12",
     }
 ]

@@ -86,6 +86,12 @@ const MONTH_FORMATTER = new Intl.DateTimeFormat("en-US", {
   timeZone: APP_TIMEZONE,
 });
 const DAY_FORMATTER = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: APP_TIMEZONE });
+const DOB_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: APP_TIMEZONE,
+});
 
 function buildProcedureTimeSlots() {
   const slots = [];
@@ -285,6 +291,15 @@ function formatPhoneHref(value) {
   return normalized ? `tel:${normalized}` : "";
 }
 
+function formatDobForDisplay(value) {
+  if (!value) return "";
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) {
+    return value;
+  }
+  return DOB_FORMATTER.format(new Date(parsed));
+}
+
 function updatePatientSummary(record) {
   if (!patientSummaryFields.size) return;
   const data = record || {};
@@ -304,6 +319,11 @@ function updatePatientSummary(record) {
   const addressEl = patientSummaryFields.get("address");
   if (addressEl) {
     addressEl.textContent = addressText;
+  }
+  const dobEl = patientSummaryFields.get("dob");
+  if (dobEl) {
+    const dobText = formatDobForDisplay(data.dob);
+    dobEl.textContent = dobText || "—";
   }
   const phoneLinkEl = patientSummaryFields.get("phone_link");
   if (phoneLinkEl) {
@@ -365,6 +385,7 @@ function updatePatientDisplay(record) {
   setDisplayValue(patientDisplayFields, "email", data.email || DEFAULT_CONTACT.email);
   setDisplayValue(patientDisplayFields, "phone", data.phone || DEFAULT_CONTACT.phone);
   setDisplayValue(patientDisplayFields, "address", data.address || data.city || DEFAULT_CONTACT.address);
+  setDisplayValue(patientDisplayFields, "dob", formatDobForDisplay(data.dob) || "");
   setDisplayValue(
     patientDisplayFields,
     "drive_folder_id",
@@ -464,6 +485,7 @@ const cancelProcedureBtn = document.getElementById("cancel-procedure-btn");
 
 const firstNameInput = document.getElementById("first-name");
 const lastNameInput = document.getElementById("last-name");
+const dobInput = document.getElementById("dob");
 const procedureDateInput = document.getElementById("procedure-date");
 const procedureTimeSelect = document.getElementById("procedure-time");
 const emailInput = document.getElementById("email");
@@ -775,6 +797,7 @@ function populatePatientForm(record) {
   }
   if (firstNameInput) firstNameInput.value = record.first_name || "";
   if (lastNameInput) lastNameInput.value = record.last_name || "";
+  if (dobInput) dobInput.value = record.dob || "";
   if (emailInput) emailInput.value = record.email || DEFAULT_CONTACT.email;
   if (phoneInput) phoneInput.value = record.phone || DEFAULT_CONTACT.phone;
   if (addressInput) addressInput.value = record.address || record.city || DEFAULT_CONTACT.address;
@@ -1845,6 +1868,7 @@ function buildPatientPayloadFromForm() {
     email: emailInput.value.trim(),
     phone: phoneInput.value.trim(),
     address: addressInput.value.trim(),
+    dob: dobInput?.value?.trim() || null,
   };
   if (isAdminUser) {
     payload.drive_folder_id = driveFolderInput?.value?.trim() || null;

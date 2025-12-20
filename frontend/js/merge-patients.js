@@ -23,6 +23,7 @@ const viewPatientBtn = document.getElementById("merge-view-patient");
 
 const firstNameInput = document.getElementById("merge-first-name");
 const lastNameInput = document.getElementById("merge-last-name");
+const dobInput = document.getElementById("merge-dob");
 const emailInput = document.getElementById("merge-email");
 const phoneInput = document.getElementById("merge-phone");
 const addressInput = document.getElementById("merge-address");
@@ -151,6 +152,7 @@ function fillFormFromPatient(patient) {
   if (!patient) return;
   if (firstNameInput) firstNameInput.value = patient.first_name || "";
   if (lastNameInput) lastNameInput.value = patient.last_name || "";
+  if (dobInput) dobInput.value = patient.dob || "";
   if (emailInput) emailInput.value = patient.email || "";
   if (phoneInput) phoneInput.value = patient.phone || "";
   if (addressInput) addressInput.value = patient.address || patient.city || "";
@@ -412,6 +414,7 @@ function collectFormUpdates() {
   return {
     first_name: firstNameInput?.value?.trim() ?? "",
     last_name: lastNameInput?.value?.trim() ?? "",
+    dob: dobInput?.value?.trim() || null,
     email: emailInput?.value?.trim() ?? "",
     phone: phoneInput?.value?.trim() ?? "",
     address: addressInput?.value?.trim() ?? "",
