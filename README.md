@@ -33,7 +33,7 @@ Liv CRM is the refreshed one-page scheduling and patient tracking workspace for 
 
 - `/api/v1/*` versions of every internal route require Bearer tokens created in the settings UI; tokens are immutable but your code can delete them when no longer needed.
 - Procedures support metadata searches (`/procedures/search`, `GET /procedures/search-by-meta`) and paginated deleted/recoverable records (`/procedures/deleted`, `/procedures/{id}/recover`, `/procedures/{id}/purge`). Patients support soft delete/recover/purge flows along with `GET /patients/{id}/procedures`.
-- `LIV REST API.paw` provides a ready-made Paw collection, while `endpoints.md` documents every shape and route in prose for quick reference.
+- `LIV REST API.paw` provides a ready-made Paw collection, and the FastAPI docs at `${BACKEND_URL}/docs` list every route/shape in one place.
 - Smoke-test automation lives in `tests/patient_workflow_test.py` (log in, create patient/procedure, update, and optionally purge). The `tests/test_procedures.py` suite exercises CRUD, filtering, search fallback, deleted record workflows, metadata search, validations, and `api/v1/search` responses.
 
 ## Getting started
@@ -119,10 +119,10 @@ To enable the Google Drive integration for fetching photos, you need to configur
 
 ## API docs & tooling
 
-- Interactive docs are served automatically at `/docs` and `/redoc` when the server is running.
-- `endpoints.md` enumerates every route, including the simplified payload shapes accepted by `/patients`, `/patients/multiple`, and the `/api/v1/*` mirror.
+- Interactive docs live at `${BACKEND_URL}/docs` (Swagger UI) and `${BACKEND_URL}/redoc` when the server is running.
 - `LIV REST API.paw` is a Paw collection with sample requests for the most common flows.
 - `config_router` exposes `/app-config` and `/app-config.js` so the frontend can discover the correct backend/frontend URLs at runtime.
+
 
 ## Operations & observability
 
