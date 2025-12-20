@@ -13,6 +13,10 @@ curl -H "Authorization: Bearer $TOKEN" \
 curl -H "Authorization: Bearer $TOKEN" \
   "$BASE_URL/api/v1/patients/search-by-date?full_name=Alex%20Smith&surgery_date=2024-08-01"
 
+# Search a patient by name + date of birth
+curl -H "Authorization: Bearer $TOKEN" \
+  "$BASE_URL/api/v1/patients/search-by-date?full_name=Alex%20Smith&dob=1990-04-01"
+
 # Search procedures by patient/date/id
 curl -H "Authorization: Bearer $TOKEN" \
   "$BASE_URL/api/v1/procedures/search?patient_id=123&procedure_date=2024-08-01"
