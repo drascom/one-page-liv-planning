@@ -12,6 +12,7 @@ The frontend uses the base endpoints below directly and no token is required for
 - `GET /patients/deleted` – (Admin only) List soft-deleted patients.
 - `POST /patients/{id}/recover` – (Admin only) Restore a soft-deleted patient.
 - `DELETE /patients/{id}/purge` – (Admin only) Permanently delete a patient (removes all stored details/files).
+- `GET /patients/search-by-date` – Provide `full_name` plus either `surgery_date`/`procedure_date` or `dob` to find matching patients and return their procedures.
 - Patient payloads include a `consultation` array (values `consultation_1`, `consultation_2`) to track completed consultations.
 
 ## `/procedures`
@@ -21,7 +22,7 @@ The frontend uses the base endpoints below directly and no token is required for
 - `PUT /procedures/{id}` – Update procedure details (requires a valid `patient_id`).
 - `PATCH /procedures/{id}` – Update one or more procedure fields without sending the full payload.
 - `DELETE /procedures/{id}` – Remove a procedure; purging a patient also cascades and removes related procedures.
-- `POST /api/v1/procedures/search-by-meta` – Provide `{ "full_name": "", "date": "", "status": "", "grafts_number": "", "package_type": "" }` to locate a procedure by metadata and receive its id and full procedure payload (delete it via `DELETE /procedures/{id}`).
+- `GET /api/v1/procedures/search-by-meta` – Provide `{ "full_name": "", "date": "", "status": "", "grafts_number": "", "package_type": "" }` to locate a procedure by metadata and receive its id and full procedure payload (delete it via `DELETE /procedures/{id}`).
 
 ## `/uploads`
 - `POST /uploads/{last_name}?patient_id=ID` – Upload one or more images for the patient. Returns updated `photoFiles`.
@@ -66,4 +67,5 @@ The frontend uses the base endpoints below directly and no token is required for
 - `DELETE /api/v1/patients/{id}/purge` – Permanently delete a patient (admin + token required).
 - All `/api/v1/...` requests require an `Authorization: Bearer <token>` header. Requests without this header are rejected.
 - `GET /api/v1/search` – Provide the full name via `full_name=Randhir%20Sandhu` (preferred) or continue using the legacy `name`/`surname` parameters to look up a single patient. Returns `{ "success": true, "id": 123, "first_name": "Randhir", ..., "procedures": [ { ... } ] }` when found, `{ "success": false, "message": "Patient record not found", "procedures": [] }` when no record matches, or `{ "success": false, "message": "Name is missing" }` when no name parameter is supplied.
-- `POST /api/v1/procedures/search-by-meta` – Provide any combination of `full_name`, `date`, `status`, `grafts_number`, or `package_type` to look up a procedure. Successful responses include `{ "success": true, "procedure_id": 42, "procedure": { ...full procedure... }, "outstanding_balance": 100.0, ... }`; failures return `{ "success": false, "message": "Procedure not found" }`.
+- `GET /api/v1/patients/search-by-date` – Provide `full_name` and either `surgery_date`/`procedure_date` or `dob` to search for patients and filter their procedure list.
+- `GET /api/v1/procedures/search-by-meta` – Provide any combination of `full_name`, `date`, `status`, `grafts_number`, or `package_type` to look up a procedure. Successful responses include `{ "success": true, "procedure_id": 42, "procedure": { ...full procedure... }, "outstanding_balance": 100.0, ... }`; failures return `{ "success": false, "message": "Procedure not found" }`.

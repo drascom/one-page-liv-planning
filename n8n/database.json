@@ -221,13 +221,11 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://liv.drascom.uk/api/v1/procedures/search-by-meta",
+        "method": "GET",
+        "url": "={{ `https://liv.drascom.uk/api/v1/procedures/search-by-meta?full_name=${encodeURIComponent($('Clean data').item.json.full_name || '')}&date=${encodeURIComponent($('Clean data').item.json.procedure_date || '')}` }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpBearerAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n \"full_name\": \"{{ $('Clean data').item.json.full_name }}\",\n \"date\": \"{{ $('Clean data').item.json.procedure_date }}\"\n}",
+        "sendBody": false,
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",

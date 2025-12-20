@@ -469,7 +469,7 @@ def test_search_procedure_by_metadata_and_delete(client: TestClient):
     search_request = {
         "full_name": "Test Patient",
     }
-    search = client.post("/procedures/search-by-meta", json=search_request)
+    search = client.get("/procedures/search-by-meta", params=search_request)
     assert search.status_code == 200
     body = search.json()
     assert body["success"] is True
@@ -492,7 +492,7 @@ def test_search_procedure_by_metadata_and_delete(client: TestClient):
         "date": "2025-05-10",
         "package_type": "small",
     }
-    status_search = client.post("/procedures/search-by-meta", json=status_only_request)
+    status_search = client.get("/procedures/search-by-meta", params=status_only_request)
     assert status_search.status_code == 200
     status_body = status_search.json()
     assert status_body["success"] is True
@@ -521,13 +521,13 @@ def test_search_procedure_by_metadata_missing_record(client: TestClient):
     search_request = {
         "date": "2025-08-02",
     }
-    result = client.post("/procedures/search-by-meta", json=search_request)
+    result = client.get("/procedures/search-by-meta", params=search_request)
     assert result.status_code == 200
     assert result.json()["success"] is False
 
 
 def test_search_procedure_by_metadata_requires_filters(client: TestClient):
-    response = client.post("/procedures/search-by-meta", json={})
+    response = client.get("/procedures/search-by-meta")
     assert response.status_code == 400
     assert "Provide at least one search field" in response.json()["detail"]
 

@@ -142,13 +142,14 @@ def test_patients_search_returns_multiple_matches(client: TestClient):
     assert {match["id"] for match in matches} == ids
 
 
-def test_patients_search_by_meta_filters_by_date_and_falls_back(client: TestClient):
+def test_patients_search_by_date_filters_by_surgery_or_dob(client: TestClient):
     create_payload = {
         "first_name": "Alex",
         "last_name": "Smith",
         "email": "alex@example.com",
         "phone": "+4400000000",
         "address": "London",
+        "dob": "1990-04-01",
     }
     created = client.post("/patients", json=create_payload)
     assert created.status_code == 201
@@ -182,8 +183,8 @@ def test_patients_search_by_meta_filters_by_date_and_falls_back(client: TestClie
 
     # Matching date returns only the matching procedure
     matching = client.get(
-        "/api/v1/patients/search-by-meta",
-        params={"full_name": "Alex Smith", "procedure_date": "2024-08-01"},
+        "/api/v1/patients/search-by-date",
+        params={"full_name": "Alex Smith", "surgery_date": "2024-08-01"},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert matching.status_code == 200
@@ -196,11 +197,23 @@ def test_patients_search_by_meta_filters_by_date_and_falls_back(client: TestClie
 
     # Non-matching date falls back to all procedures for the patient
     fallback = client.get(
-        "/api/v1/patients/search-by-meta",
-        params={"full_name": "Alex Smith", "procedure_date": "2024-09-01"},
+        "/api/v1/patients/search-by-date",
+        params={"full_name": "Alex Smith", "surgery_date": "2024-09-01"},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert fallback.status_code == 200
     fallback_body = fallback.json()
     assert fallback_body["success"] is True
     assert len(fallback_body["matches"][0]["procedures"]) == 2
+    assert "surgery_date" in fallback_body["message"]
+
+    dob_search = client.get(
+        "/api/v1/patients/search-by-date",
+        params={"full_name": "Alex Smith", "dob": "1990-04-01"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert dob_search.status_code == 200
+    dob_body = dob_search.json()
+    assert dob_body["success"] is True
+    assert len(dob_body["matches"]) == 1
+    assert len(dob_body["matches"][0]["procedures"]) == 2

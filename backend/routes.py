@@ -470,44 +470,80 @@ def search_patients_multi_route(
 
 
 @patients_router.get(
-    "/search-by-meta",
+    "/search-by-date",
     response_model=PatientSearchMultiResult,
     response_model_exclude_none=True,
 )
-def search_patients_by_metadata_route(
+def search_patients_by_date_route(
     request: Request,
     full_name: Optional[str] = Query(
         None,
         alias="full_name",
         description="Patient full name to search (e.g. 'Randhir Sandhu').",
     ),
+    surgery_date: Optional[str] = Query(
+        None,
+        alias="surgery_date",
+        description="Exact procedure/surgery date to match (YYYY-MM-DD).",
+    ),
     procedure_date: Optional[str] = Query(
         None,
         alias="procedure_date",
-        description="Exact procedure date to match (YYYY-MM-DD).",
+        description="Alias for surgery_date kept for compatibility.",
     ),
     date: Optional[str] = Query(
         None,
-        description="Alias for procedure_date to support legacy callers.",
+        description="Additional alias for surgery_date to support legacy callers.",
+    ),
+    dob: Optional[str] = Query(
+        None,
+        alias="dob",
+        description="Patient date of birth to match (YYYY-MM-DD).",
+    ),
+    date_of_birth: Optional[str] = Query(
+        None,
+        alias="date_of_birth",
+        description="Alias for dob to support frontend callers.",
     ),
 ) -> PatientSearchMultiResult:
     if full_name is None:
         full_name = _get_casefold_query_param(request, "full_name")
-    raw_date = procedure_date or date or _get_casefold_query_param(request, "procedure_date") or _get_casefold_query_param(
-        request, "date"
+    raw_surgery_date = (
+        surgery_date
+        or procedure_date
+        or date
+        or _get_casefold_query_param(request, "surgery_date")
+        or _get_casefold_query_param(request, "procedure_date")
+        or _get_casefold_query_param(request, "date")
+    )
+    raw_dob = (
+        dob
+        or date_of_birth
+        or _get_casefold_query_param(request, "dob")
+        or _get_casefold_query_param(request, "date_of_birth")
     )
     requested_full_name = (full_name or "").strip()
     normalized_value = " ".join(requested_full_name.split())
     response_full_name = normalized_value or None
     if not normalized_value:
         return PatientSearchMultiResult(success=False, message="Name is missing", full_name=response_full_name)
-    if not raw_date:
-        return PatientSearchMultiResult(success=False, message="Procedure date is missing", full_name=response_full_name)
-    normalized_date = database._date_only(raw_date)  # type: ignore[attr-defined]
-    if not normalized_date:
+    if not raw_surgery_date and not raw_dob:
+        return PatientSearchMultiResult(
+            success=False, message="Provide surgery_date or dob", full_name=response_full_name
+        )
+    normalized_surgery_date = (
+        database._date_only(raw_surgery_date) if raw_surgery_date else None  # type: ignore[attr-defined]
+    )
+    normalized_dob = database._date_only(raw_dob) if raw_dob else None  # type: ignore[attr-defined]
+    if raw_surgery_date and not normalized_surgery_date:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="procedure_date must be a valid date (YYYY-MM-DD).",
+        )
+    if raw_dob and not normalized_dob:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="dob must be a valid date (YYYY-MM-DD).",
         )
     try:
         records = database.find_patients_by_full_name(normalized_value)
@@ -520,18 +556,36 @@ def search_patients_by_metadata_route(
             full_name=response_full_name,
             matches=[],
         )
+    if normalized_dob:
+        dob_filtered: list[dict] = []
+        for record in records:
+            patient_dob = database._date_only(record.get("dob")) if record.get("dob") else None  # type: ignore[attr-defined]
+            if patient_dob == normalized_dob:
+                dob_filtered.append(record)
+        if not dob_filtered:
+            return PatientSearchMultiResult(
+                success=False,
+                message="No patients matched the provided date of birth",
+                full_name=response_full_name,
+                matches=[],
+            )
+        records = dob_filtered
     matches: list[PatientSearchMatch] = []
     any_date_mismatch = False
     for record in records:
         patient = Patient(**record)
         procedure_records = database.list_procedures_for_patient(patient.id)
-        matched = [
-            Procedure(**entry)
-            for entry in procedure_records
-            if database._date_only(entry.get("procedure_date")) == normalized_date  # type: ignore[attr-defined]
-        ]
-        if not matched:
-            any_date_mismatch = True
+        matched: list[Procedure]
+        if normalized_surgery_date:
+            matched = [
+                Procedure(**entry)
+                for entry in procedure_records
+                if database._date_only(entry.get("procedure_date")) == normalized_surgery_date  # type: ignore[attr-defined]
+            ]
+            if not matched:
+                any_date_mismatch = True
+                matched = [Procedure(**entry) for entry in procedure_records]
+        else:
             matched = [Procedure(**entry) for entry in procedure_records]
         matches.append(
             PatientSearchMatch(
@@ -540,8 +594,8 @@ def search_patients_by_metadata_route(
             )
         )
     message = None
-    if any_date_mismatch:
-        message = "No procedures matched the provided date for at least one patient; returning all procedures instead."
+    if normalized_surgery_date and any_date_mismatch:
+        message = "No procedures matched the provided surgery_date for at least one patient; returning all procedures instead."
     return PatientSearchMultiResult(success=True, full_name=response_full_name, matches=matches, message=message)
 
 
@@ -906,6 +960,100 @@ def search_procedure_route(
     return ProcedureSearchResult(success=True, procedure=Procedure(**record))
 
 
+@procedures_router.get("/search-by-meta", response_model=ProcedureMetadataSearchResponse)
+def search_procedure_by_metadata(
+    request: Request,
+    full_name: Optional[str] = Query(
+        None,
+        alias="full_name",
+        description="Patient full name (first and last).",
+    ),
+    date: Optional[str] = Query(
+        None,
+        alias="date",
+        description="Procedure date string (ISO or YYYY-MM-DD).",
+    ),
+    procedure_status: Optional[str] = Query(
+        None,
+        alias="status",
+        description="Optional workflow status to narrow matching.",
+    ),
+    grafts_number: Optional[str] = Query(
+        None,
+        alias="grafts_number",
+        description="Optional graft count string.",
+    ),
+    package_type: Optional[str] = Query(
+        None,
+        alias="package_type",
+        description="Optional package type identifier.",
+    ),
+) -> ProcedureMetadataSearchResponse:
+    """Return a procedure when metadata matches."""
+    _throttle_search_by_meta(request)
+    payload = ProcedureMetadataDeleteRequest(
+        full_name=full_name or _get_casefold_query_param(request, "full_name"),
+        date=date or _get_casefold_query_param(request, "date"),
+        status=procedure_status or _get_casefold_query_param(request, "status"),
+        grafts_number=grafts_number or _get_casefold_query_param(request, "grafts_number"),
+        package_type=package_type or _get_casefold_query_param(request, "package_type"),
+    )
+    requested_full_name = (payload.full_name or "").strip()
+    provided_filters = [
+        requested_full_name,
+        (payload.date or "").strip(),
+        (payload.status or "").strip(),
+        (payload.grafts_number or "").strip(),
+        (payload.package_type or "").strip(),
+    ]
+    if not any(filter_value for filter_value in provided_filters):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Provide at least one search field (full_name, date, status, grafts_number, or package_type).",
+        )
+    patient_id = None
+    if requested_full_name:
+        patient = database.find_patient_by_full_name(requested_full_name)
+        if not patient:
+            return ProcedureMetadataSearchResponse(
+                success=False,
+                message="Patient record not found",
+                msg=NOT_FOUND_MSG,
+                full_name=requested_full_name,
+            )
+        patient_id = patient["id"]
+    try:
+        match = database.find_procedure_by_metadata(
+            patient_id,
+            payload.date,
+            status=payload.status,
+            grafts_number=payload.grafts_number,
+            package_type=payload.package_type,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    if not match:
+        return ProcedureMetadataSearchResponse(
+            success=False,
+            message="Procedure not found",
+            msg=NOT_FOUND_MSG,
+            full_name=requested_full_name or None,
+        )
+    return ProcedureMetadataSearchResponse(
+        success=True,
+        full_name=requested_full_name or None,
+        procedure_id=match["id"],
+        procedure_date=match.get("procedure_date"),
+        status=match.get("status"),
+        procedure_type=match.get("procedure_type"),
+        package_type=match.get("package_type"),
+        agency=match.get("agency"),
+        grafts=match.get("grafts"),
+        outstanding_balance=match.get("outstanding_balance"),
+        procedure=match,
+    )
+
+
 @procedures_router.get("/deleted", response_model=List[DeletedProcedureRecord])
 def list_deleted_procedures_route(_: dict = Depends(require_admin_user)) -> List[DeletedProcedureRecord]:
     """Return soft-deleted procedures so admins can manage them."""
@@ -1082,68 +1230,6 @@ async def delete_procedure_route(procedure_id: int, request: Request) -> Operati
         result.model_dump(),
     )
     return result
-
-
-@procedures_router.post("/search-by-meta", response_model=ProcedureMetadataSearchResponse)
-def search_procedure_by_metadata(
-    payload: ProcedureMetadataDeleteRequest, request: Request
-) -> ProcedureMetadataSearchResponse:
-    """Return a procedure when metadata matches."""
-    _throttle_search_by_meta(request)
-    requested_full_name = (payload.full_name or "").strip()
-    provided_filters = [
-        requested_full_name,
-        (payload.date or "").strip(),
-        (payload.status or "").strip(),
-        (payload.grafts_number or "").strip(),
-        (payload.package_type or "").strip(),
-    ]
-    if not any(filter_value for filter_value in provided_filters):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Provide at least one search field (full_name, date, status, grafts_number, or package_type).",
-        )
-    patient_id = None
-    if requested_full_name:
-        patient = database.find_patient_by_full_name(requested_full_name)
-        if not patient:
-            return ProcedureMetadataSearchResponse(
-                success=False,
-                message="Patient record not found",
-                msg=NOT_FOUND_MSG,
-                full_name=requested_full_name,
-            )
-        patient_id = patient["id"]
-    try:
-        match = database.find_procedure_by_metadata(
-            patient_id,
-            payload.date,
-            status=payload.status,
-            grafts_number=payload.grafts_number,
-            package_type=payload.package_type,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    if not match:
-        return ProcedureMetadataSearchResponse(
-            success=False,
-            message="Procedure not found",
-            msg=NOT_FOUND_MSG,
-            full_name=requested_full_name or None,
-        )
-    return ProcedureMetadataSearchResponse(
-        success=True,
-        full_name=requested_full_name or None,
-        procedure_id=match["id"],
-        procedure_date=match.get("procedure_date"),
-        status=match.get("status"),
-        procedure_type=match.get("procedure_type"),
-        package_type=match.get("package_type"),
-        agency=match.get("agency"),
-        grafts=match.get("grafts"),
-        outstanding_balance=match.get("outstanding_balance"),
-        procedure=match,
-    )
 
 
 @audit_router.get("/", response_model=List[dict])
