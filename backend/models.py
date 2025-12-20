@@ -325,6 +325,26 @@ class PatientSearchResult(BaseModel):
     procedures: List[Procedure] = Field(default_factory=list, description="Procedures linked to the patient")
 
 
+class PatientSearchNameResult(BaseModel):
+    """Return patient metadata without attaching procedure lists."""
+
+    success: bool = Field(..., description="Indicates whether the patient was found")
+    message: Optional[str] = Field(None, description="Human readable message")
+    msg: Optional[str] = Field(None, description="Short status message for integrations")
+    full_name: Optional[str] = Field(None, description="Echo of the provided full_name search parameter")
+    id: Optional[int] = Field(None, description="Database identifier for the matching patient")
+    first_name: Optional[str] = Field(None, description="Patient first name when found")
+    last_name: Optional[str] = Field(None, description="Patient last name when found")
+    email: Optional[str] = Field(None, description="Preferred contact email when found")
+    phone: Optional[str] = Field(None, description="Preferred phone number when found")
+    address: Optional[str] = Field(None, description="Patient address when found")
+    dob: Optional[str] = Field(None, description="Patient date of birth when found")
+    drive_folder_id: Optional[str] = Field(None, description="The ID of the patient's folder")
+    deleted: Optional[bool] = Field(None, description="Whether the record is soft deleted")
+    created_at: Optional[str] = Field(None, description="Timestamp when the patient was created")
+    updated_at: Optional[str] = Field(None, description="Timestamp when the patient was last updated")
+
+
 class PatientSearchMatch(BaseModel):
     """Flattened patient fields with attached procedures, for multi-result responses."""
 

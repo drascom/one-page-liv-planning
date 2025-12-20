@@ -60,6 +60,7 @@ from .models import (
     Payment,
     PaymentCreate,
     PatientSearchResult,
+    PatientSearchNameResult,
     PatientSearchMatch,
     PatientSearchMultiResult,
     DataIntegrityReport,
@@ -459,11 +460,10 @@ def search_patients_multi_route(
     matches: list[PatientSearchMatch] = []
     for record in records:
         patient = Patient(**record)
-        procedures = [Procedure(**entry) for entry in database.list_procedures_for_patient(patient.id)]
         matches.append(
             PatientSearchMatch(
                 **patient.model_dump(),
-                procedures=procedures,
+                procedures=[],
             )
         )
     return PatientSearchMultiResult(success=True, full_name=response_full_name, matches=matches)
@@ -597,6 +597,53 @@ def search_patients_by_date_route(
     if normalized_surgery_date and any_date_mismatch:
         message = "No procedures matched the provided surgery_date for at least one patient; returning all procedures instead."
     return PatientSearchMultiResult(success=True, full_name=response_full_name, matches=matches, message=message)
+
+
+@patients_router.get(
+    "/search-by-name",
+    response_model=PatientSearchNameResult,
+    response_model_exclude_none=True,
+)
+def search_patients_by_name_route(
+    request: Request,
+    full_name: Optional[str] = Query(
+        None,
+        alias="full_name",
+        description="Preferred parameter that should contain the patient's full name (e.g. 'Randhir Sandhu').",
+    ),
+    name: Optional[str] = Query(
+        None,
+        description="Optional first/full name parameter kept for backwards compatibility; combined with surname when provided.",
+    ),
+    surname: Optional[str] = Query(
+        None,
+        description="Optional surname parameter kept for backwards compatibility; appended to the name if provided.",
+    ),
+) -> PatientSearchNameResult:
+    if full_name is None:
+        full_name = _get_casefold_query_param(request, "full_name")
+    if full_name:
+        raw_value = full_name
+    else:
+        raw_value = " ".join(part for part in (name, surname) if part)
+    requested_full_name = raw_value.strip()
+    normalized_value = " ".join(raw_value.split())
+    response_full_name = requested_full_name or normalized_value or None
+    if not normalized_value:
+        return PatientSearchNameResult(success=False, message="Name is missing", full_name=response_full_name)
+    try:
+        record = database.find_patient_by_full_name(normalized_value)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    if not record:
+        return PatientSearchNameResult(
+            success=False,
+            message="Patient record not found",
+            msg=NOT_FOUND_MSG,
+            full_name=response_full_name,
+        )
+    patient = Patient(**record)
+    return PatientSearchNameResult(success=True, full_name=response_full_name, **patient.model_dump())
 
 
 @patients_router.get("/{patient_id}", response_model=Patient)

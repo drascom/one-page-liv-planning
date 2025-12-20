@@ -217,3 +217,32 @@ def test_patients_search_by_date_filters_by_surgery_or_dob(client: TestClient):
     assert dob_body["success"] is True
     assert len(dob_body["matches"]) == 1
     assert len(dob_body["matches"][0]["procedures"]) == 2
+
+
+def test_search_by_name_only_returns_patient_details(client: TestClient):
+    create_payload = {
+        "first_name": "Name",
+        "last_name": "Only",
+        "email": "only@example.com",
+        "phone": "+4412345000",
+        "address": "London",
+    }
+    created = client.post("/patients", json=create_payload)
+    assert created.status_code == 201
+
+    token_response = client.post("/api-tokens", json={"name": "search name"})
+    assert token_response.status_code == 201
+    token = token_response.json()["token"]
+
+    response = client.get(
+        "/api/v1/patients/search-by-name",
+        params={"full_name": "Name Only"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["first_name"] == "Name"
+    assert body["id"] == created.json()["id"]
+    assert "procedures" not in body
+    assert body["email"] == "only@example.com"
