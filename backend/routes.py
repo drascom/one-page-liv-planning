@@ -1007,18 +1007,29 @@ def search_procedure_route(
     if procedure_id is not None:
         record = database.fetch_procedure(procedure_id, include_deleted=include_deleted)
         if not record:
-            return ProcedureSearchResult(success=False, message="Procedure not found", msg=NOT_FOUND_MSG)
+            return ProcedureSearchResult(
+                success=False,
+                message="Procedure not found",
+                msg=NOT_FOUND_MSG,
+                patient_id=patient_id,
+            )
         if patient_id is not None and record["patient_id"] != patient_id:
             return ProcedureSearchResult(
                 success=False,
                 message="Procedure does not belong to this patient",
                 msg=NOT_FOUND_MSG,
+                patient_id=patient_id,
             )
         return ProcedureSearchResult(success=True, procedure=Procedure(**record))
     assert patient_id is not None
     patient = database.fetch_patient(patient_id, include_deleted=True)
     if not patient:
-        return ProcedureSearchResult(success=False, message="Patient record not found", msg=NOT_FOUND_MSG)
+        return ProcedureSearchResult(
+            success=False,
+            message="Patient record not found",
+            msg=NOT_FOUND_MSG,
+            patient_id=patient_id,
+        )
     record = None
     if procedure_date:
         try:
@@ -1036,7 +1047,12 @@ def search_procedure_route(
         )
         record = procedures[0] if procedures else None
     if not record:
-        return ProcedureSearchResult(success=False, message="Procedure not found", msg=NOT_FOUND_MSG)
+        return ProcedureSearchResult(
+            success=False,
+            message="Procedure not found",
+            msg=NOT_FOUND_MSG,
+            patient_id=patient_id,
+        )
     return ProcedureSearchResult(success=True, procedure=Procedure(**record))
 
 
@@ -1615,6 +1631,13 @@ def list_activity_feed() -> List[ActivityEvent]:
     """Return the latest activity events for the live feed."""
     records = database.list_activity_events()
     return [ActivityEvent(**record) for record in records]
+
+
+@status_router.delete("/activity-feed")
+def clear_activity_feed_route(_: dict = Depends(require_admin_user)) -> dict[str, str]:
+    """Permanently remove every activity feed event."""
+    database.clear_activity_feed()
+    return {"detail": "Activity feed cleared."}
 
 
 @search_router.get("/search", response_model=PatientSearchResult, response_model_exclude_none=True)

@@ -969,6 +969,7 @@ async function purgeAllPatients() {
         throw new Error("Unable to delete all patient records. Please try again.");
       }
     }
+    await clearActivityFeed();
     setPurgeStatus(`Deleted ${allPatients.length} patient record${allPatients.length === 1 ? "" : "s"}.`);
     await fetchDeletedPatients();
     await fetchDeletedProcedures();
@@ -1020,8 +1021,19 @@ async function deleteDatabase() {
     if (deleteDatabaseStatus) {
       deleteDatabaseStatus.textContent = error?.message || "Unable to delete database.";
     }
-  } finally {
-    deleteDatabaseBtn.disabled = false;
+    } finally {
+      deleteDatabaseBtn.disabled = false;
+    }
+}
+
+async function clearActivityFeed() {
+  const response = await fetch(buildApiUrl("/status/activity-feed"), { method: "DELETE" });
+  handleUnauthorized(response);
+  if (!response.ok) {
+    throw new Error("Unable to clear activity feed.");
+  }
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("activity-feed-cleared"));
   }
 }
 

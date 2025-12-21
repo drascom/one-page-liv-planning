@@ -528,6 +528,11 @@ function addActivityEvent(event) {
   renderActivity(activityEvents);
 }
 
+document.addEventListener("activity-feed-cleared", () => {
+  activityEvents = [];
+  renderActivity(activityEvents);
+});
+
 function initializeRealtimeChannel() {
   if (realtimeClient) {
     realtimeClient.close();

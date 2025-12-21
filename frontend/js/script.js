@@ -507,6 +507,11 @@ function addActivityEvent(event) {
 }
 
 
+document.addEventListener("activity-feed-cleared", () => {
+  activityEvents = [];
+  renderActivityFeed();
+});
+
 function showConflictNotice(message, actionCallback = null) {
   if (!conflictBanner || !conflictMessageEl) {
     return;

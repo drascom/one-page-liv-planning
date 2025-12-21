@@ -244,6 +244,7 @@ class ProcedureSearchResult(BaseModel):
     success: bool = Field(..., description="Whether a matching procedure was found")
     message: Optional[str] = Field(None, description="Details when the procedure is missing")
     msg: Optional[str] = Field(None, description="Short status message for integrations")
+    patient_id: Optional[int] = Field(None, description="Identifier that was supplied to the search")
     procedure: Optional[Procedure] = Field(None, description="Matched procedure when success is true")
 
 

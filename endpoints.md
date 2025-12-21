@@ -2,7 +2,7 @@
 
 ### Example API calls
 
-All requests require `Authorization: Bearer <token>` headers unless you are using the browser session cookie. The snippets below assume `BASE_URL=https://liv.drascom.uk` and `TOKEN=<api-token>`.
+All requests require `Authorization: Bearer <token>` headers unless you are using the browser session cookie. The snippets below assume `BASE_URL=https://example.com` and `TOKEN=<api-token>`.
 
 ```bash
 # Search flat patient sheet

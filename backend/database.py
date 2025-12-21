@@ -1814,6 +1814,13 @@ def list_activity_events(limit: int = 10) -> List[Dict[str, Any]]:
     return events
 
 
+def clear_activity_feed() -> None:
+    """Remove every event from the activity feed."""
+    with closing(get_connection()) as conn:
+        conn.execute("DELETE FROM activity_feed")
+        conn.commit()
+
+
 def _normalize_emergency_contact(value: Any) -> Optional[Dict[str, str]]:
     """Normalize incoming emergency contact payloads."""
     if value is None:
