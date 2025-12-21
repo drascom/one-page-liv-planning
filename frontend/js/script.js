@@ -2372,6 +2372,10 @@ function handleRealtimeEvent(payload) {
   if (!payload) {
     return;
   }
+  if (payload.type === "activity.feed.cleared") {
+    document.dispatchEvent(new CustomEvent("activity-feed-cleared"));
+    return;
+  }
   addActivityEvent(payload);
   showActivityToast(payload.summary || "New activity received");
   if (payload.entity === "procedure") {

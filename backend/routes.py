@@ -72,8 +72,9 @@ from .models import (
     WeeklyPlanCreate,
     N8nImportPayload,
 )
-from .realtime import publish_event
+from .realtime import hub, publish_event
 from .settings import ENV_PATH, get_settings
+from .timezone import london_now_iso
 from .version import get_app_version
 
 router = APIRouter(prefix="/plans", tags=["plans"])
@@ -610,6 +611,54 @@ def search_patients_by_date_route(
     if normalized_surgery_date and any_date_mismatch:
         message = "No procedures matched the provided surgery_date for at least one patient; returning all procedures instead."
     return PatientSearchMultiResult(success=True, full_name=response_full_name, matches=matches, message=message)
+
+
+@search_router.get(
+    "/search-by-date",
+    response_model=PatientSearchMultiResult,
+    response_model_exclude_none=True,
+)
+def search_patients_by_date_api_route(
+    request: Request,
+    full_name: Optional[str] = Query(
+        None,
+        alias="full_name",
+        description="Patient full name to search (e.g. 'Randhir Sandhu').",
+    ),
+    surgery_date: Optional[str] = Query(
+        None,
+        alias="surgery_date",
+        description="Exact procedure/surgery date to match (YYYY-MM-DD).",
+    ),
+    procedure_date: Optional[str] = Query(
+        None,
+        alias="procedure_date",
+        description="Alias for surgery_date kept for compatibility.",
+    ),
+    date: Optional[str] = Query(
+        None,
+        description="Additional alias for surgery_date to support legacy callers.",
+    ),
+    dob: Optional[str] = Query(
+        None,
+        alias="dob",
+        description="Patient date of birth to match (YYYY-MM-DD).",
+    ),
+    date_of_birth: Optional[str] = Query(
+        None,
+        alias="date_of_birth",
+        description="Alias for dob to support frontend callers.",
+    ),
+) -> PatientSearchMultiResult:
+    return search_patients_by_date_route(
+        request=request,
+        full_name=full_name,
+        surgery_date=surgery_date,
+        procedure_date=procedure_date,
+        date=date,
+        dob=dob,
+        date_of_birth=date_of_birth,
+    )
 
 
 @patients_router.get(
@@ -1658,9 +1707,19 @@ def list_activity_feed() -> List[ActivityEvent]:
 
 
 @status_router.delete("/activity-feed")
-def clear_activity_feed_route(_: dict = Depends(require_admin_user)) -> dict[str, str]:
+async def clear_activity_feed_route(_: dict = Depends(require_admin_user)) -> dict[str, str]:
     """Permanently remove every activity feed event."""
     database.clear_activity_feed()
+    payload = {
+        "type": "activity.feed.cleared",
+        "entity": "activity",
+        "action": "cleared",
+        "summary": "Activity feed cleared",
+        "timestamp": london_now_iso(),
+        "actor": "System",
+    }
+    await hub.broadcast(payload)
+    await hub.clear_history()
     return {"detail": "Activity feed cleared."}
 
 

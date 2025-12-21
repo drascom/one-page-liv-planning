@@ -1885,6 +1885,10 @@ def clear_activity_feed() -> None:
     """Remove every event from the activity feed."""
     with closing(get_connection()) as conn:
         conn.execute("DELETE FROM activity_feed")
+        try:
+            conn.execute("DELETE FROM sqlite_sequence WHERE name = 'activity_feed'")
+        except sqlite3.OperationalError:
+            pass
         conn.commit()
 
 

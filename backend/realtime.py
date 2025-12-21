@@ -53,6 +53,11 @@ class RealtimeHub:
         for connection in stale:
             await self.disconnect(connection)
 
+    async def clear_history(self) -> None:
+        """Drop stored activity history (useful when the feed is reset)."""
+        async with self._lock:
+            self._history.clear()
+
 
 hub = RealtimeHub()
 
