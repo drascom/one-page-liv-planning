@@ -460,7 +460,7 @@ def search_patients_multi_route(
     if not normalized_value:
         return PatientSearchMultiResult(success=False, message="Name is missing", full_name=response_full_name)
     try:
-        records = database.find_patients_by_full_name(normalized_value)
+        records = database.find_patients_by_full_name(normalized_value, fuzzy=True)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     if not records:
@@ -1693,7 +1693,7 @@ def search_patients_route(
     if not normalized_value:
         return PatientSearchResult(success=False, message="Name is missing", full_name=response_full_name)
     try:
-        record = database.find_patient_by_full_name(normalized_value)
+        record = database.find_patient_by_full_name(normalized_value, fuzzy=True)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     if not record:

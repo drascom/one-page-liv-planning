@@ -9,6 +9,7 @@ import sqlite3
 import string
 from contextlib import closing
 from datetime import date, datetime, timedelta
+from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Sequence
 
@@ -17,6 +18,7 @@ from .timezone import london_now_iso
 DB_PATH = Path(__file__).resolve().parent / "liv_planning.db"
 DEFAULT_PROCEDURE_TIME = "08:30"
 PREOP_ANSWER_KEYS: Tuple[str, ...] = ("prp_session", "medical_alerts")
+_FUZZY_MIN_NAME_SCORE = 0.65
 
 
 def _table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
@@ -1425,32 +1427,97 @@ def _full_name_candidates(full_name: str) -> List[Tuple[str, str]]:
     return candidates
 
 
-def find_patient_by_full_name(full_name: str) -> Optional[Dict[str, Any]]:
+def _normalize_search_name(value: str) -> str:
+    normalized = re.sub(r"[^a-z0-9 ]", " ", value.lower())
+    return " ".join(normalized.split())
+
+
+def _tokenized_name_parts(value: str) -> List[str]:
+    normalized = _normalize_search_name(value)
+    if not normalized:
+        return []
+    return normalized.split(" ")
+
+
+def _name_similarity_score(query: str, candidate: str) -> float:
+    """Return similarity based on average token match and full string ratio."""
+    query_tokens = _tokenized_name_parts(query)
+    candidate_tokens = _tokenized_name_parts(candidate)
+    if not query_tokens or not candidate_tokens:
+        return 0.0
+    token_scores: list[float] = []
+    for token in query_tokens:
+        best = max(
+            (SequenceMatcher(None, token, candidate_part).ratio() for candidate_part in candidate_tokens),
+            default=0.0,
+        )
+        token_scores.append(best)
+    average_token_score = sum(token_scores) / len(token_scores)
+    full_score = SequenceMatcher(
+        None,
+        " ".join(query_tokens),
+        " ".join(candidate_tokens),
+    ).ratio()
+    return max(full_score, average_token_score)
+
+
+def _fuzzy_match_patients(full_name: str, *, min_score: float = _FUZZY_MIN_NAME_SCORE) -> List[Dict[str, Any]]:
+    normalized_query = _normalize_search_name(full_name)
+    if not normalized_query:
+        return []
+    scored: list[tuple[float, Dict[str, Any]]] = []
     with closing(get_connection()) as conn:
-        for first_name, last_name in _full_name_candidates(full_name):
-            normalized_first = first_name.lower().strip()
-            normalized_last = last_name.lower().strip()
-            cursor = conn.execute(
-                """
-                SELECT * FROM patients
-                WHERE LOWER(TRIM(first_name)) = ? AND LOWER(TRIM(last_name)) = ? AND deleted = 0
-                ORDER BY id ASC
-                LIMIT 1
-                """,
-                (normalized_first, normalized_last),
-            )
-            row = cursor.fetchone()
-            if row:
-                return _row_to_patient(row)
-    return None
+        cursor = conn.execute(
+            """
+            SELECT * FROM patients
+            WHERE deleted = 0
+            """
+        )
+        for row in cursor.fetchall():
+            patient = _row_to_patient(row)
+            if not patient:
+                continue
+            candidate_name = f"{patient.get('first_name', '')} {patient.get('last_name', '')}"
+            score = _name_similarity_score(normalized_query, candidate_name)
+            if score >= min_score:
+                scored.append((score, patient))
+    scored.sort(key=lambda entry: entry[0], reverse=True)
+    return [patient for _, patient in scored]
 
 
-def find_patients_by_full_name(full_name: str) -> List[Dict[str, Any]]:
-    """Return all patients that match any reasonable split of the supplied name."""
+def find_patient_by_full_name(
+    full_name: str,
+    *,
+    fuzzy: bool = False,
+    min_score: float = _FUZZY_MIN_NAME_SCORE,
+) -> Optional[Dict[str, Any]]:
+    """Return the first patient matching the supplied name (optionally fuzzy)."""
+    matches = find_patients_by_full_name(full_name, fuzzy=fuzzy, min_score=min_score)
+    return matches[0] if matches else None
+
+
+def find_patients_by_full_name(
+    full_name: str,
+    *,
+    fuzzy: bool = False,
+    min_score: float = _FUZZY_MIN_NAME_SCORE,
+) -> List[Dict[str, Any]]:
+    """
+    Return patients matching the supplied name.
+
+    With ``fuzzy=True`` the search scores each word against stored names and returns
+    close matches ordered by similarity.
+    """
+    normalized_input = " ".join((full_name or "").split())
+    if not normalized_input:
+        raise ValueError("Full name is required")
+    if fuzzy:
+        return _fuzzy_match_patients(normalized_input, min_score=min_score)
+
     seen_ids: set[int] = set()
     matches: list[Dict[str, Any]] = []
     with closing(get_connection()) as conn:
-        for first_name, last_name in _full_name_candidates(full_name):
+        for first_name, last_name in _full_name_candidates(normalized_input):
             normalized_first = first_name.lower().strip()
             normalized_last = last_name.lower().strip()
             cursor = conn.execute(
