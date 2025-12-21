@@ -69,6 +69,13 @@ class PatientUpdate(BaseModel):
     emergency_contact: Optional[EmergencyContact] = Field(
         None, description="Primary emergency contact for the patient"
     )
+    full_name: Optional[str] = Field(
+        None,
+        description=(
+            "Optional full name string. If provided, the last word becomes the last name "
+            "and the rest become the first name."
+        ),
+    )
 
 
 class Patient(PatientBase):

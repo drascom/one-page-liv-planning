@@ -188,6 +188,19 @@ def _omit_blank_update_values(data: Optional[dict], *, allow_empty: frozenset[st
     return cleaned
 
 
+def _split_full_name(full_name: Optional[str]) -> tuple[str, str]:
+    """Treat the last whitespace-separated token as the last name."""
+    if not full_name:
+        return "", ""
+    normalized = str(full_name).strip()
+    if not normalized:
+        return "", ""
+    parts = normalized.split()
+    if len(parts) == 1:
+        return "", parts[0]
+    return " ".join(parts[:-1]), parts[-1]
+
+
 def _normalize_notes_for_request(
     notes: Optional[List[dict]] = None,
     *,
@@ -848,6 +861,13 @@ async def patch_patient(patient_id: int, payload: PatientUpdate, request: Reques
         payload.model_dump(exclude_unset=True),
         allow_empty=_PATIENT_ALLOWED_EMPTY_FIELDS,
     )
+    full_name_value = incoming.pop("full_name", None)
+    if full_name_value:
+        first_name_part, last_name_part = _split_full_name(full_name_value)
+        if first_name_part and "first_name" not in incoming:
+            incoming["first_name"] = first_name_part
+        if last_name_part and "last_name" not in incoming:
+            incoming["last_name"] = last_name_part
     if not incoming:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
