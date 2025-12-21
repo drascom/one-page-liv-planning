@@ -1030,24 +1030,25 @@ def search_procedure_route(
             return ProcedureSearchResult(
                 success=False,
                 message="Procedure not found",
-                msg=NOT_FOUND_MSG,
                 patient_id=patient_id,
             )
         if patient_id is not None and record["patient_id"] != patient_id:
             return ProcedureSearchResult(
                 success=False,
                 message="Procedure does not belong to this patient",
-                msg=NOT_FOUND_MSG,
                 patient_id=patient_id,
             )
-        return ProcedureSearchResult(success=True, procedure=Procedure(**record))
+        return ProcedureSearchResult(
+            success=True,
+            procedure=Procedure(**record),
+            patient_id=patient_id if patient_id is not None else record["patient_id"],
+        )
     assert patient_id is not None
     patient = database.fetch_patient(patient_id, include_deleted=True)
     if not patient:
         return ProcedureSearchResult(
             success=False,
             message="Patient record not found",
-            msg=NOT_FOUND_MSG,
             patient_id=patient_id,
         )
     record = None
@@ -1070,10 +1071,13 @@ def search_procedure_route(
         return ProcedureSearchResult(
             success=False,
             message="Procedure not found",
-            msg=NOT_FOUND_MSG,
             patient_id=patient_id,
         )
-    return ProcedureSearchResult(success=True, procedure=Procedure(**record))
+    return ProcedureSearchResult(
+        success=True,
+        procedure=Procedure(**record),
+        patient_id=patient_id,
+    )
 
 
 @procedures_router.get("/search-by-meta", response_model=ProcedureMetadataSearchResponse)
