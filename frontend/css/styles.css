@@ -2947,6 +2947,10 @@ body.app-shell {
   font-family: inherit;
 }
 
+.text-uppercase {
+  text-transform: uppercase;
+}
+
 .form-group select[multiple],
 .form-group textarea {
   min-height: 120px;

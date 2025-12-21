@@ -518,6 +518,27 @@ const packageTypeSelect = document.getElementById("package-type");
 const graftsInput = document.getElementById("grafts");
 const paymentSelect = document.getElementById("payment");
 const outstandingBalanceInput = document.getElementById("outstanding-balance");
+
+function attachUppercaseInput(input) {
+  if (!input) {
+    return;
+  }
+  input.addEventListener("input", () => {
+    const value = input.value;
+    const uppercased = value.toUpperCase();
+    if (value === uppercased) {
+      return;
+    }
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    input.value = uppercased;
+    if (start !== null && end !== null) {
+      input.setSelectionRange(start, end);
+    }
+  });
+}
+
+[firstNameInput, lastNameInput].forEach(attachUppercaseInput);
 const agencySelect = document.getElementById("agency");
 const sourceDisplayEl = document.getElementById("procedure-source-text");
 const sourceInputGroup = document.getElementById("procedure-source-group");
@@ -809,6 +830,13 @@ function addNoteFromInput() {
   noteInput.value = "";
 }
 
+function normalizePatientNameValue(value) {
+  if (typeof value !== "string") {
+    return "";
+  }
+  return value.trim().toUpperCase();
+}
+
 function populatePatientForm(record) {
   console.log("isAdminUser in populatePatientForm:", isAdminUser);
   if (!record) {
@@ -816,8 +844,8 @@ function populatePatientForm(record) {
     updatePatientSummary(null);
     return;
   }
-  if (firstNameInput) firstNameInput.value = record.first_name || "";
-  if (lastNameInput) lastNameInput.value = record.last_name || "";
+  if (firstNameInput) firstNameInput.value = normalizePatientNameValue(record.first_name);
+  if (lastNameInput) lastNameInput.value = normalizePatientNameValue(record.last_name);
   if (dobInput) dobInput.value = record.dob || "";
   if (emailInput) emailInput.value = record.email || DEFAULT_CONTACT.email;
   if (phoneInput) phoneInput.value = record.phone || DEFAULT_CONTACT.phone;
@@ -1890,9 +1918,11 @@ function buildPatientPayloadFromForm() {
   if (!currentPatient) {
     return null;
   }
+  const normalizedFirstName = normalizePatientNameValue(firstNameInput?.value ?? "");
+  const normalizedLastName = normalizePatientNameValue(lastNameInput?.value ?? "");
   const payload = {
-    first_name: firstNameInput.value.trim() || currentPatient.first_name,
-    last_name: lastNameInput.value.trim() || currentPatient.last_name,
+    first_name: normalizedFirstName || currentPatient.first_name,
+    last_name: normalizedLastName || currentPatient.last_name,
     email: emailInput.value.trim(),
     phone: phoneInput.value.trim(),
     address: addressInput.value.trim(),
