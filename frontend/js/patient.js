@@ -291,6 +291,19 @@ function formatPhoneHref(value) {
   return normalized ? `tel:${normalized}` : "";
 }
 
+function formatEmergencyContact(contact) {
+  if (!contact) return "";
+  const nameText = (contact.name || contact.full_name || "").trim();
+  const numberText = (contact.number || contact.phone || "").trim();
+  if (!nameText && !numberText) {
+    return "";
+  }
+  if (nameText && numberText) {
+    return `${nameText} • ${numberText}`;
+  }
+  return nameText || numberText;
+}
+
 function formatDobForDisplay(value) {
   if (!value) return "";
   const parsed = Date.parse(value);
@@ -334,6 +347,11 @@ function updatePatientSummary(record) {
     } else {
       phoneLinkEl.removeAttribute("href");
     }
+  }
+  const contactEl = patientSummaryFields.get("emergency_contact");
+  if (contactEl) {
+    const contactText = formatEmergencyContact(data.emergency_contact);
+    contactEl.textContent = contactText || "—";
   }
 }
 
@@ -384,6 +402,7 @@ function updatePatientDisplay(record) {
   setDisplayValue(patientDisplayFields, "last_name", data.last_name || "");
   setDisplayValue(patientDisplayFields, "email", data.email || DEFAULT_CONTACT.email);
   setDisplayValue(patientDisplayFields, "phone", data.phone || DEFAULT_CONTACT.phone);
+  setDisplayValue(patientDisplayFields, "emergency_contact", formatEmergencyContact(data.emergency_contact));
   setDisplayValue(patientDisplayFields, "address", data.address || data.city || DEFAULT_CONTACT.address);
   setDisplayValue(patientDisplayFields, "dob", formatDobForDisplay(data.dob) || "");
   setDisplayValue(
@@ -491,6 +510,8 @@ const procedureTimeSelect = document.getElementById("procedure-time");
 const emailInput = document.getElementById("email");
 const phoneInput = document.getElementById("phone");
 const addressInput = document.getElementById("address");
+const emergencyContactNameInput = document.getElementById("emergency-contact-name");
+const emergencyContactNumberInput = document.getElementById("emergency-contact-number");
 const statusSelect = document.getElementById("status");
 const procedureSelect = document.getElementById("procedure-type");
 const packageTypeSelect = document.getElementById("package-type");
@@ -800,6 +821,13 @@ function populatePatientForm(record) {
   if (dobInput) dobInput.value = record.dob || "";
   if (emailInput) emailInput.value = record.email || DEFAULT_CONTACT.email;
   if (phoneInput) phoneInput.value = record.phone || DEFAULT_CONTACT.phone;
+  if (emergencyContactNameInput) {
+    emergencyContactNameInput.value =
+      record?.emergency_contact?.name || record?.emergency_contact?.full_name || "";
+  }
+  if (emergencyContactNumberInput) {
+    emergencyContactNumberInput.value = record?.emergency_contact?.number || record?.emergency_contact?.phone || "";
+  }
   if (addressInput) addressInput.value = record.address || record.city || DEFAULT_CONTACT.address;
   if (driveFolderInput) {
     driveFolderInput.value = record.drive_folder_id || "";
@@ -1870,6 +1898,15 @@ function buildPatientPayloadFromForm() {
     address: addressInput.value.trim(),
     dob: dobInput?.value?.trim() || null,
   };
+  const contactName = emergencyContactNameInput?.value?.trim() || "";
+  const contactNumber = emergencyContactNumberInput?.value?.trim() || "";
+  payload.emergency_contact =
+    contactName || contactNumber
+      ? {
+          name: contactName || null,
+          number: contactNumber || null,
+        }
+      : null;
   if (isAdminUser) {
     payload.drive_folder_id = driveFolderInput?.value?.trim() || null;
   } else {

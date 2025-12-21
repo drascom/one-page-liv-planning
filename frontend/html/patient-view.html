@@ -90,13 +90,17 @@
                   <dt>Email</dt>
                   <dd data-patient-display="email">—</dd>
                 </div>
-                <div class="detail-row">
-                  <dt>Phone</dt>
-                  <dd data-patient-display="phone">—</dd>
-                </div>
-                <div class="detail-row">
-                  <dt>Address</dt>
-                  <dd data-patient-display="address">—</dd>
+                  <div class="detail-row">
+                    <dt>Phone</dt>
+                    <dd data-patient-display="phone">—</dd>
+                  </div>
+                  <div class="detail-row">
+                    <dt>Emergency Contact</dt>
+                    <dd data-patient-display="emergency_contact">—</dd>
+                  </div>
+                  <div class="detail-row">
+                    <dt>Address</dt>
+                    <dd data-patient-display="address">—</dd>
                 </div>
                 <div class="detail-row">
                   <dt>DOB</dt>
@@ -132,6 +136,14 @@
               <div class="form-group">
                 <label for="phone">Phone</label>
                 <input id="phone" name="phone" type="tel" required value="+44 12345678" placeholder="+1 555 000 0000" />
+              </div>
+              <div class="form-group">
+                <label for="emergency-contact-name">Emergency Contact Name</label>
+                <input id="emergency-contact-name" name="emergencyContactName" type="text" placeholder="Name" />
+              </div>
+              <div class="form-group">
+                <label for="emergency-contact-number">Emergency Contact Phone</label>
+                <input id="emergency-contact-number" name="emergencyContactNumber" type="tel" placeholder="+44 7000 000000" />
               </div>
               <div class="form-group">
               <label for="address">Address</label>

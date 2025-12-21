@@ -107,6 +107,7 @@ def _reset_patients_table(conn: sqlite3.Connection) -> None:
         "dob",
         "drive_folder_id",
         "photo_count",
+        "emergency_contact",
         "deleted",
         "created_at",
         "updated_at",
@@ -118,7 +119,7 @@ def _reset_patients_table(conn: sqlite3.Connection) -> None:
             conn.execute("UPDATE patients SET address = city WHERE address IS NULL OR address = ''")
             columns.add("address")
         missing = desired - columns
-        alterable = {"drive_folder_id", "photo_count", "dob"}
+        alterable = {"drive_folder_id", "photo_count", "dob", "emergency_contact"}
         extra = columns - desired
         allowed_extras = {"city"}
         if not missing and not (extra - allowed_extras):
@@ -131,6 +132,8 @@ def _reset_patients_table(conn: sqlite3.Connection) -> None:
                 conn.execute("ALTER TABLE patients ADD COLUMN photo_count INTEGER NOT NULL DEFAULT 0")
             if "dob" in missing:
                 conn.execute("ALTER TABLE patients ADD COLUMN dob TEXT")
+            if "emergency_contact" in missing:
+                conn.execute("ALTER TABLE patients ADD COLUMN emergency_contact TEXT")
             conn.commit()
             return
         # If there are unexpected columns (e.g., legacy file_details), recreate the table
@@ -140,20 +143,21 @@ def _reset_patients_table(conn: sqlite3.Connection) -> None:
     # Drop legacy table if present; caller already decided data can be discarded
     conn.execute(
         """
-        CREATE TABLE IF NOT EXISTS patients (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            first_name TEXT NOT NULL,
-            last_name TEXT NOT NULL,
-            email TEXT NOT NULL,
-            phone TEXT NOT NULL,
-            address TEXT NOT NULL,
-            dob TEXT,
-            drive_folder_id TEXT,
-            photo_count INTEGER NOT NULL DEFAULT 0,
-            deleted INTEGER NOT NULL DEFAULT 0,
-            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-        )
+            CREATE TABLE IF NOT EXISTS patients (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                first_name TEXT NOT NULL,
+                last_name TEXT NOT NULL,
+                email TEXT NOT NULL,
+                phone TEXT NOT NULL,
+                address TEXT NOT NULL,
+                dob TEXT,
+                drive_folder_id TEXT,
+                photo_count INTEGER NOT NULL DEFAULT 0,
+                emergency_contact TEXT,
+                deleted INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
         """
     )
 
@@ -1165,6 +1169,9 @@ def _row_to_patient(row: sqlite3.Row) -> Dict[str, Any]:
     elif "city" in row.keys():
         address_value = row["city"]
     dob_value = row["dob"] if "dob" in row.keys() else None
+    emergency_contact_value = _normalize_emergency_contact(
+        row["emergency_contact"] if "emergency_contact" in row.keys() else None
+    )
     return {
         "id": row["id"],
         "first_name": (row["first_name"] or "").strip(),
@@ -1175,6 +1182,7 @@ def _row_to_patient(row: sqlite3.Row) -> Dict[str, Any]:
         "dob": _date_only(dob_value),
         "drive_folder_id": row["drive_folder_id"] if "drive_folder_id" in row.keys() else None,
         "photo_count": row["photo_count"] if "photo_count" in row.keys() else 0,
+        "emergency_contact": emergency_contact_value,
         "deleted": bool(row["deleted"]),
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
@@ -1737,7 +1745,7 @@ def record_activity_event(event: Dict[str, Any], limit: int = 10) -> None:
                 actor,
                 created_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 event.get("id"),
@@ -1806,6 +1814,32 @@ def list_activity_events(limit: int = 10) -> List[Dict[str, Any]]:
     return events
 
 
+def _normalize_emergency_contact(value: Any) -> Optional[Dict[str, str]]:
+    """Normalize incoming emergency contact payloads."""
+    if value is None:
+        return None
+    raw = value
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except json.JSONDecodeError:
+            return None
+    elif hasattr(raw, "model_dump"):
+        raw = raw.model_dump()
+    if not isinstance(raw, dict):
+        return None
+    name_value = (raw.get("name") or raw.get("full_name") or "").strip()
+    number_value = (raw.get("number") or raw.get("phone") or "").strip()
+    if not name_value and not number_value:
+        return None
+    normalized: Dict[str, str] = {}
+    if name_value:
+        normalized["name"] = name_value
+    if number_value:
+        normalized["number"] = number_value
+    return normalized
+
+
 def _serialize_patient_payload(data: Dict[str, Any]) -> Dict[str, Any]:
     """Serialize patient data (personal info only)."""
     normalized_first = (data.get("first_name") or "").strip()
@@ -1820,7 +1854,8 @@ def _serialize_patient_payload(data: Dict[str, Any]) -> Dict[str, Any]:
         normalized_photo_count = max(0, int(photo_count_value))
     except (TypeError, ValueError):
         normalized_photo_count = 0
-    
+    normalized_emergency_contact = _normalize_emergency_contact(data.get("emergency_contact"))
+
     return {
         "first_name": normalized_first,
         "last_name": normalized_last,
@@ -1830,6 +1865,7 @@ def _serialize_patient_payload(data: Dict[str, Any]) -> Dict[str, Any]:
         "dob": normalized_dob,
         "drive_folder_id": data.get("drive_folder_id"),
         "photo_count": normalized_photo_count,
+        "emergency_contact": json.dumps(normalized_emergency_contact) if normalized_emergency_contact else None,
     }
 
 
@@ -1923,9 +1959,9 @@ def create_patient(data: Dict[str, Any]) -> Dict[str, Any]:
             """
             INSERT INTO patients (
                 first_name, last_name, email, phone, address, dob,
-                drive_folder_id, photo_count
+                drive_folder_id, photo_count, emergency_contact
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 payload["first_name"],
@@ -1936,6 +1972,7 @@ def create_patient(data: Dict[str, Any]) -> Dict[str, Any]:
                 payload["dob"],
                 payload["drive_folder_id"],
                 payload["photo_count"],
+                payload["emergency_contact"],
             ),
         )
         conn.commit()
@@ -1963,6 +2000,7 @@ def update_patient(patient_id: int, data: Dict[str, Any]) -> Optional[Dict[str, 
                 dob = ?,
                 drive_folder_id = ?,
                 photo_count = ?,
+                emergency_contact = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
             """,
@@ -1975,6 +2013,7 @@ def update_patient(patient_id: int, data: Dict[str, Any]) -> Optional[Dict[str, 
                 payload["dob"],
                 payload["drive_folder_id"],
                 payload["photo_count"],
+                payload["emergency_contact"],
                 patient_id,
             ),
         )
@@ -2031,9 +2070,19 @@ def merge_patients(
         "dob": target.get("dob"),
         "drive_folder_id": target.get("drive_folder_id"),
         "photo_count": target.get("photo_count", 0),
+        "emergency_contact": target.get("emergency_contact"),
     }
     if updates:
-        for field in ("first_name", "last_name", "email", "phone", "address", "dob", "drive_folder_id"):
+        for field in (
+            "first_name",
+            "last_name",
+            "email",
+            "phone",
+            "address",
+            "dob",
+            "drive_folder_id",
+            "emergency_contact",
+        ):
             if updates.get(field) is not None:
                 merged_values[field] = updates[field]
 
