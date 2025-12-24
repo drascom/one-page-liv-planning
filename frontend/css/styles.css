@@ -2213,6 +2213,114 @@ body.app-shell {
   color: #0f172a;
 }
 
+.procedures-card:not(.is-editing) .procedure-form {
+  display: none;
+}
+
+.procedures-card.is-editing .procedure-summary {
+  display: none;
+}
+
+.procedures-card:not(.is-editing) .procedure-notes-editor,
+.procedures-card:not(.is-editing) .procedure-notes-hint--edit {
+  display: none;
+}
+
+.procedures-card.is-editing .procedure-notes-hint--view {
+  display: none;
+}
+
+.procedure-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.procedure-summary .detail-list--two-column {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem 1.5rem;
+  margin: 0;
+}
+
+.procedure-summary .detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.procedure-summary .detail-row dt {
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.procedure-summary .detail-row dd {
+  margin: 0;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.procedure-summary .status-lists {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.procedure-summary .status-card h4 {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  font-size: 1rem;
+  color: #374151;
+}
+
+.procedure-summary .status-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.procedure-summary .status-empty {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.procedure-summary .status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  background: rgba(15, 118, 110, 0.06);
+  font-size: 0.95rem;
+}
+
+.procedure-summary .status-row--pending {
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.procedure-summary .status-key {
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.procedure-summary .status-value {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #0f766e;
+}
+
+.procedure-summary .status-row--pending .status-value {
+  color: #b45309;
+}
+
 .patient-summary__actions {
   display: flex;
   justify-content: flex-end;
@@ -2449,6 +2557,24 @@ body.app-shell {
   min-height: 520px;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
+}
+
+.n8n-import-iframe.is-hidden {
+  display: none;
+}
+
+.n8n-import-status {
+  border: 1px dashed #cbd5f5;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.9rem;
+  padding: 0.85rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.n8n-import-status.is-hidden {
+  display: none;
 }
 
 /* Make all buttons in the reset workspace panel red */

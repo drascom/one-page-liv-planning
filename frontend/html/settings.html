@@ -315,8 +315,13 @@
                   </div>
                 </div>
                 <div class="settings-workspace-card__body">
-                  <iframe src="https://n8n.drascom.uk/webhook/start-import/n8n-form" title="n8n Import Form"
-                    class="n8n-import-iframe"></iframe>
+                  <div class="n8n-import-embed">
+                    <div class="n8n-import-status" id="n8n-import-frame-status" role="status" aria-live="polite">
+                      Loading the n8n import form...
+                    </div>
+                    <iframe id="n8n-import-iframe" src="https://n8n.drascom.uk/webhook/start-import/n8n-form"
+                      title="n8n Import Form" class="n8n-import-iframe" loading="lazy"></iframe>
+                  </div>
                   <p class="upload-hint" style="margin-top: 0.5rem;">
                     If the form does not load, open it directly:
                     <a href="https://n8n.drascom.uk/webhook/start-import/n8n-form" target="_blank" rel="noreferrer">

@@ -395,6 +395,44 @@ function showPatientFormView() {
   }
 }
 
+function showProcedureSummaryView() {
+  if (!procedureSummaryContainer || !procedureFormEl) return;
+  procedureSummaryContainer.hidden = false;
+  procedureSummaryContainer.removeAttribute("aria-hidden");
+  procedureFormEl.hidden = true;
+  procedureFormEl.setAttribute("aria-hidden", "true");
+  if (proceduresCard) {
+    proceduresCard.classList.remove("is-editing");
+  }
+  if (editProcedureBtn) {
+    editProcedureBtn.hidden = false;
+  }
+  if (cancelProcedureEditBtn) {
+    cancelProcedureEditBtn.hidden = true;
+  }
+  refreshProcedureEditButtonState();
+}
+
+function showProcedureFormView() {
+  if (!procedureSummaryContainer || !procedureFormEl) return;
+  procedureSummaryContainer.hidden = true;
+  procedureSummaryContainer.setAttribute("aria-hidden", "true");
+  procedureFormEl.hidden = false;
+  procedureFormEl.removeAttribute("aria-hidden");
+  if (proceduresCard) {
+    proceduresCard.classList.add("is-editing");
+  }
+  if (editProcedureBtn) {
+    editProcedureBtn.hidden = true;
+  }
+  if (cancelProcedureEditBtn) {
+    cancelProcedureEditBtn.hidden = false;
+  }
+  if (procedureDateInput) {
+    procedureDateInput.focus();
+  }
+}
+
 function updatePatientDisplay(record) {
   if (!isReadOnlyPatientPage) return;
   const data = record || {};
@@ -459,7 +497,7 @@ function updateProcedureDisplay(procedure) {
 }
 
 function renderChecklistStatusList(container, fieldKey, values = []) {
-  if (!isReadOnlyPatientPage || !container) return;
+  if (!container) return;
   const normalized = Array.isArray(values) ? values : values ? [values] : [];
   const selected = new Set(normalized.filter(Boolean));
   const options = getFieldOptions(fieldKey);
@@ -496,6 +534,10 @@ const procedureFormEl = document.getElementById("procedure-form");
 const formStatusEl = document.getElementById("form-status");
 const patientStatusEl = document.getElementById("patient-status");
 const procedureFormStatusEl = document.getElementById("procedure-form-status");
+const proceduresCard = document.querySelector(".procedures-card");
+const procedureSummaryContainer = document.getElementById("procedure-summary");
+const editProcedureBtn = document.getElementById("procedure-edit-btn");
+const cancelProcedureEditBtn = document.getElementById("procedure-cancel-edit-btn");
 const settingsLink = document.querySelector("[data-admin-link]");
 const adminCustomerLinks = document.querySelectorAll("[data-admin-customers]");
 const deletePatientBtn = document.getElementById("delete-patient-btn");
@@ -2111,6 +2153,10 @@ if (!isReadOnlyPatientPage && patientSummaryContainer && formEl) {
   showPatientSummaryView();
 }
 
+if (!isReadOnlyPatientPage && procedureSummaryContainer && procedureFormEl) {
+  showProcedureSummaryView();
+}
+
 if (!isReadOnlyPatientPage && editPatientBtn && patientSummaryContainer && formEl) {
   editPatientBtn.addEventListener("click", () => {
     showPatientFormView();
@@ -2121,6 +2167,19 @@ if (!isReadOnlyPatientPage && cancelEditPatientBtn && patientSummaryContainer &&
   cancelEditPatientBtn.addEventListener("click", () => {
     populatePatientForm(currentPatient || {});
     showPatientSummaryView();
+  });
+}
+
+if (!isReadOnlyPatientPage && editProcedureBtn && procedureSummaryContainer && procedureFormEl) {
+  editProcedureBtn.addEventListener("click", () => {
+    showProcedureFormView();
+  });
+}
+
+if (!isReadOnlyPatientPage && cancelProcedureEditBtn && procedureSummaryContainer && procedureFormEl) {
+  cancelProcedureEditBtn.addEventListener("click", () => {
+    populateProcedureForm(activeProcedure);
+    showProcedureSummaryView();
   });
 }
 
@@ -2203,6 +2262,13 @@ function refreshDeletePatientButtonState() {
   deletePatientBtn.disabled = shouldHide || !currentPatient;
 }
 
+function refreshProcedureEditButtonState() {
+  if (!editProcedureBtn) {
+    return;
+  }
+  editProcedureBtn.disabled = !activeProcedure;
+}
+
 function refreshDeleteProcedureButtonState() {
   if (!cancelProcedureBtn) {
     return;
@@ -2225,6 +2291,7 @@ function refreshDeleteButtonState() {
   refreshDeletePatientButtonState();
   refreshDeleteProcedureButtonState();
   refreshAddProcedureButtonState();
+  refreshProcedureEditButtonState();
 }
 
 function handleProcedureDateInputChange() {
@@ -2363,6 +2430,7 @@ if (addProcedureBtn && !isReadOnlyPatientPage) {
       return;
     }
     startNewProcedure();
+    showProcedureFormView();
   });
 }
 if (addNoteBtn && !isReadOnlyPatientPage) {

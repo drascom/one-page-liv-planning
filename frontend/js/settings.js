@@ -44,6 +44,8 @@ const n8nImportForm = document.getElementById("n8n-import-form");
 const n8nImportDate = document.getElementById("n8n-import-date");
 const n8nImportBtn = document.getElementById("n8n-import-btn");
 const n8nImportStatus = document.getElementById("n8n-import-status");
+const n8nImportIframe = document.getElementById("n8n-import-iframe");
+const n8nImportFrameStatus = document.getElementById("n8n-import-frame-status");
 const settingsMenu = document.querySelector(".settings-menu");
 const runIntegrityCheckBtn = document.getElementById("run-integrity-check-btn");
 const dataIntegrityStatus = document.getElementById("data-integrity-status");
@@ -1866,6 +1868,35 @@ if (n8nImportForm) {
   n8nImportForm.addEventListener("submit", handleN8nImport);
 }
 
+function initializeN8nImportFrame() {
+  if (!n8nImportIframe || !n8nImportFrameStatus) {
+    return;
+  }
+  let settled = false;
+  const settle = (isAvailable) => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(timeoutId);
+    if (isAvailable) {
+      n8nImportFrameStatus.classList.add("is-hidden");
+      n8nImportIframe.classList.remove("is-hidden");
+      return;
+    }
+    n8nImportIframe.classList.add("is-hidden");
+    n8nImportFrameStatus.textContent =
+      "n8n import form is unavailable right now. Use the link below to open it in a new tab.";
+    n8nImportFrameStatus.classList.remove("is-hidden");
+  };
+
+  n8nImportIframe.classList.add("is-hidden");
+  n8nImportFrameStatus.textContent = "Loading the n8n import form...";
+  n8nImportFrameStatus.classList.remove("is-hidden");
+
+  const timeoutId = window.setTimeout(() => settle(false), 6000);
+  n8nImportIframe.addEventListener("load", () => settle(true));
+  n8nImportIframe.addEventListener("error", () => settle(false));
+}
+
 async function initializeSettingsPage() {
   currentUser = await requireAdminUser({ redirectTo: "/" });
   if (!currentUser) {
@@ -1890,6 +1921,7 @@ async function initializeSettingsPage() {
   fetchTokens();
   checkGoogleAuthStatus();
   loadEnvFile({ silent: true });
+  initializeN8nImportFrame();
 }
 
 initializeSettingsPage();

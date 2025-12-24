@@ -209,6 +209,9 @@
                 <h2>Procedures</h2>
               </div>
               <div class="card-actions">
+                <button type="button" class="btn btn-secondary secondary-btn" id="procedure-edit-btn">
+                  Edit procedure
+                </button>
                 <button type="button" class="btn btn-add secondary-btn" id="add-procedure-btn" hidden>Add</button>
                 <button type="button" class="btn btn-danger danger-btn" id="cancel-procedure-btn" hidden>Delete
                   Procedure</button>
@@ -218,8 +221,93 @@
             <div id="patient-bookings-list" class="tab-menu patient-bookings-sidebar" role="tablist"
               aria-label="Procedures list"></div>
 
-            <form id="procedure-form" class="procedure-form">
+            <div class="procedure-summary" id="procedure-summary">
+              <section class="procedure-details">
+                <h3>Surgery Details</h3>
+                <div class="procedure-display" id="procedure-display">
+                  <dl class="detail-list detail-list--compact detail-list--two-column">
+                    <div class="detail-row">
+                      <dt>Date</dt>
+                      <dd data-procedure-display="procedure_date">—</dd>
+                    </div>
+                    <div class="detail-row">
+                      <dt>Time</dt>
+                      <dd data-procedure-display="procedure_time">—</dd>
+                    </div>
+                    <div class="detail-row">
+                      <dt>Status</dt>
+                      <dd data-procedure-display="status">—</dd>
+                    </div>
+                    <div class="detail-row">
+                      <dt>Procedure Type</dt>
+                      <dd data-procedure-display="procedure_type">—</dd>
+                    </div>
+                    <div class="detail-row">
+                      <dt>Package</dt>
+                      <dd data-procedure-display="package_type">—</dd>
+                    </div>
+                    <div class="detail-row">
+                      <dt>Grafts</dt>
+                      <dd data-procedure-display="grafts">—</dd>
+                    </div>
+                    <div class="detail-row">
+                      <dt>Payment</dt>
+                      <dd data-procedure-display="payment">—</dd>
+                    </div>
+                    <div class="detail-row">
+                      <dt>Outstanding Balance</dt>
+                      <dd data-procedure-display="outstanding_balance">—</dd>
+                    </div>
+                    <div class="detail-row">
+                      <dt>Agency</dt>
+                      <dd data-procedure-display="agency">—</dd>
+                    </div>
+                    <div class="detail-row" data-admin-only hidden>
+                      <dt>Source</dt>
+                      <dd data-procedure-display="source">—</dd>
+                    </div>
+                  </dl>
+                </div>
+              </section>
+
+              <section class="forms-consents">
+                <h3>Forms &amp; Consents</h3>
+                <div class="status-lists">
+                  <div class="status-card">
+                    <h4>Forms</h4>
+                    <div id="forms-status-list" class="status-list" aria-live="polite"></div>
+                  </div>
+                  <div class="status-card">
+                    <h4>Consents</h4>
+                    <div id="consents-status-list" class="status-list" aria-live="polite"></div>
+                  </div>
+                  <div class="status-card">
+                    <h4>Consultations</h4>
+                    <div id="consultations-status-list" class="status-list" aria-live="polite"></div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="preop-section">
+                <h3>Pre-op Checklist</h3>
+                <div class="preop-display">
+                  <div class="preop-item">
+                    <p class="preop-question">Q: Is the patient having a session of PRP on the day of surgery?</p>
+                    <p class="preop-answer" data-procedure-display="preop_prp_session">—</p>
+                  </div>
+                  <div class="preop-item">
+                    <p class="preop-question">Q: Are there any medications or conditions the team should be aware of?</p>
+                    <p class="preop-answer" data-procedure-display="preop_medical_alerts">—</p>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <form id="procedure-form" class="procedure-form" hidden aria-hidden="true">
               <div class="card-actions procedures-card__actions procedures-card__actions--top">
+                <button type="button" class="btn btn-secondary secondary-btn" id="procedure-cancel-edit-btn">
+                  Cancel
+                </button>
                 <button type="submit" class="btn btn-success primary-btn">Save Procedure</button>
               </div>
 
@@ -276,15 +364,16 @@
               <section class="forms-consents">
                 <h3>Forms &amp; Consents</h3>
                 <div class="form-layout">
-                   <div class="form-group">
+                  <div class="form-group">
                     <label>Consents</label>
                     <div id="consents-checklist" class="checklist form-checklist" role="group"
                       aria-label="Consents checklist"></div>
                     <select id="consents" name="consents" multiple hidden></select>
                     <h4>Consultations</h4>
-                    <div id="consultations-checklist" class="checklist form-checklist" role="group" aria-label="Consultations checklist"></div>
+                    <div id="consultations-checklist" class="checklist form-checklist" role="group"
+                      aria-label="Consultations checklist"></div>
                     <select id="consultation" name="consultation" multiple hidden></select>
-                  </div> 
+                  </div>
                   <div class="form-group">
                     <label>Forms</label>
                     <div id="forms-checklist" class="checklist form-checklist" role="group" aria-label="Forms checklist">
@@ -293,7 +382,6 @@
                   </div>
                 </div>
               </section>
-            
 
               <section class="preop-section">
                 <h3>Pre-op Checklist</h3>
@@ -321,25 +409,26 @@
                 </div>
               </section>
 
-              <section class="notes-section">
-                <h3>Procedure Notes</h3>
-                <div class="notes-body">
-                  <div class="form-group">
-                    <label for="procedure-note-input">Add Note</label>
-                    <div class="input-with-button">
-                      <input id="procedure-note-input" name="procedureNoteInput" type="text"
-                        placeholder="Write a note and press Enter" class="text-input" />
-                    </div>
-                  </div>
-                  <ul id="procedure-notes-list" class="todo-list"></ul>
-                  <p class="form-hint">Only your own notes can be deleted.</p>
-                </div>
-              </section>
-
               <div class="card-actions procedures-card__actions">
                 <button type="submit" class="btn btn-success primary-btn">Save Procedure</button>
               </div>
             </form>
+
+            <section class="notes-section procedure-notes-section">
+              <h3>Procedure Notes</h3>
+              <div class="notes-body">
+                <div class="form-group procedure-notes-editor">
+                  <label for="procedure-note-input">Add Note</label>
+                  <div class="input-with-button">
+                    <input id="procedure-note-input" name="procedureNoteInput" type="text"
+                      placeholder="Write a note and press Enter" class="text-input" />
+                  </div>
+                </div>
+                <ul id="procedure-notes-list" class="todo-list"></ul>
+                <p class="form-hint procedure-notes-hint procedure-notes-hint--edit">Only your own notes can be deleted.</p>
+                <p class="form-hint procedure-notes-hint procedure-notes-hint--view">Notes are read-only in view mode.</p>
+              </div>
+            </section>
           </section>
         </div>
       </section>
